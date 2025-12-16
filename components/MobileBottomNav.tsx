@@ -4,10 +4,25 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
-import { MessageSquare, Users, Target, CheckSquare, BarChart3, Menu, Settings, HelpCircle, Shield } from "lucide-react"
+import {
+  Bell,
+  MessageSquare,
+  Target,
+  BarChart3,
+  Menu,
+  Settings,
+  HelpCircle,
+  Users,
+  CheckSquare,
+  Moon,
+  Sun,
+  Globe,
+} from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
+import { useTheme } from "next-themes"
+import { useLanguage } from "@/lib/language-context"
 
 interface MobileBottomNavProps {
   className?: string
@@ -16,10 +31,11 @@ interface MobileBottomNavProps {
 export function MobileBottomNav({ className }: MobileBottomNavProps) {
   const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { theme, setTheme } = useTheme()
+  const { language, setLanguage } = useLanguage()
 
-  // Mock counters - in real app these would come from store/context
-  const unreadChats = 3
-  const pendingTasks = 5
+  // Mock counters
+  const unreadNotifications = 2
 
   const mainNavItems = [
     {
@@ -29,43 +45,37 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
       isActive: pathname === "/",
     },
     {
-      href: "/chats",
-      icon: MessageSquare,
-      label: "Chats",
-      isActive: pathname === "/chats",
-      badge: unreadChats > 0 ? unreadChats : undefined,
-    },
-    {
-      href: "/contactos",
-      icon: Users,
-      label: "Contactos",
-      isActive: pathname === "/contactos",
-    },
-    {
       href: "/oportunidades",
       icon: Target,
       label: "Pipeline",
       isActive: pathname === "/oportunidades",
     },
     {
-      href: "/tareas",
-      icon: CheckSquare,
-      label: "Tareas",
-      isActive: pathname === "/tareas",
-      badge: pendingTasks > 0 ? pendingTasks : undefined,
+      href: "/chats",
+      icon: MessageSquare,
+      label: "Chats",
+      isActive: pathname === "/chats",
+    },
+    {
+      href: "#",
+      icon: Bell,
+      label: "Notificaciones",
+      isActive: false,
+      badge: unreadNotifications > 0 ? unreadNotifications : undefined,
+      onClick: () => console.log("Notificaciones clicked"),
     },
   ]
 
   const menuItems = [
     {
-      href: "/metricas",
-      icon: BarChart3,
-      label: "Métricas",
+      href: "/contactos",
+      icon: Users,
+      label: "Contactos",
     },
     {
-      href: "/admin",
-      icon: Shield,
-      label: "Admin",
+      href: "/tareas",
+      icon: CheckSquare,
+      label: "Tareas",
     },
     {
       href: "/configuracion",
@@ -76,12 +86,20 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
       href: "#",
       icon: HelpCircle,
       label: "Ayuda",
-      onClick: () => {
-        // Dummy action
-        console.log("Ayuda clicked")
-      },
+      onClick: () => console.log("Ayuda clicked"),
     },
   ]
+
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark")
+  }
+
+  const toggleLanguage = () => {
+    const languages = ["es", "en", "pt"] as const
+    const currentIndex = languages.indexOf(language)
+    const nextIndex = (currentIndex + 1) % languages.length
+    setLanguage(languages[nextIndex])
+  }
 
   return (
     <div
@@ -93,7 +111,17 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
     >
       <div className="flex items-center justify-around px-2 py-2">
         {mainNavItems.map((item) => (
-          <Link key={item.href} href={item.href} className="flex-1">
+          <Link
+            key={item.href}
+            href={item.href}
+            className="flex-1"
+            onClick={(e) => {
+              if (item.onClick) {
+                e.preventDefault()
+                item.onClick()
+              }
+            }}
+          >
             <Button
               variant="ghost"
               size="sm"
@@ -130,7 +158,8 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
           <SheetContent side="bottom" className="h-auto">
             <div className="py-4">
               <h3 className="text-lg font-semibold mb-4">Menú</h3>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                {/* Menu items */}
                 {menuItems.map((item) => (
                   <Link
                     key={item.href}
@@ -148,6 +177,24 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                     </Button>
                   </Link>
                 ))}
+
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-12 bg-transparent"
+                  onClick={toggleTheme}
+                >
+                  {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  {theme === "dark" ? "Modo claro" : "Modo oscuro"}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-12 bg-transparent"
+                  onClick={toggleLanguage}
+                >
+                  <Globe className="w-5 h-5" />
+                  Idioma: {language.toUpperCase()}
+                </Button>
               </div>
             </div>
           </SheetContent>

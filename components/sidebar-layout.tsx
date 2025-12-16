@@ -25,6 +25,19 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
     pathname !== "/administracion" &&
     pathname !== "/configuracion"
 
+  const shouldHidePage = isMobile && pathname === "/administracion"
+
+  if (shouldHidePage) {
+    return (
+      <div className="flex h-screen items-center justify-center p-4 text-center">
+        <div>
+          <h2 className="text-xl font-semibold mb-2">Administración no disponible en móvil</h2>
+          <p className="text-sm text-muted-foreground">Esta sección está disponible solo en desktop</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {!isMobile && (

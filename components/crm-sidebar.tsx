@@ -98,6 +98,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
       href: "/administracion",
       emoji: "💼",
       label: t("administration"),
+      desktopOnly: true,
     },
     {
       href: "/configuracion",

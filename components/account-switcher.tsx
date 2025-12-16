@@ -37,7 +37,7 @@ export function AccountSwitcher() {
           <ChevronDown className="h-4 w-4 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
+      <DropdownMenuContent align="start" className="w-56 z-[100]" sideOffset={5} modal={true}>
         <DropdownMenuLabel>Cambiar cuenta</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {mockAccounts.map((account) => (
