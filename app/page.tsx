@@ -20,19 +20,13 @@ import {
 export default function Dashboard() {
   return (
     <SidebarLayout>
-      {/* Header with Demo/Live toggle */}
-      <header className="border-b border-border bg-card">
-        <div className="flex items-center justify-between p-6">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Dashboard V1.3</h1>
-            <p className="text-muted-foreground">Funnel realista con modo Demo y Live</p>
-          </div>
-          <DemoLiveToggle />
-        </div>
-      </header>
-
       {/* Dashboard Content */}
       <div className="p-6 space-y-6">
+        {/* Demo/Live toggle moved to top of content */}
+        <div className="flex justify-end">
+          <DemoLiveToggle />
+        </div>
+
         {/* Quick Actions */}
         <QuickActions />
 

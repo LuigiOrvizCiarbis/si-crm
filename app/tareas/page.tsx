@@ -2,17 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { SidebarLayout } from "@/components/sidebar-layout"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, Plus, List, LayoutGrid, GanttChart, CalendarIcon, Filter } from "lucide-react"
+import { List, LayoutGrid, GanttChart, CalendarIcon } from "lucide-react"
 import { TaskListView } from "@/components/tasks/TaskListView"
 import { TaskKanbanView } from "@/components/tasks/TaskKanbanView"
 import { TaskGanttView } from "@/components/tasks/TaskGanttView"
 import { TaskCalendarView } from "@/components/tasks/TaskCalendarView"
 import { NewTaskModal } from "@/components/tasks/NewTaskModal"
-import { NotificationsBell } from "@/components/notifications-bell" // Fixed import path to use lowercase
 import {
   allTasks,
   getOverdueTasks,
@@ -97,60 +94,24 @@ export default function TareasPage() {
 
   return (
     <SidebarLayout>
-      {/* Header */}
-      <header className="border-b border-border bg-card sticky top-0 z-10">
-        {/* NIVEL 1: Title and subtitle on left */}
-        <div className="flex items-start justify-between px-6 py-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Tareas</h1>
-            <p className="text-sm text-muted-foreground mt-1">Organiza el seguimiento del equipo</p>
-          </div>
-          {/* NIVEL 2: CTA + Bell together on right */}
-          <div className="flex items-center gap-2">
-            <Button className="gap-2" onClick={() => setShowNewTask(true)}>
-              <Plus className="w-4 h-4" />
-              Nueva tarea
-            </Button>
-            <NotificationsBell />
-          </div>
-        </div>
-
-        {/* NIVEL 3: Search bar and filters in separate sticky row */}
-        <div className="flex items-center gap-4 px-6 pb-4 bg-card">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar tareas..."
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <Button variant="outline" className="gap-2 bg-transparent">
-            <Filter className="w-4 h-4" />
-            Filtros
-          </Button>
-        </div>
-
-        {/* Metrics badges below header in content area */}
-        <div className="flex gap-2 px-6 pb-3 bg-card border-t border-border/50">
-          <Badge variant="outline" className="text-xs gap-1 bg-red-500/10 text-red-400 border-red-500/30">
-            <span className="font-bold">{overdueTasks.length}</span> Vencidas
-          </Badge>
-          <Badge variant="outline" className="text-xs gap-1 bg-orange-500/10 text-orange-400 border-orange-500/30">
-            <span className="font-bold">{todayTasks.length}</span> Para hoy
-          </Badge>
-          <Badge variant="outline" className="text-xs gap-1 bg-blue-500/10 text-blue-400 border-blue-500/30">
-            <span className="font-bold">{weekTasks.length}</span> Esta semana
-          </Badge>
-          <Badge variant="outline" className="text-xs gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-            <span className="font-bold">{completedLast7Days.length}</span> Hechas (últimos 7 días)
-          </Badge>
-          <Badge variant="outline" className="text-xs gap-1 bg-purple-500/10 text-purple-400 border-purple-500/30">
-            <span className="font-bold">{onTimePercentage}%</span> A tiempo
-          </Badge>
-        </div>
-      </header>
+      {/* Metrics badges - moved to top of content */}
+      <div className="flex gap-2 px-6 py-3 border-b border-border/50 bg-card">
+        <Badge variant="outline" className="text-xs gap-1 bg-red-500/10 text-red-400 border-red-500/30">
+          <span className="font-bold">{overdueTasks.length}</span> Vencidas
+        </Badge>
+        <Badge variant="outline" className="text-xs gap-1 bg-orange-500/10 text-orange-400 border-orange-500/30">
+          <span className="font-bold">{todayTasks.length}</span> Para hoy
+        </Badge>
+        <Badge variant="outline" className="text-xs gap-1 bg-blue-500/10 text-blue-400 border-blue-500/30">
+          <span className="font-bold">{weekTasks.length}</span> Esta semana
+        </Badge>
+        <Badge variant="outline" className="text-xs gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+          <span className="font-bold">{completedLast7Days.length}</span> Hechas (últimos 7 días)
+        </Badge>
+        <Badge variant="outline" className="text-xs gap-1 bg-purple-500/10 text-purple-400 border-purple-500/30">
+          <span className="font-bold">{onTimePercentage}%</span> A tiempo
+        </Badge>
+      </div>
 
       {/* Content */}
       <div className="p-4 space-y-4 bg-background">

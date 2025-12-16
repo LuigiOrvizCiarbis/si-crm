@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState } from "react"
 import { CrmSidebar } from "./crm-sidebar"
-import { NotificationsBell } from "./notifications-bell"
+import { GlobalHeader } from "./global-header"
 import { useIsMobile } from "@/hooks/use-mobile"
 
 interface SidebarLayoutProps {
@@ -37,8 +37,8 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 bg-muted/30">
-        {!isMobile && (
-        )}
+        <GlobalHeader />
+
         <main className="flex-1 overflow-auto bg-background min-h-[100svh] pb-[max(env(safe-area-inset-bottom),64px)] md:pb-0">
           {children}
         </main>
