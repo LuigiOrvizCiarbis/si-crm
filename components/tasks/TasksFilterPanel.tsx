@@ -66,8 +66,11 @@ export function TasksFilterPanel({
   const [localFilters, setLocalFilters] = useState<TaskFilters>(filters)
 
   useState(() => {
-    setLocalFilters(filters)
-  }, [filters])
+    if (open) {
+      console.log("[v0] Filters panel opened with filters:", filters)
+      setLocalFilters(filters)
+    }
+  })
 
   const handleApply = () => {
     onFiltersChange(localFilters)
@@ -240,7 +243,7 @@ export function TasksFilterPanel({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       {trigger}
-      <PopoverContent className="w-[360px] p-0" align="end">
+      <PopoverContent className="w-[360px] p-0" align="end" sideOffset={8}>
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between">
             <div>

@@ -174,6 +174,11 @@ export default function TareasPage() {
     return totalTasks > 0 ? ((onTimeTasks / totalTasks) * 100).toFixed(0) : "0"
   })()
 
+  const handleFilterToggle = () => {
+    console.log("[v0] Filter toggle called, current state:", showFilters)
+    setShowFilters(!showFilters)
+  }
+
   return (
     <SidebarLayout>
       <TasksCompactHeader
@@ -181,7 +186,7 @@ export default function TareasPage() {
         onViewChange={setActiveView}
         onSearch={setSearchQuery}
         onNewTask={() => setShowNewTask(true)}
-        onFilterClick={() => setShowFilters(!showFilters)}
+        onFilterClick={handleFilterToggle}
       />
 
       <div className="flex gap-2 px-6 py-3 border-b border-border/50 bg-card">
