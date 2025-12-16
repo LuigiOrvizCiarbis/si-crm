@@ -21,11 +21,6 @@ export function TasksCompactHeader({
   onNewTask,
   onFilterClick,
 }: TasksCompactHeaderProps) {
-  const handleFilterClick = () => {
-    console.log("[v0] Filters button clicked!")
-    onFilterClick?.()
-  }
-
   return (
     <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
       <div className="h-[80px] px-4 md:px-6 flex items-center gap-3">
@@ -66,13 +61,7 @@ export function TasksCompactHeader({
         {/* Right: Filters + CTA + Notifications */}
         <div className="flex items-center gap-2 ml-auto shrink-0">
           {/* Filters button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleFilterClick}
-            className="gap-2 bg-transparent"
-            type="button"
-          >
+          <Button variant="outline" size="sm" onClick={onFilterClick} className="gap-2 bg-transparent" type="button">
             <Filter className="w-4 h-4" />
             <span className="hidden md:inline">Filtros</span>
           </Button>

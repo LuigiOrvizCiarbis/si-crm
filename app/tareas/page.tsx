@@ -9,10 +9,14 @@ import { TaskKanbanView } from "@/components/tasks/TaskKanbanView"
 import { TaskGanttView } from "@/components/tasks/TaskGanttView"
 import { TaskCalendarView } from "@/components/tasks/TaskCalendarView"
 import { NewTaskModal } from "@/components/tasks/NewTaskModal"
-import { TasksFilterPanel, type TaskFilters } from "@/components/tasks/TasksFilterPanel"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import { useTaskStore } from "@/store/useTaskStore"
 import type { Task } from "@/lib/types/task"
 import { useIsMobile } from "@/hooks/use-mobile"
+import type { TaskFilters } from "@/lib/types/task-filters"
 
 export default function TareasPage() {
   const tasks = useTaskStore((state) => state.tasks)
@@ -217,13 +221,131 @@ export default function TareasPage() {
       {/* New Task Modal */}
       <NewTaskModal open={showNewTask} onOpenChange={setShowNewTask} onCreateTask={handleCreateTask} />
 
-      <TasksFilterPanel
-        open={showFilters}
-        onOpenChange={setShowFilters}
-        filters={filters}
-        onFiltersChange={setFilters}
-        isMobile={isMobile}
-      />
+      {/* Simple Sheet for Filters */}
+      <Sheet open={showFilters} onOpenChange={setShowFilters}>
+        <SheetContent side="right" className="w-[400px] sm:w-[540px]">
+          <SheetHeader>
+            <SheetTitle>Filtros</SheetTitle>
+            <SheetDescription>Filtra tus tareas por estado, responsable, tipo y deadline</SheetDescription>
+          </SheetHeader>
+
+          <div className="py-6 space-y-6">
+            {/* Estado */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Estado</Label>
+              <div className="space-y-2">
+                {["pendiente", "en-proceso", "bloqueado", "hecho", "cancelado"].map((status) => (
+                  <div key={status} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`status-${status}`}
+                      checked={filters.status.includes(status)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setFilters({ ...filters, status: [...filters.status, status] })
+                        } else {
+                          setFilters({ ...filters, status: filters.status.filter((s) => s !== status) })
+                        }
+                      }}
+                    />
+                    <label htmlFor={`status-${status}`} className="text-sm cursor-pointer capitalize">
+                      {status}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Responsable */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Responsable</Label>
+              <div className="space-y-2">
+                {["Ana Gómez", "Carlos Ruiz", "María López", "Juan Pérez", "Laura Torres"].map((assignee) => (
+                  <div key={assignee} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`assignee-${assignee}`}
+                      checked={filters.assignees.includes(assignee)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setFilters({ ...filters, assignees: [...filters.assignees, assignee] })
+                        } else {
+                          setFilters({ ...filters, assignees: filters.assignees.filter((a) => a !== assignee) })
+                        }
+                      }}
+                    />
+                    <label htmlFor={`assignee-${assignee}`} className="text-sm cursor-pointer">
+                      {assignee}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Tipo */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Tipo</Label>
+              <div className="space-y-2">
+                {["llamada", "email", "reunion", "seguimiento", "otro"].map((type) => (
+                  <div key={type} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`type-${type}`}
+                      checked={filters.types.includes(type)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setFilters({ ...filters, types: [...filters.types, type] })
+                        } else {
+                          setFilters({ ...filters, types: filters.types.filter((t) => t !== type) })
+                        }
+                      }}
+                    />
+                    <label htmlFor={`type-${type}`} className="text-sm cursor-pointer capitalize">
+                      {type}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Deadline */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Deadline</Label>
+              <div className="space-y-2">
+                {[
+                  { value: "overdue", label: "Vencidas" },
+                  { value: "today", label: "Hoy" },
+                  { value: "this-week", label: "Esta semana" },
+                  { value: "next-7-days", label: "Próximos 7 días" },
+                  { value: "no-date", label: "Sin fecha" },
+                ].map((deadline) => (
+                  <div key={deadline.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`deadline-${deadline.value}`}
+                      checked={filters.deadline === deadline.value}
+                      onCheckedChange={(checked) => {
+                        setFilters({ ...filters, deadline: checked ? deadline.value : null })
+                      }}
+                    />
+                    <label htmlFor={`deadline-${deadline.value}`} className="text-sm cursor-pointer">
+                      {deadline.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <SheetFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setFilters({ status: [], assignees: [], types: [], deadline: null })
+              }}
+            >
+              Limpiar
+            </Button>
+            <Button onClick={() => setShowFilters(false)}>Aplicar</Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </SidebarLayout>
   )
 }
