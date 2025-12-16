@@ -14,6 +14,7 @@ import { ContactInfoPanel } from "@/components/ContactInfoPanel"
 import { useToast } from "@/components/Toast"
 import { ChatCreateTaskButton } from "@/components/ChatCreateTaskButton"
 import { NotificationsBell } from "@/components/notifications-bell" // Fixed import path to use lowercase
+import { Search } from "lucide-react"
 import {
   MessageSquare,
   Instagram,
@@ -557,11 +558,13 @@ export default function ChatsPage() {
   return (
     <SidebarLayout>
       <div className="sticky top-0 z-10 bg-card border-b border-border">
+        {/* NIVEL 1: Title and subtitle on left */}
         <div className="flex items-start justify-between px-6 py-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Chats</h1>
             <p className="text-sm text-muted-foreground mt-1">Gestiona conversaciones omnicanal</p>
           </div>
+          {/* NIVEL 2: CTA + Bell together on right */}
           <div className="flex items-center gap-2">
             <Button onClick={handleNewChat} className="gap-2">
               <Plus className="w-4 h-4" />
@@ -571,22 +574,18 @@ export default function ChatsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 px-6 pb-4 bg-card">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleConnectChannel}
-            className="gap-2 whitespace-nowrap bg-transparent"
-          >
+        {/* NIVEL 3: Search bar and filters in separate sticky row */}
+        <div className="flex items-center gap-4 px-6 pb-4 bg-card">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input placeholder="Buscar conversaciones..." className="pl-10" />
+          </div>
+
+          <Button variant="outline" onClick={handleConnectChannel} className="gap-2 whitespace-nowrap bg-transparent">
             <Zap className="w-4 h-4" />
             Conectar canal
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleImportTemplates}
-            className="gap-2 whitespace-nowrap bg-transparent"
-          >
+          <Button variant="outline" onClick={handleImportTemplates} className="gap-2 whitespace-nowrap bg-transparent">
             <FileText className="w-4 h-4" />
             Plantillas
           </Button>
