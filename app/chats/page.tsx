@@ -11,7 +11,6 @@ import { ChatQuickBar } from "@/components/ChatQuickBar"
 import { ContactInfoPanel } from "@/components/ContactInfoPanel"
 import { useToast } from "@/components/Toast"
 import { ChatCreateTaskButton } from "@/components/ChatCreateTaskButton"
-import { GlobalHeader } from "@/components/global-header" // Fixed import path from GlobalHeader to global-header (kebab-case)
 import {
   MessageSquare,
   Instagram,
@@ -386,6 +385,30 @@ export default function ChatsPage() {
   const [wizardOpen, setWizardOpen] = useState(false)
 
   useEffect(() => {
+    const handleConnectChannel = () => {
+      setWizardOpen(true)
+    }
+
+    const handleTemplates = () => {
+      router.push("/plantillas-wa")
+    }
+
+    const handleSecondaryAction = (event: CustomEvent) => {
+      if (event.detail.action === "connect-channel") {
+        handleConnectChannel()
+      } else if (event.detail.action === "templates") {
+        handleTemplates()
+      }
+    }
+
+    window.addEventListener("global-header-secondary-action", handleSecondaryAction as EventListener)
+
+    return () => {
+      window.removeEventListener("global-header-secondary-action", handleSecondaryAction as EventListener)
+    }
+  }, [router])
+
+  useEffect(() => {
     if (chatIdFromUrl && chatIdFromUrl !== selectedConversation) {
       setSelectedConversation(chatIdFromUrl)
       // Find the account for this conversation
@@ -552,7 +575,6 @@ export default function ChatsPage() {
 
   return (
     <div className="flex flex-col h-screen">
-      <GlobalHeader /> {/* Added GlobalHeader component */}
       <div className="flex flex-1 overflow-hidden">
         <div className="w-80 border-r border-border bg-card flex flex-col">
           <div className="p-4 border-b border-border">

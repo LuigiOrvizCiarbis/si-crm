@@ -243,7 +243,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
       {!isCollapsed && (
         <div className="p-4 border-t border-sidebar-border space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted-foreground">MVP • V4.7.2</p>
+            <p className="text-xs font-medium text-muted-foreground">MVP • V4.7.3</p>
             <div className="flex items-center gap-1">
               <LanguageSelector />
               <ThemeToggle />

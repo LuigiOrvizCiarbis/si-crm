@@ -30,7 +30,7 @@ export const routeConfigs: Record<string, RouteConfig> = {
     searchPlaceholder: "Buscar conversaciones...",
     secondaryActions: [
       { label: "Conectar canal", icon: "zap", action: "connect-channel" },
-      { label: "Plantillas", icon: "file-text", action: "import-templates" },
+      { label: "Plantillas", icon: "file-text", action: "templates" },
     ],
   },
   "/contactos": {
