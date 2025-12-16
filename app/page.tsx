@@ -1,8 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import type { DateRange } from "react-day-picker"
 import { SidebarLayout } from "@/components/sidebar-layout"
 import { DashboardCompactHeader } from "@/components/dashboard-compact-header"
+import { DashboardDateSelector } from "@/components/dashboard-date-selector"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { MetricsCards } from "@/components/metrics-cards"
 import { SalesFunnel } from "@/components/sales-funnel"
@@ -22,14 +24,26 @@ import {
   TrendingDown,
   Award,
   AlertTriangle,
+  MessageCircle,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react"
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("general")
+  const [dateRange, setDateRange] = useState<DateRange | undefined>()
+  const [datePreset, setDatePreset] = useState("este-mes")
   const leads = useAppStore((state) => state.leads)
 
   const totalLeads = leads.length
   const closedWon = leads.filter((l) => l.stage === "Cliente Convertido").length
+
+  const handleDateChange = (range: DateRange | undefined, preset: string) => {
+    setDateRange(range)
+    setDatePreset(preset)
+    console.log("[v0] Date range changed:", { range, preset })
+  }
 
   // Mock data for tabs (would come from stores in real implementation)
   const taskStats = {
@@ -75,19 +89,39 @@ export default function Dashboard() {
     ],
   }
 
+  const channelDistributionData = [
+    { name: "WhatsApp", value: 156, color: "#25D366" },
+    { name: "Instagram", value: 89, color: "#E4405F" },
+    { name: "Facebook", value: 67, color: "#1877F2" },
+    { name: "LinkedIn", value: 45, color: "#0A66C2" },
+    { name: "Email", value: 34, color: "#EA4335" },
+    { name: "Web", value: 28, color: "#9333EA" },
+  ]
+
+  const totalConversations = channelDistributionData.reduce((sum, item) => sum + item.value, 0)
+
+  const channelMetrics = {
+    conversations: { current: totalConversations, previous: 378, change: 12.2 },
+    messages: { current: 2847, previous: 2531, change: 12.5 },
+    newContacts: { current: 147, previous: 132, change: 11.4 },
+  }
+
   return (
     <SidebarLayout>
       <DashboardCompactHeader />
 
       <div className="p-4 md:p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-5 w-full max-w-3xl">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="canales">Canales</TabsTrigger>
-            <TabsTrigger value="vendedores">Vendedores</TabsTrigger>
-            <TabsTrigger value="tareas">Tareas</TabsTrigger>
-            <TabsTrigger value="finanzas">Finanzas</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between gap-4">
+            <TabsList className="grid grid-cols-5 w-full max-w-3xl">
+              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="canales">Canales</TabsTrigger>
+              <TabsTrigger value="vendedores">Vendedores</TabsTrigger>
+              <TabsTrigger value="tareas">Tareas</TabsTrigger>
+              <TabsTrigger value="finanzas">Finanzas</TabsTrigger>
+            </TabsList>
+            <DashboardDateSelector onDateChange={handleDateChange} />
+          </div>
 
           {/* TAB 1: GENERAL */}
           <TabsContent value="general" className="space-y-6 mt-6">
@@ -196,10 +230,132 @@ export default function Dashboard() {
           {/* TAB 2: CANALES */}
           <TabsContent value="canales" className="space-y-6 mt-6">
             <section>
-              <h2 className="text-lg font-semibold mb-4">Distribución por Canal</h2>
-              <OmnichannelStats />
+              <h2 className="text-lg font-semibold mb-4">Métricas Generales de Canales</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <MessageCircle className="w-5 h-5 text-blue-500" />
+                        <p className="text-sm font-medium text-muted-foreground">Cantidad de Conversaciones</p>
+                      </div>
+                      <Badge
+                        variant={channelMetrics.conversations.change > 0 ? "default" : "destructive"}
+                        className="gap-1"
+                      >
+                        {channelMetrics.conversations.change > 0 ? (
+                          <ArrowUpRight className="w-3 h-3" />
+                        ) : (
+                          <ArrowDownRight className="w-3 h-3" />
+                        )}
+                        {Math.abs(channelMetrics.conversations.change)}%
+                      </Badge>
+                    </div>
+                    <p className="text-3xl font-bold">{channelMetrics.conversations.current}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      vs {channelMetrics.conversations.previous} período anterior
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <MessageCircle className="w-5 h-5 text-purple-500" />
+                        <p className="text-sm font-medium text-muted-foreground">Cantidad de Mensajes</p>
+                      </div>
+                      <Badge variant={channelMetrics.messages.change > 0 ? "default" : "destructive"} className="gap-1">
+                        {channelMetrics.messages.change > 0 ? (
+                          <ArrowUpRight className="w-3 h-3" />
+                        ) : (
+                          <ArrowDownRight className="w-3 h-3" />
+                        )}
+                        {Math.abs(channelMetrics.messages.change)}%
+                      </Badge>
+                    </div>
+                    <p className="text-3xl font-bold">{channelMetrics.messages.current.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      vs {channelMetrics.messages.previous.toLocaleString()} período anterior
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-5 h-5 text-green-500" />
+                        <p className="text-sm font-medium text-muted-foreground">Contactos Nuevos</p>
+                      </div>
+                      <Badge
+                        variant={channelMetrics.newContacts.change > 0 ? "default" : "destructive"}
+                        className="gap-1"
+                      >
+                        {channelMetrics.newContacts.change > 0 ? (
+                          <ArrowUpRight className="w-3 h-3" />
+                        ) : (
+                          <ArrowDownRight className="w-3 h-3" />
+                        )}
+                        {Math.abs(channelMetrics.newContacts.change)}%
+                      </Badge>
+                    </div>
+                    <p className="text-3xl font-bold">{channelMetrics.newContacts.current}</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      vs {channelMetrics.newContacts.previous} período anterior
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
             </section>
 
+            <section>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Distribución por Canal</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={280}>
+                      <PieChart>
+                        <Pie
+                          data={channelDistributionData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {channelDistributionData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="mt-4 space-y-2">
+                      {channelDistributionData.map((channel) => (
+                        <div key={channel.name} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: channel.color }} />
+                            <span>{channel.name}</span>
+                          </div>
+                          <span className="font-medium">{channel.value} leads</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="lg:col-span-2">
+                  <OmnichannelStats />
+                </div>
+              </div>
+            </section>
+
+            {/* Performance por Canal */}
             <section>
               <h2 className="text-lg font-semibold mb-4">Performance por Canal</h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -497,7 +653,7 @@ export default function Dashboard() {
                     <div>
                       <p className="text-sm text-muted-foreground">Revenue Este Mes</p>
                       <p className="text-2xl font-bold">${(financialData.currentRevenue / 1000).toFixed(1)}k</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground mt-2">
                         Meta: ${(financialData.targetRevenue / 1000).toFixed(0)}k
                       </p>
                     </div>
