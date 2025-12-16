@@ -665,10 +665,7 @@ export default function ChatsPage() {
                   ) : (
                     <div className="p-4">
                       <EmptyState
-                        icon={(() => {
-                          const Icon = getChannelIcon("whatsapp")
-                          return <Icon className="h-5 w-5" />
-                        })()}
+                        icon={getChannelIcon("whatsapp")}
                         title="No hay chats conectados"
                         description="Conecta tu primer canal para comenzar a recibir mensajes"
                         action={{
@@ -921,10 +918,7 @@ export default function ChatsPage() {
                     </div>
                   ) : (
                     <EmptyState
-                      icon={(() => {
-                        const Icon = getChannelIcon("whatsapp")
-                        return <Icon className="h-5 w-5" />
-                      })()}
+                      icon={getChannelIcon("whatsapp")}
                       title="No hay conversaciones"
                       description="Esta cuenta no tiene conversaciones activas"
                     />
@@ -995,10 +989,7 @@ export default function ChatsPage() {
                     </div>
                   ) : (
                     <EmptyState
-                      icon={(() => {
-                        const Icon = getChannelIcon("whatsapp")
-                        return <Icon className="h-5 w-5" />
-                      })()}
+                      icon={getChannelIcon("whatsapp")}
                       title="No hay conversaciones"
                       description="No se encontraron conversaciones para este filtro"
                       action={{
@@ -1012,10 +1003,7 @@ export default function ChatsPage() {
             ) : (
               <div className="flex-1 flex items-center justify-center p-6">
                 <EmptyState
-                  icon={(() => {
-                    const Icon = getChannelIcon("whatsapp")
-                    return <Icon className="h-5 w-5" />
-                  })()}
+                  icon={getChannelIcon("whatsapp")}
                   title="Selecciona una cuenta"
                   description="Elige una cuenta de la lista para ver sus conversaciones"
                 />
