@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { DollarSign, AlertTriangle, CheckCircle, Clock, Plus, Search, Filter } from "lucide-react"
+import { DollarSign, AlertTriangle, CheckCircle, Clock, Plus } from "lucide-react"
 
 interface Client {
   id: string
@@ -73,6 +73,13 @@ const clients: Client[] = [
   },
 ]
 
+interface ClientManagementProps {
+  searchTerm?: string
+  statusFilter?: string
+  showNewPaymentDialog?: boolean
+  onCloseDialog?: () => void
+}
+
 function getStatusBadge(status: string) {
   switch (status) {
     case "paid":
@@ -101,9 +108,26 @@ function getStatusBadge(status: string) {
   }
 }
 
-export function ClientManagement() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
+export function ClientManagement({
+  searchTerm: externalSearchTerm = "",
+  statusFilter: externalStatusFilter = "all",
+  showNewPaymentDialog = false,
+  onCloseDialog,
+}: ClientManagementProps = {}) {
+  const searchTerm = externalSearchTerm
+  const statusFilter = externalStatusFilter
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  useEffect(() => {
+    setDialogOpen(showNewPaymentDialog)
+  }, [showNewPaymentDialog])
+
+  const handleDialogChange = (open: boolean) => {
+    setDialogOpen(open)
+    if (!open && onCloseDialog) {
+      onCloseDialog()
+    }
+  }
 
   const filteredClients = clients.filter((client) => {
     const matchesSearch =
@@ -175,9 +199,9 @@ export function ClientManagement() {
               <CardTitle>Gestión de Clientes</CardTitle>
               <CardDescription>Administra pagos y suscripciones de tus clientes</CardDescription>
             </div>
-            <Dialog>
+            <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="hidden">
                   <Plus className="w-4 h-4 mr-2" />
                   Registrar Pago
                 </Button>
@@ -218,30 +242,6 @@ export function ClientManagement() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar clientes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los estados</SelectItem>
-                <SelectItem value="paid">Pagados</SelectItem>
-                <SelectItem value="pending">Pendientes</SelectItem>
-                <SelectItem value="overdue">Vencidos</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Lista de clientes */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredClients.map((client) => (
