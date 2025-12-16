@@ -663,7 +663,7 @@ export default function ChatsPage() {
                     </div>
                   )}
 
-                  <div className="p-4 border-t border-border">
+                  <div className="p-4">
                     <Button variant="outline" className="w-full gap-2 bg-transparent" onClick={handleConnectChannel}>
                       <div className="w-4 h-4 bg-green-500 rounded-full" />
                       +Connect chat
