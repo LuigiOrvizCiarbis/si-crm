@@ -16,7 +16,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   const isMobile = useIsMobile()
   const pathname = usePathname()
 
-  const shouldShowGlobalHeader = pathname !== "/chats" && pathname !== "/contactos"
+  const shouldShowGlobalHeader = pathname !== "/chats" && pathname !== "/contactos" && pathname !== "/oportunidades"
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
