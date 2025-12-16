@@ -588,7 +588,7 @@ export default function ChatsPage() {
         {/* Grid principal con menú de cuentas y contenido */}
         <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[320px_1fr]">
           {/* Left Panel: Accounts */}
-          <div className="w-80 border-r border-border bg-card flex flex-col">
+          <div className="border-r border-border bg-card flex flex-col overflow-hidden">
             <div className="p-4 border-b border-border">
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                 {filterButtons.map((button) => (
