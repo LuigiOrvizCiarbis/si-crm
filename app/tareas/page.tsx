@@ -10,20 +10,14 @@ import { TaskGanttView } from "@/components/tasks/TaskGanttView"
 import { TaskCalendarView } from "@/components/tasks/TaskCalendarView"
 import { NewTaskModal } from "@/components/tasks/NewTaskModal"
 import { TasksFilterPanel, type TaskFilters } from "@/components/tasks/TasksFilterPanel"
-import {
-  allTasks,
-  getOverdueTasks,
-  getTasksDueToday,
-  getTasksDueThisWeek,
-  getCompletedTasksLast7Days,
-  getOnTimePercentage,
-} from "@/lib/data/tasks"
+import { useTaskStore } from "@/store/useTaskStore"
 import type { Task } from "@/lib/types/task"
 
 export default function TareasPage() {
+  const tasks = useTaskStore((state) => state.tasks)
   const [activeView, setActiveView] = useState("lista")
   const [searchQuery, setSearchQuery] = useState("")
-  const [filteredTasks, setFilteredTasks] = useState(allTasks)
+  const [filteredTasks, setFilteredTasks] = useState(tasks)
   const [showNewTask, setShowNewTask] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState<TaskFilters>({
@@ -34,7 +28,7 @@ export default function TareasPage() {
   })
 
   useEffect(() => {
-    let filtered = allTasks
+    let filtered = tasks
 
     // Apply search query
     if (searchQuery) {
@@ -90,7 +84,7 @@ export default function TareasPage() {
     }
 
     setFilteredTasks(filtered)
-  }, [searchQuery, filters])
+  }, [searchQuery, filters, tasks])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -143,15 +137,40 @@ export default function TareasPage() {
   }, [])
 
   const handleCreateTask = (task: Partial<Task>) => {
-    // Mock creation
-    setFilteredTasks([...filteredTasks, task as Task])
+    console.log("[v0] Task created:", task)
   }
 
-  const overdueTasks = getOverdueTasks()
-  const todayTasks = getTasksDueToday()
-  const weekTasks = getTasksDueThisWeek()
-  const completedLast7Days = getCompletedTasksLast7Days()
-  const onTimePercentage = getOnTimePercentage()
+  const overdueTasks = tasks.filter((task) => {
+    const deadline = new Date(task.deadline)
+    return deadline < new Date() && task.status !== "hecho" && task.status !== "cancelado"
+  })
+
+  const todayTasks = tasks.filter((task) => {
+    const today = new Date().toISOString().split("T")[0]
+    return task.deadline?.startsWith(today) && task.status !== "hecho"
+  })
+
+  const weekTasks = tasks.filter((task) => {
+    const now = new Date()
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const deadline = new Date(task.deadline)
+    return deadline >= now && deadline <= weekFromNow && task.status !== "hecho" && task.status !== "cancelado"
+  })
+
+  const completedLast7Days = tasks.filter((task) => {
+    const now = new Date()
+    const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    return task.status === "hecho" && new Date(task.completedAt) >= last7Days
+  })
+
+  const onTimePercentage = (() => {
+    const totalTasks = tasks.length
+    const onTimeTasks = tasks.filter((task) => {
+      const deadline = new Date(task.deadline)
+      return deadline >= new Date() || task.status === "hecho"
+    }).length
+    return totalTasks > 0 ? ((onTimeTasks / totalTasks) * 100).toFixed(0) : "0"
+  })()
 
   return (
     <SidebarLayout>
