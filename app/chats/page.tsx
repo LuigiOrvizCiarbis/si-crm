@@ -11,12 +11,11 @@ import { ChatQuickBar } from "@/components/ChatQuickBar"
 import { ContactInfoPanel } from "@/components/ContactInfoPanel"
 import { useToast } from "@/components/Toast"
 import { ChatCreateTaskButton } from "@/components/ChatCreateTaskButton"
-import { Search, ChevronLeft, User, MoreVertical } from "lucide-react"
+import { ChevronLeft, User, MoreVertical, Paperclip, Smile, Send } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { getChannelIcon } from "@/lib/channel-icons"
 import { SidebarLayout } from "@/components/sidebar-layout"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface Account {
   id: string
@@ -558,33 +557,6 @@ export default function ChatsPage() {
   return (
     <SidebarLayout>
       <div className="flex flex-col h-full">
-        {/* NIVEL 3: Búsqueda y filtros */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-          <div className="p-4 flex flex-col md:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar conversaciones..."
-                className="pl-9"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <Select value={activeFilter} onValueChange={setActiveFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtrar por" />
-              </SelectTrigger>
-              <SelectContent>
-                {filterButtons.map((button) => (
-                  <SelectItem key={button.key} value={button.key}>
-                    {button.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
         {/* Grid principal con menú de cuentas y contenido */}
         <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[320px_1fr]">
           {/* Left Panel: Accounts */}
@@ -820,20 +792,69 @@ export default function ChatsPage() {
 
                 <div className="p-4 border-t border-border bg-card sticky bottom-0 md:relative">
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">
-                      <div className="w-4 h-4 bg-blue-400 rounded-full" />
+                    <input
+                      type="file"
+                      id="file-upload"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          addToast({
+                            title: "Archivo adjunto",
+                            description: `${file.name} listo para enviar`,
+                          })
+                        }
+                      }}
+                    />
+                    <Button variant="ghost" size="sm" onClick={() => document.getElementById("file-upload")?.click()}>
+                      <Paperclip className="h-4 w-4 text-muted-foreground" />
                     </Button>
+
                     <Input
                       placeholder="Escribe un mensaje..."
                       className="flex-1"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault()
+                          if (message.trim()) {
+                            addToast({
+                              title: "Mensaje enviado",
+                              description: message,
+                            })
+                            setMessage("")
+                          }
+                        }
+                      }}
                     />
-                    <Button variant="ghost" size="sm">
-                      <div className="w-4 h-4 bg-yellow-500 rounded-full" />
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        addToast({
+                          title: "Selector de emoji",
+                          description: "Funcionalidad de emoji picker próximamente",
+                        })
+                      }}
+                    >
+                      <Smile className="h-4 w-4 text-muted-foreground" />
                     </Button>
-                    <Button size="sm">
-                      <div className="w-4 h-4 bg-blue-500 rounded-full" />
+
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (message.trim()) {
+                          addToast({
+                            title: "Mensaje enviado",
+                            description: message,
+                          })
+                          setMessage("")
+                        }
+                      }}
+                    >
+                      <Send className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
