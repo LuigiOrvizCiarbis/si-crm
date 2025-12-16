@@ -11,21 +11,8 @@ import { ChatQuickBar } from "@/components/ChatQuickBar"
 import { ContactInfoPanel } from "@/components/ContactInfoPanel"
 import { useToast } from "@/components/Toast"
 import { ChatCreateTaskButton } from "@/components/ChatCreateTaskButton"
-import {
-  MessageSquare,
-  Instagram,
-  Facebook,
-  Mail,
-  MoreVertical,
-  Send,
-  Paperclip,
-  Smile,
-  Plus,
-  ArrowLeft,
-  Globe,
-  Linkedin,
-  Info,
-} from "lucide-react"
+import { NotificationsBell } from "@/components/notifications-bell"
+import { FileText } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 
@@ -383,6 +370,7 @@ export default function ChatsPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState("")
   const [wizardOpen, setWizardOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
     const handleConnectChannel = () => {
@@ -484,16 +472,20 @@ export default function ChatsPage() {
     })
   }
 
+  const handleOpenTemplates = () => {
+    router.push("/plantillas-wa")
+  }
+
   const getPlatformIcon = (platform: string) => {
     switch (platform) {
       case "whatsapp":
-        return <MessageSquare className="w-4 h-4 text-green-500" />
+        return <div className="w-4 h-4 bg-green-500 rounded-full" />
       case "instagram":
-        return <Instagram className="w-4 h-4 text-pink-500" />
+        return <div className="w-4 h-4 bg-pink-500 rounded-full" />
       case "facebook":
-        return <Facebook className="w-4 h-4 text-blue-500" />
+        return <div className="w-4 h-4 bg-blue-500 rounded-full" />
       case "linkedin":
-        return <Linkedin className="w-4 h-4 text-blue-600" />
+        return <div className="w-4 h-4 bg-blue-600 rounded-full" />
       case "telegram":
         return (
           <div className="w-4 h-4 bg-blue-400 rounded-full flex items-center justify-center">
@@ -501,11 +493,11 @@ export default function ChatsPage() {
           </div>
         )
       case "web":
-        return <Globe className="w-4 h-4 text-purple-500" />
+        return <div className="w-4 h-4 bg-purple-500 rounded-full" />
       case "mail":
-        return <Mail className="w-4 h-4 text-orange-500" />
+        return <div className="w-4 h-4 bg-orange-500 rounded-full" />
       default:
-        return <MessageSquare className="w-4 h-4" />
+        return <div className="w-4 h-4 bg-gray-500 rounded-full" />
     }
   }
 
@@ -540,15 +532,15 @@ export default function ChatsPage() {
   }
 
   const filterButtons = [
-    { key: "todos", label: "TODOS", icon: <MessageSquare className="w-3 h-3" /> },
+    { key: "todos", label: "TODOS", icon: <div className="w-3 h-3 bg-gray-500 rounded-full" /> },
     { key: "no-leidos", label: "NO LEÍDOS", icon: <div className="w-3 h-3 bg-blue-500 rounded-full" /> },
-    { key: "whatsapp", label: "WHATSAPP", icon: <MessageSquare className="w-3 h-3 text-green-500" /> },
-    { key: "instagram", label: "INSTAGRAM", icon: <Instagram className="w-3 h-3 text-pink-500" /> },
-    { key: "facebook", label: "FACEBOOK", icon: <Facebook className="w-3 h-3 text-blue-500" /> },
-    { key: "linkedin", label: "LINKEDIN", icon: <Linkedin className="w-3 h-3 text-blue-600" /> },
+    { key: "whatsapp", label: "WHATSAPP", icon: <div className="w-3 h-3 bg-green-500 rounded-full" /> },
+    { key: "instagram", label: "INSTAGRAM", icon: <div className="w-3 h-3 bg-pink-500 rounded-full" /> },
+    { key: "facebook", label: "FACEBOOK", icon: <div className="w-3 h-3 bg-blue-500 rounded-full" /> },
+    { key: "linkedin", label: "LINKEDIN", icon: <div className="w-3 h-3 bg-blue-600 rounded-full" /> },
     { key: "telegram", label: "TELEGRAM", icon: <div className="w-3 h-3 bg-blue-400 rounded-full" /> },
-    { key: "web", label: "WEB", icon: <Globe className="w-3 h-3 text-purple-500" /> },
-    { key: "mail", label: "MAIL", icon: <Mail className="w-3 h-3 text-orange-500" /> },
+    { key: "web", label: "WEB", icon: <div className="w-3 h-3 bg-purple-500 rounded-full" /> },
+    { key: "mail", label: "MAIL", icon: <div className="w-3 h-3 bg-orange-500 rounded-full" /> },
   ]
 
   const handleConversationClick = (conversationId: string) => {
@@ -575,6 +567,47 @@ export default function ChatsPage() {
 
   return (
     <div className="flex flex-col h-screen">
+      <div className="flex flex-col border-b border-border bg-background">
+        {/* NIVEL 1: Título y subtítulo */}
+        <div className="p-6 pb-3">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Chats</h1>
+              <p className="text-muted-foreground mt-1">Gestiona todas tus conversaciones desde un solo lugar</p>
+            </div>
+            {/* NIVEL 2: CTA y campanita */}
+            <div className="flex items-center gap-2">
+              <Button onClick={handleConnectChannel} className="gap-2">
+                <div className="w-4 h-4 bg-green-500 rounded-full" />
+                Conectar canal
+              </Button>
+              <Button variant="outline" onClick={handleOpenTemplates} className="gap-2 bg-transparent">
+                <FileText className="w-4 h-4" />
+                Plantillas
+              </Button>
+              <NotificationsBell />
+            </div>
+          </div>
+        </div>
+
+        {/* NIVEL 3: Búsqueda y filtros */}
+        <div className="px-6 pb-4 sticky top-0 bg-background z-10">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground">
+                {/* Search icon */}
+              </div>
+              <Input
+                placeholder="Buscar conversaciones..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-1 overflow-hidden">
         <div className="w-80 border-r border-border bg-card flex flex-col">
           <div className="p-4 border-b border-border">
@@ -638,7 +671,7 @@ export default function ChatsPage() {
                 ) : (
                   <div className="p-4">
                     <EmptyState
-                      icon={MessageSquare}
+                      icon={getPlatformIcon("whatsapp")}
                       title="No hay chats conectados"
                       description="Conecta tu primer canal para comenzar a recibir mensajes"
                       action={{
@@ -672,7 +705,7 @@ export default function ChatsPage() {
 
                 <div className="p-4 border-t border-border">
                   <Button variant="outline" className="w-full gap-2 bg-transparent" onClick={handleConnectChannel}>
-                    <Plus className="w-4 h-4" />
+                    <div className="w-4 h-4 bg-green-500 rounded-full" />
                     +Connect chat
                   </Button>
                 </div>
@@ -688,7 +721,7 @@ export default function ChatsPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Button variant="ghost" size="sm" onClick={handleBackToConversations}>
-                      <ArrowLeft className="w-4 h-4" />
+                      <div className="w-4 h-4 bg-gray-500 rounded-full" />
                     </Button>
                     <Avatar className="w-10 h-10">
                       <AvatarFallback>
@@ -720,10 +753,10 @@ export default function ChatsPage() {
                       contactName={conversations.find((c) => c.id === selectedConversation)?.contactName || ""}
                     />
                     <Button variant="ghost" size="sm" onClick={() => setIsContactInfoOpen(!isContactInfoOpen)}>
-                      <Info className="w-4 h-4" />
+                      <div className="w-4 h-4 bg-blue-600 rounded-full" />
                     </Button>
                     <Button variant="ghost" size="sm">
-                      <MoreVertical className="w-4 h-4" />
+                      <div className="w-4 h-4 bg-gray-500 rounded-full" />
                     </Button>
                   </div>
                 </div>
@@ -797,7 +830,7 @@ export default function ChatsPage() {
               <div className="p-4 border-t border-border bg-card sticky bottom-0 md:relative">
                 <div className="flex items-center gap-2">
                   <Button variant="ghost" size="sm">
-                    <Paperclip className="w-4 h-4" />
+                    <div className="w-4 h-4 bg-blue-400 rounded-full" />
                   </Button>
                   <Input
                     placeholder="Escribe un mensaje..."
@@ -806,10 +839,10 @@ export default function ChatsPage() {
                     onChange={(e) => setMessage(e.target.value)}
                   />
                   <Button variant="ghost" size="sm">
-                    <Smile className="w-4 h-4" />
+                    <div className="w-4 h-4 bg-yellow-500 rounded-full" />
                   </Button>
                   <Button size="sm">
-                    <Send className="w-4 h-4" />
+                    <div className="w-4 h-4 bg-blue-500 rounded-full" />
                   </Button>
                 </div>
               </div>
@@ -819,7 +852,7 @@ export default function ChatsPage() {
               <div className="p-4 border-b border-border bg-card">
                 <div className="flex items-center gap-3">
                   <Button variant="ghost" size="sm" onClick={handleBackToAccounts}>
-                    <ArrowLeft className="w-4 h-4" />
+                    <div className="w-4 h-4 bg-gray-500 rounded-full" />
                   </Button>
                   <h3 className="font-medium">{accounts.find((a) => a.id === selectedAccount)?.name}</h3>
                 </div>
@@ -875,7 +908,7 @@ export default function ChatsPage() {
                   </div>
                 ) : (
                   <EmptyState
-                    icon={MessageSquare}
+                    icon={getPlatformIcon("whatsapp")}
                     title="No hay conversaciones"
                     description="Esta cuenta no tiene conversaciones activas"
                   />
@@ -940,7 +973,7 @@ export default function ChatsPage() {
                   </div>
                 ) : (
                   <EmptyState
-                    icon={MessageSquare}
+                    icon={getPlatformIcon("whatsapp")}
                     title="No hay conversaciones"
                     description="No se encontraron conversaciones para este filtro"
                     action={{
@@ -954,7 +987,7 @@ export default function ChatsPage() {
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <div className="w-12 h-12 text-muted-foreground mx-auto mb-4">{/* MessageSquare icon */}</div>
                 <h3 className="text-lg font-medium mb-2">Selecciona una conversación</h3>
                 <p className="text-muted-foreground">Elige una cuenta o conversación de la lista para comenzar</p>
               </div>
