@@ -13,6 +13,7 @@ export interface Lead {
   valor: number
   owner?: string
   dropReason?: string
+  stage?: string // Added stage property
 }
 
 export interface Conversacion {
@@ -62,6 +63,7 @@ interface AppStore {
   addLead: (lead: Lead) => void
   updateLead: (id: string, updates: Partial<Lead>) => void
   moveLead: (id: string, newEstado: Lead["estado"]) => void
+  moveLeadToStage: (leadId: string, stageId: string) => void // Added moveLeadToStage function
 
   // Conversations
   conversaciones: Conversacion[]
@@ -132,6 +134,42 @@ export const useAppStore = create<AppStore>()(
         set((state) => ({
           leads: state.leads.map((lead) => (lead.id === id ? { ...lead, estado: newEstado } : lead)),
         })),
+      moveLeadToStage: (leadId: string, stageId: string) => {
+        set((state) => {
+          const lead = state.leads.find((l) => l.id === leadId)
+          if (!lead) return state
+
+          // Update probability based on stage
+          const probabilityMap: Record<string, number> = {
+            prospecto: 15,
+            contactado: 25,
+            seguimiento: 40,
+            propuesta: 55,
+            interesado: 65,
+            recontactar: 20,
+            "entrevista-pactada": 70,
+            "entrevista-realizada": 75,
+            reagendar: 60,
+            "segunda-entrevista": 85,
+            cierre: 92,
+            convertido: 100,
+            "no-interesa": 0,
+            partner: 50,
+          }
+
+          return {
+            leads: state.leads.map((l) =>
+              l.id === leadId
+                ? {
+                    ...l,
+                    stage: stageId as Lead["stage"],
+                    prob: probabilityMap[stageId] || 50,
+                  }
+                : l,
+            ),
+          }
+        })
+      },
 
       // Conversations
       conversaciones: [
@@ -216,7 +254,8 @@ export const useAppStore = create<AppStore>()(
         filters: state.filters,
         sidebarCollapsed: state.sidebarCollapsed,
         whatsappConnected: state.whatsappConnected,
-        stageColors: state.stageColors, // Persist stage colors
+        stageColors: state.stageColors,
+        leads: state.leads, // Persist leads for Pipeline
       }),
     },
   ),

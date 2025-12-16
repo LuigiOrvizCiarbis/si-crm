@@ -1,6 +1,4 @@
 "use client"
-
-import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge, LeadScoreBadge } from "@/components/Badges"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -16,7 +14,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core"
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { PipelineTaskIndicator } from "@/components/PipelineTaskIndicator"
@@ -52,161 +50,49 @@ const initialData: Column[] = [
     id: "prospecto",
     title: "Lead/Prospecto",
     color: "bg-blue-500",
-    leads: Array.from({ length: 28 }, (_, i) => ({
-      id: `prospecto-${i + 1}`,
-      name: `Lead ${i + 1}`,
-      company: `Empresa ${i + 1}`,
-      value: Math.floor(Math.random() * 50000) + 5000,
-      source: ["WhatsApp", "Instagram", "LinkedIn", "Web", "Facebook"][Math.floor(Math.random() * 5)],
-      lastContact: `Hace ${Math.floor(Math.random() * 48)}h`,
-      phone: `+54 ${Math.random() > 0.5 ? "11" : "223"} ${Math.floor(1000 + Math.random() * 8999)}-${Math.floor(1000 + Math.random() * 8999)}`,
-      email: `lead${i + 1}@empresa.com`,
-      probability: 15,
-      estimatedDate: new Date(Date.now() + Math.random() * 60 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      leadScore: Math.floor(Math.random() * 40) + 40,
-      owner: ["Martín", "Valeria", "Sergio", "Daniel"][Math.floor(Math.random() * 4)],
-      stage: "prospecto",
-    })),
+    leads: [],
   },
   {
     id: "contactado",
     title: "Contactado",
     color: "bg-cyan-500",
-    leads: Array.from({ length: 22 }, (_, i) => ({
-      id: `contactado-${i + 1}`,
-      name: `Contacto ${i + 1}`,
-      company: `Empresa ${i + 1}`,
-      value: Math.floor(Math.random() * 50000) + 10000,
-      source: ["WhatsApp", "Instagram", "LinkedIn", "Email"][Math.floor(Math.random() * 4)],
-      lastContact: `Hace ${Math.floor(Math.random() * 24)}h`,
-      phone: `+54 ${Math.random() > 0.5 ? "11" : "223"} ${Math.floor(1000 + Math.random() * 8999)}-${Math.floor(1000 + Math.random() * 8999)}`,
-      email: `contacto${i + 1}@empresa.com`,
-      probability: 25,
-      estimatedDate: new Date(Date.now() + Math.random() * 45 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      leadScore: Math.floor(Math.random() * 30) + 50,
-      owner: ["Martín", "Valeria", "Sergio", "Daniel"][Math.floor(Math.random() * 4)],
-      stage: "contactado",
-    })),
+    leads: [],
   },
   {
     id: "seguimiento",
     title: "En seguimiento",
     color: "bg-indigo-500",
-    leads: Array.from({ length: 11 }, (_, i) => ({
-      id: `seguimiento-${i + 1}`,
-      name: `Seguimiento ${i + 1}`,
-      company: `Empresa ${i + 1}`,
-      value: Math.floor(Math.random() * 60000) + 15000,
-      source: ["WhatsApp", "LinkedIn", "Email"][Math.floor(Math.random() * 3)],
-      lastContact: `Hace ${Math.floor(Math.random() * 12)}h`,
-      phone: `+54 ${Math.random() > 0.5 ? "11" : "223"} ${Math.floor(1000 + Math.random() * 8999)}-${Math.floor(1000 + Math.random() * 8999)}`,
-      email: `seguimiento${i + 1}@empresa.com`,
-      probability: 40,
-      estimatedDate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      leadScore: Math.floor(Math.random() * 25) + 60,
-      owner: ["Martín", "Valeria", "Daniel"][Math.floor(Math.random() * 3)],
-      stage: "seguimiento",
-    })),
+    leads: [],
   },
   {
     id: "propuesta",
     title: "Envié propuesta",
     color: "bg-purple-500",
-    leads: Array.from({ length: 2 }, (_, i) => ({
-      id: `propuesta-${i + 1}`,
-      name: `Propuesta ${i + 1}`,
-      company: `Empresa ${i + 1}`,
-      value: Math.floor(Math.random() * 70000) + 20000,
-      source: ["WhatsApp", "LinkedIn"][i],
-      lastContact: `Hace ${Math.floor(Math.random() * 6)}h`,
-      phone: `+54 11 ${Math.floor(1000 + Math.random() * 8999)}-${Math.floor(1000 + Math.random() * 8999)}`,
-      email: `propuesta${i + 1}@empresa.com`,
-      probability: 55,
-      estimatedDate: new Date(Date.now() + Math.random() * 20 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      leadScore: Math.floor(Math.random() * 15) + 70,
-      owner: ["Martín", "Daniel"][i],
-      stage: "propuesta",
-    })),
+    leads: [],
   },
   {
     id: "interesado",
     title: "Interesado",
     color: "bg-pink-500",
-    leads: Array.from({ length: 8 }, (_, i) => ({
-      id: `interesado-${i + 1}`,
-      name: `Interesado ${i + 1}`,
-      company: `Empresa ${i + 1}`,
-      value: Math.floor(Math.random() * 80000) + 25000,
-      source: ["WhatsApp", "LinkedIn", "Email"][Math.floor(Math.random() * 3)],
-      lastContact: `Hace ${Math.floor(Math.random() * 8)}h`,
-      phone: `+54 ${Math.random() > 0.5 ? "11" : "223"} ${Math.floor(1000 + Math.random() * 8999)}-${Math.floor(1000 + Math.random() * 8999)}`,
-      email: `interesado${i + 1}@empresa.com`,
-      probability: 65,
-      estimatedDate: new Date(Date.now() + Math.random() * 15 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      leadScore: Math.floor(Math.random() * 15) + 75,
-      owner: ["Martín", "Valeria", "Sergio", "Daniel"][Math.floor(Math.random() * 4)],
-      stage: "interesado",
-    })),
+    leads: [],
   },
   {
     id: "recontactar",
     title: "Re-contactar",
     color: "bg-amber-500",
-    leads: Array.from({ length: 33 }, (_, i) => ({
-      id: `recontactar-${i + 1}`,
-      name: `Recontactar ${i + 1}`,
-      company: `Empresa ${i + 1}`,
-      value: Math.floor(Math.random() * 40000) + 5000,
-      source: ["WhatsApp", "Instagram", "LinkedIn", "Facebook", "Web"][Math.floor(Math.random() * 5)],
-      lastContact: `Hace ${Math.floor(Math.random() * 72) + 24}h`,
-      phone: `+54 ${Math.random() > 0.5 ? "11" : "223"} ${Math.floor(1000 + Math.random() * 8999)}-${Math.floor(1000 + Math.random() * 8999)}`,
-      email: `recontactar${i + 1}@empresa.com`,
-      probability: 20,
-      estimatedDate: new Date(Date.now() + Math.random() * 60 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      leadScore: Math.floor(Math.random() * 30) + 45,
-      owner: ["Martín", "Valeria", "Sergio", "Daniel"][Math.floor(Math.random() * 4)],
-      stage: "recontactar",
-    })),
+    leads: [],
   },
   {
     id: "entrevista-pactada",
     title: "Entrevista pactada",
     color: "bg-teal-500",
-    leads: Array.from({ length: 1 }, (_, i) => ({
-      id: `entrevista-pactada-${i + 1}`,
-      name: "Pedro Gómez",
-      company: "Gómez Inversiones",
-      value: 45000,
-      source: "LinkedIn",
-      lastContact: "Hace 2h",
-      phone: "+54 11 6543-2109",
-      email: "pedro@gomezinversiones.com",
-      probability: 70,
-      estimatedDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      leadScore: 88,
-      owner: "Martín",
-      stage: "entrevista-pactada",
-    })),
+    leads: [],
   },
   {
     id: "entrevista-realizada",
     title: "Entrevista realizada",
     color: "bg-emerald-500",
-    leads: Array.from({ length: 8 }, (_, i) => ({
-      id: `entrevista-realizada-${i + 1}`,
-      name: `Entrevistado ${i + 1}`,
-      company: `Empresa ${i + 1}`,
-      value: Math.floor(Math.random() * 90000) + 30000,
-      source: ["WhatsApp", "LinkedIn", "Email"][Math.floor(Math.random() * 3)],
-      lastContact: `Hace ${Math.floor(Math.random() * 12)}h`,
-      phone: `+54 11 ${Math.floor(1000 + Math.random() * 8999)}-${Math.floor(1000 + Math.random() * 8999)}`,
-      email: `entrevista${i + 1}@empresa.com`,
-      probability: 75,
-      estimatedDate: new Date(Date.now() + Math.random() * 10 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      leadScore: Math.floor(Math.random() * 10) + 80,
-      owner: ["Martín", "Valeria", "Daniel"][Math.floor(Math.random() * 3)],
-      stage: "entrevista-realizada",
-    })),
+    leads: [],
   },
   {
     id: "reagendar",
@@ -218,100 +104,31 @@ const initialData: Column[] = [
     id: "segunda-entrevista",
     title: "2da Entrevista",
     color: "bg-lime-500",
-    leads: Array.from({ length: 4 }, (_, i) => ({
-      id: `segunda-entrevista-${i + 1}`,
-      name: `Segunda entrevista ${i + 1}`,
-      company: `Empresa ${i + 1}`,
-      value: Math.floor(Math.random() * 100000) + 40000,
-      source: ["WhatsApp", "LinkedIn"][Math.floor(Math.random() * 2)],
-      lastContact: `Hace ${Math.floor(Math.random() * 6)}h`,
-      phone: `+54 11 ${Math.floor(1000 + Math.random() * 8999)}-${Math.floor(1000 + Math.random() * 8999)}`,
-      email: `segunda${i + 1}@empresa.com`,
-      probability: 85,
-      estimatedDate: new Date(Date.now() + Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      leadScore: Math.floor(Math.random() * 10) + 88,
-      owner: ["Martín", "Valeria"][Math.floor(Math.random() * 2)],
-      stage: "segunda-entrevista",
-    })),
+    leads: [],
   },
   {
     id: "cierre",
     title: "Seguimiento para cierre",
     color: "bg-green-500",
-    leads: Array.from({ length: 2 }, (_, i) => ({
-      id: `cierre-${i + 1}`,
-      name: `Cierre ${i + 1}`,
-      company: `Empresa ${i + 1}`,
-      value: Math.floor(Math.random() * 120000) + 50000,
-      source: ["LinkedIn", "WhatsApp"][i],
-      lastContact: `Hace ${Math.floor(Math.random() * 4)}h`,
-      phone: `+54 11 ${Math.floor(1000 + Math.random() * 8999)}-${Math.floor(1000 + Math.random() * 8999)}`,
-      email: `cierre${i + 1}@empresa.com`,
-      probability: 92,
-      estimatedDate: new Date(Date.now() + Math.random() * 5 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      leadScore: Math.floor(Math.random() * 5) + 94,
-      owner: ["Martín", "Daniel"][Math.floor(Math.random() * 2)],
-      stage: "cierre",
-    })),
+    leads: [],
   },
   {
     id: "convertido",
     title: "Cliente Convertido",
     color: "bg-green-600",
-    leads: Array.from({ length: 5 }, (_, i) => ({
-      id: `convertido-${i + 1}`,
-      name: `Cliente ${i + 1}`,
-      company: `Empresa ${i + 1}`,
-      value: Math.floor(Math.random() * 150000) + 60000,
-      source: ["LinkedIn", "WhatsApp", "Email"][Math.floor(Math.random() * 3)],
-      lastContact: `Hace ${Math.floor(Math.random() * 24)}h`,
-      phone: `+54 11 ${Math.floor(1000 + Math.random() * 8999)}-${Math.floor(1000 + Math.random() * 8999)}`,
-      email: `cliente${i + 1}@empresa.com`,
-      probability: 100,
-      estimatedDate: new Date(Date.now() - Math.random() * 10 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      leadScore: 98,
-      owner: ["Martín", "Valeria", "Daniel"][Math.floor(Math.random() * 3)],
-      stage: "convertido",
-    })),
+    leads: [],
   },
   {
     id: "no-interesa",
     title: "No le interesa",
     color: "bg-red-500",
-    leads: Array.from({ length: 2 }, (_, i) => ({
-      id: `no-interesa-${i + 1}`,
-      name: `No interesado ${i + 1}`,
-      company: `Empresa ${i + 1}`,
-      value: Math.floor(Math.random() * 30000) + 5000,
-      source: ["Instagram", "Web"][i],
-      lastContact: `Hace ${Math.floor(Math.random() * 48) + 24}h`,
-      email: `nointeresa${i + 1}@empresa.com`,
-      probability: 0,
-      estimatedDate: new Date(Date.now() - Math.random() * 15 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      leadScore: Math.floor(Math.random() * 20) + 30,
-      owner: ["Sergio", "Valeria"][i],
-      stage: "no-interesa",
-    })),
+    leads: [],
   },
   {
     id: "partner",
     title: "Partner/Colega",
     color: "bg-violet-500",
-    leads: Array.from({ length: 6 }, (_, i) => ({
-      id: `partner-${i + 1}`,
-      name: `Partner ${i + 1}`,
-      company: `Empresa ${i + 1}`,
-      value: Math.floor(Math.random() * 100000) + 30000,
-      source: ["LinkedIn", "Email", "WhatsApp"][Math.floor(Math.random() * 3)],
-      lastContact: `Hace ${Math.floor(Math.random() * 48)}h`,
-      phone: `+54 11 ${Math.floor(1000 + Math.random() * 8999)}-${Math.floor(1000 + Math.random() * 8999)}`,
-      email: `partner${i + 1}@empresa.com`,
-      probability: 50,
-      estimatedDate: new Date(Date.now() + Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      leadScore: Math.floor(Math.random() * 20) + 70,
-      owner: ["Martín", "Valeria", "Daniel"][Math.floor(Math.random() * 3)],
-      stage: "partner",
-    })),
+    leads: [],
   },
 ]
 
@@ -458,22 +275,62 @@ function KanbanColumn({ column, leads }: { column: Column; leads: Lead[] }) {
 }
 
 export function KanbanBoard() {
-  const [columns, setColumns] = useState<Column[]>(initialData)
+  const leads = useAppStore((state) => state.leads)
+  const moveLeadToStage = useAppStore((state) => state.moveLeadToStage)
+  const stageColors = useAppStore((state) => state.stageColors)
   const { addToast } = useToast()
 
+  const columns: Column[] = [
+    { id: "prospecto", title: "Lead/Prospecto", color: "bg-blue-500", leads: [] },
+    { id: "contactado", title: "Contactado", color: "bg-cyan-500", leads: [] },
+    { id: "seguimiento", title: "En seguimiento", color: "bg-indigo-500", leads: [] },
+    { id: "propuesta", title: "Envié propuesta", color: "bg-purple-500", leads: [] },
+    { id: "interesado", title: "Interesado", color: "bg-pink-500", leads: [] },
+    { id: "recontactar", title: "Re-contactar", color: "bg-amber-500", leads: [] },
+    { id: "entrevista-pactada", title: "Entrevista pactada", color: "bg-teal-500", leads: [] },
+    { id: "entrevista-realizada", title: "Entrevista realizada", color: "bg-emerald-500", leads: [] },
+    { id: "reagendar", title: "Reagendar entrevista", color: "bg-orange-500", leads: [] },
+    { id: "segunda-entrevista", title: "2da Entrevista", color: "bg-lime-500", leads: [] },
+    { id: "cierre", title: "Seguimiento para cierre", color: "bg-green-500", leads: [] },
+    { id: "convertido", title: "Cliente Convertido", color: "bg-green-600", leads: [] },
+    { id: "no-interesa", title: "No le interesa", color: "bg-red-500", leads: [] },
+    { id: "partner", title: "Partner/Colega", color: "bg-violet-500", leads: [] },
+  ].map((col) => ({
+    ...col,
+    leads: leads
+      .filter((lead) => lead.stage === col.id)
+      .map((lead) => ({
+        id: lead.id,
+        name: lead.name,
+        company: lead.company,
+        value: lead.value,
+        source: lead.source,
+        lastContact: lead.lastContact,
+        phone: lead.phone,
+        email: lead.email,
+        probability: lead.probability,
+        estimatedDate: lead.estimatedDate,
+        leadScore: lead.leadScore,
+        owner: lead.owner,
+        stage: lead.stage,
+        avatar: lead.avatar,
+      })),
+  }))
+
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px movement before drag starts (allows scrolling)
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   )
 
-  const totalLeads = columns.reduce((sum, col) => sum + col.leads.length, 0)
-  const totalValue = columns.reduce((sum, col) => sum + col.leads.reduce((colSum, lead) => colSum + lead.value, 0), 0)
-  const weightedProbability = columns.reduce((sum, col) => {
-    const colValue = col.leads.reduce((colSum, lead) => colSum + (lead.value * lead.probability) / 100, 0)
-    return sum + colValue
-  }, 0)
+  const totalLeads = leads.length
+  const totalValue = leads.reduce((sum, lead) => sum + lead.value, 0)
+  const weightedProbability = leads.reduce((sum, lead) => sum + (lead.value * lead.probability) / 100, 0)
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -483,87 +340,23 @@ export function KanbanBoard() {
     const activeId = active.id as string
     const overId = over.id as string
 
-    const sourceColumn = columns.find((col) => col.leads.some((lead) => lead.id === activeId))
-    const destColumn = columns.find((col) => col.id === overId || col.leads.some((lead) => lead.id === overId))
-
-    if (!sourceColumn || !destColumn) return
-
-    const sourceLead = sourceColumn.leads.find((lead) => lead.id === activeId)
+    const sourceLead = leads.find((lead) => lead.id === activeId)
     if (!sourceLead) return
 
-    if (sourceColumn.id !== destColumn.id) {
-      setColumns((prevColumns) => {
-        return prevColumns.map((col) => {
-          if (col.id === sourceColumn.id) {
-            return {
-              ...col,
-              leads: col.leads.filter((lead) => lead.id !== activeId),
-            }
-          }
-          if (col.id === destColumn.id) {
-            const updatedLead = {
-              ...sourceLead,
-              stage: destColumn.id,
-              probability:
-                destColumn.id === "prospecto"
-                  ? 15
-                  : destColumn.id === "contactado"
-                    ? 25
-                    : destColumn.id === "seguimiento"
-                      ? 40
-                      : destColumn.id === "propuesta"
-                        ? 55
-                        : destColumn.id === "interesado"
-                          ? 65
-                          : destColumn.id === "recontactar"
-                            ? 20
-                            : destColumn.id === "entrevista-pactada"
-                              ? 70
-                              : destColumn.id === "entrevista-realizada"
-                                ? 75
-                                : destColumn.id === "reagendar"
-                                  ? 60
-                                  : destColumn.id === "segunda-entrevista"
-                                    ? 85
-                                    : destColumn.id === "cierre"
-                                      ? 92
-                                      : destColumn.id === "convertido"
-                                        ? 100
-                                        : destColumn.id === "no-interesa"
-                                          ? 0
-                                          : destColumn.id === "partner"
-                                            ? 50
-                                            : 50,
-            }
-            return {
-              ...col,
-              leads: [...col.leads, updatedLead],
-            }
-          }
-          return col
-        })
-      })
+    const sourceStage = sourceLead.stage
+    const destStage = columns.find((col) => col.id === overId || col.leads.some((lead) => lead.id === overId))
+
+    if (!destStage) return
+
+    if (sourceStage !== destStage.id) {
+      console.log("[v0] Moving lead", activeId, "from", sourceStage, "to", destStage.id)
+      moveLeadToStage(activeId, destStage.id)
 
       addToast({
         type: "success",
         title: "Lead movido",
-        description: `${sourceLead.name} movido a ${destColumn.title}`,
+        description: `${sourceLead.name} movido a ${destStage.title}`,
       })
-    } else {
-      const sourceIndex = sourceColumn.leads.findIndex((lead) => lead.id === activeId)
-      const destIndex = sourceColumn.leads.findIndex((lead) => lead.id === overId)
-
-      if (sourceIndex !== destIndex) {
-        setColumns((prevColumns) => {
-          return prevColumns.map((col) => {
-            if (col.id === sourceColumn.id) {
-              const newLeads = arrayMove(col.leads, sourceIndex, destIndex)
-              return { ...col, leads: newLeads }
-            }
-            return col
-          })
-        })
-      }
     }
   }
 
