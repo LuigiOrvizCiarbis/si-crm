@@ -12,9 +12,11 @@ import { ContactInfoPanel } from "@/components/ContactInfoPanel"
 import { useToast } from "@/components/Toast"
 import { ChatCreateTaskButton } from "@/components/ChatCreateTaskButton"
 import { NotificationsBell } from "@/components/notifications-bell"
-import { FileText } from "lucide-react"
+import { FileText, Search, ChevronLeft, User, MoreVertical } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
+import { getChannelIcon } from "@/lib/channel-icons"
+import { SidebarLayout } from "@/components/sidebar-layout"
 
 interface Account {
   id: string
@@ -37,6 +39,7 @@ interface Conversation {
   priority?: "baja" | "media" | "alta" | "hot"
   assigneeId?: string
   archived?: boolean
+  contactId?: string // Added for ContactInfoPanel
 }
 
 const accounts: Account[] = [
@@ -235,6 +238,7 @@ const conversations: Conversation[] = [
     priority: "alta",
     assigneeId: "me",
     archived: false,
+    contactId: "contact1",
   },
   {
     id: "conv2",
@@ -248,6 +252,7 @@ const conversations: Conversation[] = [
     priority: "hot",
     assigneeId: "v1",
     archived: false,
+    contactId: "contact2",
   },
   {
     id: "conv3",
@@ -261,6 +266,7 @@ const conversations: Conversation[] = [
     priority: "media",
     assigneeId: "v2",
     archived: false,
+    contactId: "contact3",
   },
   {
     id: "conv4",
@@ -270,6 +276,7 @@ const conversations: Conversation[] = [
     timestamp: "12:30",
     unread: false,
     leadScore: 80,
+    contactId: "contact4",
   },
   {
     id: "conv5",
@@ -279,6 +286,7 @@ const conversations: Conversation[] = [
     timestamp: "11:20",
     unread: true,
     leadScore: 95,
+    contactId: "contact5",
   },
   {
     id: "conv6",
@@ -288,6 +296,7 @@ const conversations: Conversation[] = [
     timestamp: "15:45",
     unread: true,
     leadScore: 88,
+    contactId: "contact6",
   },
   {
     id: "conv7",
@@ -297,6 +306,7 @@ const conversations: Conversation[] = [
     timestamp: "15:30",
     unread: false,
     leadScore: 92,
+    contactId: "contact7",
   },
   {
     id: "conv8",
@@ -306,6 +316,7 @@ const conversations: Conversation[] = [
     timestamp: "15:15",
     unread: true,
     leadScore: 83,
+    contactId: "contact8",
   },
   {
     id: "conv9",
@@ -315,6 +326,7 @@ const conversations: Conversation[] = [
     timestamp: "14:20",
     unread: false,
     leadScore: 97,
+    contactId: "contact9",
   },
   {
     id: "conv10",
@@ -324,6 +336,7 @@ const conversations: Conversation[] = [
     timestamp: "13:50",
     unread: true,
     leadScore: 89,
+    contactId: "contact10",
   },
   {
     id: "conv11",
@@ -333,6 +346,7 @@ const conversations: Conversation[] = [
     timestamp: "13:20",
     unread: false,
     leadScore: 91,
+    contactId: "contact11",
   },
   {
     id: "conv12",
@@ -342,6 +356,7 @@ const conversations: Conversation[] = [
     timestamp: "12:45",
     unread: true,
     leadScore: 84,
+    contactId: "contact12",
   },
   {
     id: "conv13",
@@ -351,6 +366,7 @@ const conversations: Conversation[] = [
     timestamp: "12:10",
     unread: false,
     leadScore: 93,
+    contactId: "contact13",
   },
 ]
 
@@ -371,6 +387,7 @@ export default function ChatsPage() {
   const [message, setMessage] = useState("")
   const [wizardOpen, setWizardOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [shouldShowAllConversations, setShouldShowAllConversations] = useState(false)
 
   useEffect(() => {
     const handleConnectChannel = () => {
@@ -476,33 +493,6 @@ export default function ChatsPage() {
     router.push("/plantillas-wa")
   }
 
-  const getPlatformIcon = (platform: string) => {
-    switch (platform) {
-      case "whatsapp":
-        return <div className="w-4 h-4 bg-green-500 rounded-full" />
-      case "instagram":
-        return <div className="w-4 h-4 bg-pink-500 rounded-full" />
-      case "facebook":
-        return <div className="w-4 h-4 bg-blue-500 rounded-full" />
-      case "linkedin":
-        return <div className="w-4 h-4 bg-blue-600 rounded-full" />
-      case "telegram":
-        return (
-          <div className="w-4 h-4 bg-blue-400 rounded-full flex items-center justify-center">
-            <div className="w-2 h-2 bg-white rounded-full" />
-          </div>
-        )
-      case "web":
-        return <div className="w-4 h-4 bg-purple-500 rounded-full" />
-      case "mail":
-        return <div className="w-4 h-4 bg-orange-500 rounded-full" />
-      default:
-        return <div className="w-4 h-4 bg-gray-500 rounded-full" />
-    }
-  }
-
-  const shouldShowAllConversations = activeFilter === "todos" || activeFilter === "no-leidos"
-
   const getFilteredConversations = () => {
     if (activeFilter === "todos") {
       return conversations
@@ -534,13 +524,13 @@ export default function ChatsPage() {
   const filterButtons = [
     { key: "todos", label: "TODOS", icon: <div className="w-3 h-3 bg-gray-500 rounded-full" /> },
     { key: "no-leidos", label: "NO LEÍDOS", icon: <div className="w-3 h-3 bg-blue-500 rounded-full" /> },
-    { key: "whatsapp", label: "WHATSAPP", icon: <div className="w-3 h-3 bg-green-500 rounded-full" /> },
-    { key: "instagram", label: "INSTAGRAM", icon: <div className="w-3 h-3 bg-pink-500 rounded-full" /> },
-    { key: "facebook", label: "FACEBOOK", icon: <div className="w-3 h-3 bg-blue-500 rounded-full" /> },
-    { key: "linkedin", label: "LINKEDIN", icon: <div className="w-3 h-3 bg-blue-600 rounded-full" /> },
-    { key: "telegram", label: "TELEGRAM", icon: <div className="w-3 h-3 bg-blue-400 rounded-full" /> },
-    { key: "web", label: "WEB", icon: <div className="w-3 h-3 bg-purple-500 rounded-full" /> },
-    { key: "mail", label: "MAIL", icon: <div className="w-3 h-3 bg-orange-500 rounded-full" /> },
+    { key: "whatsapp", label: "WHATSAPP", icon: getChannelIcon("whatsapp") },
+    { key: "instagram", label: "INSTAGRAM", icon: getChannelIcon("instagram") },
+    { key: "facebook", label: "FACEBOOK", icon: getChannelIcon("facebook") },
+    { key: "linkedin", label: "LINKEDIN", icon: getChannelIcon("linkedin") },
+    { key: "telegram", label: "TELEGRAM", icon: getChannelIcon("telegram") },
+    { key: "web", label: "WEB", icon: getChannelIcon("web") },
+    { key: "mail", label: "MAIL", icon: getChannelIcon("mail") },
   ]
 
   const handleConversationClick = (conversationId: string) => {
@@ -566,10 +556,10 @@ export default function ChatsPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="flex flex-col border-b border-border bg-background">
+    <SidebarLayout>
+      <div className="flex flex-col h-full">
         {/* NIVEL 1: Título y subtítulo */}
-        <div className="p-6 pb-3">
+        <div className="p-6 pb-3 border-b border-border bg-background">
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Chats</h1>
@@ -591,12 +581,10 @@ export default function ChatsPage() {
         </div>
 
         {/* NIVEL 3: Búsqueda y filtros */}
-        <div className="px-6 pb-4 sticky top-0 bg-background z-10">
+        <div className="px-6 py-4 border-b border-border bg-background sticky top-0 z-10">
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground">
-                {/* Search icon */}
-              </div>
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar conversaciones..."
                 className="pl-9"
@@ -606,404 +594,419 @@ export default function ChatsPage() {
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        <div className="w-80 border-r border-border bg-card flex flex-col">
-          <div className="p-4 border-b border-border">
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              {filterButtons.map((button) => (
-                <Button
-                  key={button.key}
-                  variant={activeFilter === button.key ? "default" : "outline"}
-                  size="sm"
-                  className="whitespace-nowrap text-xs gap-1 flex-shrink-0"
-                  onClick={() => {
-                    setActiveFilter(button.key as any)
-                    setSelectedAccount(null)
-                    setSelectedConversation(null)
-                    router.replace("/chats")
-                  }}
-                >
-                  {button.icon}
-                  {button.label}
-                </Button>
-              ))}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left Panel: Accounts */}
+          <div className="w-80 border-r border-border bg-card flex flex-col">
+            <div className="p-4 border-b border-border">
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                {filterButtons.map((button) => (
+                  <Button
+                    key={button.key}
+                    variant={activeFilter === button.key ? "default" : "outline"}
+                    size="sm"
+                    className="whitespace-nowrap text-xs gap-1 flex-shrink-0"
+                    onClick={() => {
+                      setActiveFilter(button.key as any)
+                      setSelectedAccount(null)
+                      setSelectedConversation(null)
+                      router.replace("/chats")
+                    }}
+                  >
+                    {button.icon}
+                    {button.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {isLoading ? (
+                <div className="p-4">
+                  <SkeletonList count={6} />
+                </div>
+              ) : (
+                <>
+                  {connectedAccounts.length > 0 ? (
+                    <div className="p-4">
+                      <h3 className="text-sm font-medium text-muted-foreground mb-3">Chats conectados</h3>
+                      <div className="space-y-1">
+                        {connectedAccounts.map((account) => (
+                          <Card
+                            key={account.id}
+                            className={`p-3 cursor-pointer hover:bg-accent transition-colors ${
+                              selectedAccount === account.id ? "bg-accent border-primary" : ""
+                            }`}
+                            onClick={() => {
+                              setSelectedAccount(account.id)
+                              setSelectedConversation(null)
+                              router.replace("/chats")
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2">
+                                {getChannelIcon(account.platform)}
+                                <span className="font-medium text-sm">{account.name}</span>
+                              </div>
+                              <div className="ml-auto text-xs font-bold text-white bg-blue-600 dark:bg-blue-500 px-2 py-1 rounded-full min-w-[20px] text-center">
+                                {account.conversationsCount}
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4">
+                      <EmptyState
+                        icon={getChannelIcon("whatsapp")}
+                        title="No hay chats conectados"
+                        description="Conecta tu primer canal para comenzar a recibir mensajes"
+                        action={{
+                          label: "Conectar WhatsApp",
+                          onClick: handleConnectChannel,
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {disconnectedAccounts.length > 0 && (
+                    <div className="p-4 border-t border-border">
+                      <h3 className="text-sm font-medium text-muted-foreground mb-3">Chats desconectados</h3>
+                      <div className="space-y-1">
+                        {disconnectedAccounts.map((account) => (
+                          <Card key={account.id} className="p-3 opacity-60">
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2">
+                                {getChannelIcon(account.platform)}
+                                <span className="font-medium text-sm">{account.name}</span>
+                              </div>
+                              <div className="ml-auto text-xs font-bold text-white bg-blue-600 dark:bg-blue-500 px-2 py-1 rounded-full min-w-[20px] text-center">
+                                {account.conversationsCount}
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="p-4 border-t border-border">
+                    <Button variant="outline" className="w-full gap-2 bg-transparent" onClick={handleConnectChannel}>
+                      <div className="w-4 h-4 bg-green-500 rounded-full" />
+                      +Connect chat
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
-            {isLoading ? (
-              <div className="p-4">
-                <SkeletonList count={6} />
-              </div>
-            ) : (
+          {/* Main Chat Area */}
+          <div className="flex-1 bg-background flex flex-col">
+            {selectedConversation ? (
               <>
-                {connectedAccounts.length > 0 ? (
-                  <div className="p-4">
-                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Chats conectados</h3>
-                    <div className="space-y-1">
-                      {connectedAccounts.map((account) => (
-                        <Card
-                          key={account.id}
-                          className={`p-3 cursor-pointer hover:bg-accent transition-colors ${
-                            selectedAccount === account.id ? "bg-accent border-primary" : ""
-                          }`}
-                          onClick={() => {
-                            setSelectedAccount(account.id)
-                            setSelectedConversation(null)
-                            router.replace("/chats")
-                          }}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2">
-                              {getPlatformIcon(account.platform)}
-                              <span className="font-medium text-sm">{account.name}</span>
-                            </div>
-                            <div className="ml-auto text-xs font-bold text-white bg-blue-600 dark:bg-blue-500 px-2 py-1 rounded-full min-w-[20px] text-center">
-                              {account.conversationsCount}
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4">
-                    <EmptyState
-                      icon={getPlatformIcon("whatsapp")}
-                      title="No hay chats conectados"
-                      description="Conecta tu primer canal para comenzar a recibir mensajes"
-                      action={{
-                        label: "Conectar WhatsApp",
-                        onClick: handleConnectChannel,
-                      }}
-                    />
-                  </div>
-                )}
-
-                {disconnectedAccounts.length > 0 && (
-                  <div className="p-4 border-t border-border">
-                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Chats desconectados</h3>
-                    <div className="space-y-1">
-                      {disconnectedAccounts.map((account) => (
-                        <Card key={account.id} className="p-3 opacity-60">
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2">
-                              {getPlatformIcon(account.platform)}
-                              <span className="font-medium text-sm">{account.name}</span>
-                            </div>
-                            <div className="ml-auto text-xs font-bold text-white bg-blue-600 dark:bg-blue-500 px-2 py-1 rounded-full min-w-[20px] text-center">
-                              {account.conversationsCount}
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="p-4 border-t border-border">
-                  <Button variant="outline" className="w-full gap-2 bg-transparent" onClick={handleConnectChannel}>
-                    <div className="w-4 h-4 bg-green-500 rounded-full" />
-                    +Connect chat
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="flex-1 bg-background flex flex-col">
-          {selectedConversation ? (
-            <>
-              <div className="p-4 border-b border-border bg-card">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="sm" onClick={handleBackToConversations}>
-                      <div className="w-4 h-4 bg-gray-500 rounded-full" />
-                    </Button>
-                    <Avatar className="w-10 h-10">
-                      <AvatarFallback>
-                        {conversations
-                          .find((c) => c.id === selectedConversation)
-                          ?.contactName.split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-medium">
-                          {conversations.find((c) => c.id === selectedConversation)?.contactName}
-                        </h3>
-                        <LeadScoreBadge
-                          score={conversations.find((c) => c.id === selectedConversation)?.leadScore || 0}
-                          className="cursor-help"
-                          title={`Lead Score: ${conversations.find((c) => c.id === selectedConversation)?.leadScore}/100 - Basado en intención, recencia y canal`}
-                        />
+                <div className="p-4 border-b border-border bg-card">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Button variant="ghost" size="sm" onClick={handleBackToConversations} className="md:hidden">
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <Avatar className="w-10 h-10">
+                        <AvatarFallback>
+                          {conversations
+                            .find((c) => c.id === selectedConversation)
+                            ?.contactName.split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium">
+                            {conversations.find((c) => c.id === selectedConversation)?.contactName}
+                          </h3>
+                          <LeadScoreBadge
+                            score={conversations.find((c) => c.id === selectedConversation)?.leadScore || 0}
+                            className="cursor-help"
+                            title={`Lead Score: ${conversations.find((c) => c.id === selectedConversation)?.leadScore}/100 - Basado en intención, recencia y canal`}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">En línea</p>
                       </div>
-                      <p className="text-xs text-muted-foreground">En línea</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <ChatCreateTaskButton
+                        chatId={selectedConversation}
+                        contactName={conversations.find((c) => c.id === selectedConversation)?.contactName || ""}
+                      />
+                      <Button variant="ghost" size="sm" onClick={() => setIsContactInfoOpen(!isContactInfoOpen)}>
+                        <User className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm">
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <ChatCreateTaskButton
-                      chatId={selectedConversation}
-                      contactName={conversations.find((c) => c.id === selectedConversation)?.contactName || ""}
-                    />
-                    <Button variant="ghost" size="sm" onClick={() => setIsContactInfoOpen(!isContactInfoOpen)}>
-                      <div className="w-4 h-4 bg-blue-600 rounded-full" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <div className="w-4 h-4 bg-gray-500 rounded-full" />
-                    </Button>
+                </div>
+
+                <ChatQuickBar
+                  chatId={selectedConversation}
+                  value={chatStates[selectedConversation] || { unread: 0, archived: false }}
+                  team={[
+                    { id: "me", name: "Luigi Ciarbis", role: "Owner" },
+                    { id: "v1", name: "Julieta Vendedora", role: "Vendedor" },
+                    { id: "v2", name: "Pablo Vendedor", role: "Vendedor" },
+                    { id: "sup", name: "Claudia Supervisor", role: "Supervisor" },
+                  ]}
+                  onChangeStage={(stage) => handleChangeStage(selectedConversation)(stage)}
+                  onChangePriority={(priority) => handleChangePriority(selectedConversation)(priority)}
+                  onChangeAssignee={(assigneeId) => handleChangeAssignee(selectedConversation)(assigneeId)}
+                  onMarkRead={handleMarkRead(selectedConversation)}
+                  onToggleArchive={handleToggleArchive(selectedConversation)}
+                />
+
+                <div className="p-4 border-b border-border bg-muted/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="ai" size="sm" icon>
+                      IA
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">Sugerencias inteligentes:</span>
                   </div>
-                </div>
-              </div>
-
-              <ChatQuickBar
-                chatId={selectedConversation}
-                value={chatStates[selectedConversation] || { unread: 0, archived: false }}
-                team={[
-                  { id: "me", name: "Luigi Ciarbis", role: "Owner" },
-                  { id: "v1", name: "Julieta Vendedora", role: "Vendedor" },
-                  { id: "v2", name: "Pablo Vendedor", role: "Vendedor" },
-                  { id: "sup", name: "Claudia Supervisor", role: "Supervisor" },
-                ]}
-                onChangeStage={(stage) => handleChangeStage(selectedConversation)(stage)}
-                onChangePriority={(priority) => handleChangePriority(selectedConversation)(priority)}
-                onChangeAssignee={(assigneeId) => handleChangeAssignee(selectedConversation)(assigneeId)}
-                onMarkRead={handleMarkRead(selectedConversation)}
-                onToggleArchive={handleToggleArchive(selectedConversation)}
-              />
-
-              <div className="p-4 border-b border-border bg-muted/30">
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="ai" size="sm" icon>
-                    IA
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">Sugerencias inteligentes:</span>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  {aiSuggestions.map((suggestion, index) => (
-                    <Button
-                      key={index}
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-7 gap-1 bg-transparent"
-                      onClick={() => handleSuggestionClick(suggestion)}
-                    >
-                      <Badge variant="ai" size="sm">
-                        IA
-                      </Badge>
-                      {suggestion}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex-1 p-4 overflow-y-auto">
-                <div className="space-y-4">
-                  <div className="flex justify-start">
-                    <div className="bg-muted p-3 rounded-lg max-w-xs">
-                      <p className="text-sm">{conversations.find((c) => c.id === selectedConversation)?.lastMessage}</p>
-                      <span className="text-xs text-muted-foreground">
-                        {conversations.find((c) => c.id === selectedConversation)?.timestamp}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <div className="bg-primary text-primary-foreground p-3 rounded-lg max-w-xs relative">
-                      <p className="text-sm">¡Perfecto! Te ayudo con toda la información que necesites</p>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-xs opacity-70">14:31</span>
+                  <div className="flex gap-2 flex-wrap">
+                    {aiSuggestions.map((suggestion, index) => (
+                      <Button
+                        key={index}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7 gap-1 bg-transparent"
+                        onClick={() => handleSuggestionClick(suggestion)}
+                      >
                         <Badge variant="ai" size="sm">
                           IA
                         </Badge>
+                        {suggestion}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex-1 p-4 overflow-y-auto">
+                  <div className="space-y-4">
+                    <div className="flex justify-start">
+                      <div className="bg-muted p-3 rounded-lg max-w-xs">
+                        <p className="text-sm">
+                          {conversations.find((c) => c.id === selectedConversation)?.lastMessage}
+                        </p>
+                        <span className="text-xs text-muted-foreground">
+                          {conversations.find((c) => c.id === selectedConversation)?.timestamp}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <div className="bg-primary text-primary-foreground p-3 rounded-lg max-w-xs relative">
+                        <p className="text-sm">¡Perfecto! Te ayudo con toda la información que necesites</p>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-xs opacity-70">14:31</span>
+                          <Badge variant="ai" size="sm">
+                            IA
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="p-4 border-t border-border bg-card sticky bottom-0 md:relative">
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm">
-                    <div className="w-4 h-4 bg-blue-400 rounded-full" />
-                  </Button>
-                  <Input
-                    placeholder="Escribe un mensaje..."
-                    className="flex-1"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                  />
-                  <Button variant="ghost" size="sm">
-                    <div className="w-4 h-4 bg-yellow-500 rounded-full" />
-                  </Button>
-                  <Button size="sm">
-                    <div className="w-4 h-4 bg-blue-500 rounded-full" />
-                  </Button>
+                <div className="p-4 border-t border-border bg-card sticky bottom-0 md:relative">
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm">
+                      <div className="w-4 h-4 bg-blue-400 rounded-full" />
+                    </Button>
+                    <Input
+                      placeholder="Escribe un mensaje..."
+                      className="flex-1"
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                    />
+                    <Button variant="ghost" size="sm">
+                      <div className="w-4 h-4 bg-yellow-500 rounded-full" />
+                    </Button>
+                    <Button size="sm">
+                      <div className="w-4 h-4 bg-blue-500 rounded-full" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </>
-          ) : selectedAccount ? (
-            <>
-              <div className="p-4 border-b border-border bg-card">
-                <div className="flex items-center gap-3">
-                  <Button variant="ghost" size="sm" onClick={handleBackToAccounts}>
-                    <div className="w-4 h-4 bg-gray-500 rounded-full" />
+              </>
+            ) : selectedAccount ? (
+              <div className="flex-1 flex flex-col">
+                <div className="p-4 border-b border-border bg-card flex items-center gap-3">
+                  <Button variant="ghost" size="sm" onClick={handleBackToAccounts} className="md:hidden">
+                    <ChevronLeft className="w-4 h-4" />
                   </Button>
+                  {(() => {
+                    const account = accounts.find((a) => a.id === selectedAccount)
+                    if (!account) return null
+                    return getChannelIcon(account.platform)
+                  })()}
                   <h3 className="font-medium">{accounts.find((a) => a.id === selectedAccount)?.name}</h3>
                 </div>
-              </div>
-              <div className="flex-1 p-4 overflow-y-auto">
-                {isLoading ? (
-                  <SkeletonList count={8} />
-                ) : getAccountConversations(selectedAccount).length > 0 ? (
-                  <div className="space-y-2">
-                    {getAccountConversations(selectedAccount).map((conversation) => {
-                      const account = accounts.find((a) => a.id === conversation.accountId)
-                      return (
-                        <Card
-                          key={conversation.id}
-                          className="p-3 cursor-pointer hover:bg-accent transition-colors"
-                          onClick={() => handleConversationClick(conversation.id)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2">
-                              {account && getPlatformIcon(account.platform)}
-                              <Avatar className="w-8 h-8">
-                                <AvatarFallback className="text-xs">
-                                  {conversation.contactName
-                                    .split(" ")
-                                    .map((n) => n[0])
-                                    .join("")
-                                    .slice(0, 2)}
-                                </AvatarFallback>
-                              </Avatar>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-sm truncate">{conversation.contactName}</span>
-                                  {conversation.leadScore && (
-                                    <LeadScoreBadge
-                                      score={conversation.leadScore}
-                                      className="cursor-help"
-                                      title={`Lead Score: ${conversation.leadScore}/100`}
-                                    />
-                                  )}
-                                </div>
-                                <span className="text-xs text-muted-foreground">{conversation.timestamp}</span>
+                <div className="flex-1 p-4 overflow-y-auto">
+                  {isLoading ? (
+                    <SkeletonList count={8} />
+                  ) : getAccountConversations(selectedAccount).length > 0 ? (
+                    <div className="space-y-2">
+                      {getAccountConversations(selectedAccount).map((conversation) => {
+                        const account = accounts.find((a) => a.id === conversation.accountId)
+                        return (
+                          <Card
+                            key={conversation.id}
+                            className="p-3 cursor-pointer hover:bg-accent transition-colors"
+                            onClick={() => handleConversationClick(conversation.id)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2">
+                                {account && getChannelIcon(account.platform)}
+                                <Avatar className="w-8 h-8">
+                                  <AvatarFallback className="text-xs">
+                                    {conversation.contactName
+                                      .split(" ")
+                                      .map((n) => n[0])
+                                      .join("")
+                                      .slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
                               </div>
-                              <p className="text-xs text-muted-foreground truncate">{conversation.lastMessage}</p>
-                              <p className="text-xs text-muted-foreground/70">{account?.name}</p>
-                            </div>
-                            {conversation.unread && <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />}
-                          </div>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <EmptyState
-                    icon={getPlatformIcon("whatsapp")}
-                    title="No hay conversaciones"
-                    description="Esta cuenta no tiene conversaciones activas"
-                  />
-                )}
-              </div>
-            </>
-          ) : shouldShowAllConversations ? (
-            <>
-              <div className="p-4 border-b border-border bg-card">
-                <h3 className="font-medium">
-                  {activeFilter === "todos" ? "Todas las conversaciones" : "Conversaciones no leídas"}
-                </h3>
-              </div>
-              <div className="flex-1 p-4 overflow-y-auto">
-                {isLoading ? (
-                  <SkeletonList count={8} />
-                ) : getFilteredConversations().length > 0 ? (
-                  <div className="space-y-2">
-                    {getFilteredConversations().map((conversation) => {
-                      const account = accounts.find((a) => a.id === conversation.accountId)
-                      return (
-                        <Card
-                          key={conversation.id}
-                          className="p-3 cursor-pointer hover:bg-accent transition-colors"
-                          onClick={() => handleConversationClick(conversation.id)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2">
-                              {account && getPlatformIcon(account.platform)}
-                              <Avatar className="w-8 h-8">
-                                <AvatarFallback className="text-xs">
-                                  {conversation.contactName
-                                    .split(" ")
-                                    .map((n) => n[0])
-                                    .join("")
-                                    .slice(0, 2)}
-                                </AvatarFallback>
-                              </Avatar>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-sm truncate">{conversation.contactName}</span>
-                                  {conversation.leadScore && (
-                                    <LeadScoreBadge
-                                      score={conversation.leadScore}
-                                      className="cursor-help"
-                                      title={`Lead Score: ${conversation.leadScore}/100`}
-                                    />
-                                  )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-sm truncate">{conversation.contactName}</span>
+                                    {conversation.leadScore && (
+                                      <LeadScoreBadge
+                                        score={conversation.leadScore}
+                                        className="cursor-help"
+                                        title={`Lead Score: ${conversation.leadScore}/100`}
+                                      />
+                                    )}
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">{conversation.timestamp}</span>
                                 </div>
-                                <span className="text-xs text-muted-foreground">{conversation.timestamp}</span>
+                                <p className="text-xs text-muted-foreground truncate">{conversation.lastMessage}</p>
+                                <p className="text-xs text-muted-foreground/70">{account?.name}</p>
                               </div>
-                              <p className="text-xs text-muted-foreground truncate">{conversation.lastMessage}</p>
-                              <p className="text-xs text-muted-foreground/70">{account?.name}</p>
+                              {conversation.unread && (
+                                <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
+                              )}
                             </div>
-                            {conversation.unread && <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />}
-                          </div>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <EmptyState
-                    icon={getPlatformIcon("whatsapp")}
-                    title="No hay conversaciones"
-                    description="No se encontraron conversaciones para este filtro"
-                    action={{
-                      label: "Conectar canal",
-                      onClick: handleConnectChannel,
-                    }}
-                  />
-                )}
+                          </Card>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      icon={getChannelIcon("whatsapp")}
+                      title="No hay conversaciones"
+                      description="Esta cuenta no tiene conversaciones activas"
+                    />
+                  )}
+                </div>
               </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-12 h-12 text-muted-foreground mx-auto mb-4">{/* MessageSquare icon */}</div>
-                <h3 className="text-lg font-medium mb-2">Selecciona una conversación</h3>
-                <p className="text-muted-foreground">Elige una cuenta o conversación de la lista para comenzar</p>
+            ) : shouldShowAllConversations ? (
+              <>
+                <div className="p-4 border-b border-border bg-card">
+                  <h3 className="font-medium">
+                    {activeFilter === "todos" ? "Todas las conversaciones" : "Conversaciones no leídas"}
+                  </h3>
+                </div>
+                <div className="flex-1 p-4 overflow-y-auto">
+                  {isLoading ? (
+                    <SkeletonList count={8} />
+                  ) : getFilteredConversations().length > 0 ? (
+                    <div className="space-y-2">
+                      {getFilteredConversations().map((conversation) => {
+                        const account = accounts.find((a) => a.id === conversation.accountId)
+                        return (
+                          <Card
+                            key={conversation.id}
+                            className="p-3 cursor-pointer hover:bg-accent transition-colors"
+                            onClick={() => handleConversationClick(conversation.id)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2">
+                                {account && getChannelIcon(account.platform)}
+                                <Avatar className="w-8 h-8">
+                                  <AvatarFallback className="text-xs">
+                                    {conversation.contactName
+                                      .split(" ")
+                                      .map((n) => n[0])
+                                      .join("")
+                                      .slice(0, 2)}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-sm truncate">{conversation.contactName}</span>
+                                    {conversation.leadScore && (
+                                      <LeadScoreBadge
+                                        score={conversation.leadScore}
+                                        className="cursor-help"
+                                        title={`Lead Score: ${conversation.leadScore}/100`}
+                                      />
+                                    )}
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">{conversation.timestamp}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground truncate">{conversation.lastMessage}</p>
+                                <p className="text-xs text-muted-foreground/70">{account?.name}</p>
+                              </div>
+                              {conversation.unread && (
+                                <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
+                              )}
+                            </div>
+                          </Card>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      icon={getChannelIcon("whatsapp")}
+                      title="No hay conversaciones"
+                      description="No se encontraron conversaciones para este filtro"
+                      action={{
+                        label: "Conectar canal",
+                        onClick: handleConnectChannel,
+                      }}
+                    />
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center p-6">
+                <EmptyState
+                  icon={getChannelIcon("whatsapp")}
+                  title="Selecciona una cuenta"
+                  description="Elige una cuenta de la lista para ver sus conversaciones"
+                />
               </div>
+            )}
+          </div>
+
+          {/* Right Panel: Contact Info */}
+          {isContactInfoOpen && selectedConversation && (
+            <div className="w-80 border-l border-border bg-card">
+              <ContactInfoPanel
+                contactId={conversations.find((c) => c.id === selectedConversation)?.contactId || ""}
+                conversationId={selectedConversation}
+                onClose={() => setIsContactInfoOpen(false)}
+              />
             </div>
           )}
         </div>
 
-        {selectedConversation && (
-          <ContactInfoPanel
-            contactId={selectedConversation}
-            isOpen={isContactInfoOpen}
-            onClose={() => setIsContactInfoOpen(false)}
-          />
-        )}
+        <WizardConnectChannel open={wizardOpen} onOpenChange={setWizardOpen} />
       </div>
-      <WizardConnectChannel open={wizardOpen} onOpenChange={setWizardOpen} />
-    </div>
+    </SidebarLayout>
   )
 }
