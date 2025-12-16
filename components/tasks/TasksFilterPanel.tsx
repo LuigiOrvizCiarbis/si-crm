@@ -65,6 +65,10 @@ export function TasksFilterPanel({
 }: TasksFilterPanelProps) {
   const [localFilters, setLocalFilters] = useState<TaskFilters>(filters)
 
+  useState(() => {
+    setLocalFilters(filters)
+  }, [filters])
+
   const handleApply = () => {
     onFiltersChange(localFilters)
     onOpenChange(false)

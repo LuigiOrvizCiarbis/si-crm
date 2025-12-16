@@ -12,6 +12,7 @@ import { NewTaskModal } from "@/components/tasks/NewTaskModal"
 import { TasksFilterPanel, type TaskFilters } from "@/components/tasks/TasksFilterPanel"
 import { useTaskStore } from "@/store/useTaskStore"
 import type { Task } from "@/lib/types/task"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 export default function TareasPage() {
   const tasks = useTaskStore((state) => state.tasks)
@@ -26,6 +27,7 @@ export default function TareasPage() {
     types: [],
     deadline: null,
   })
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     let filtered = tasks
@@ -179,7 +181,7 @@ export default function TareasPage() {
         onViewChange={setActiveView}
         onSearch={setSearchQuery}
         onNewTask={() => setShowNewTask(true)}
-        onFilterClick={() => setShowFilters(true)}
+        onFilterClick={() => setShowFilters(!showFilters)}
       />
 
       <div className="flex gap-2 px-6 py-3 border-b border-border/50 bg-card">
@@ -215,7 +217,7 @@ export default function TareasPage() {
         onOpenChange={setShowFilters}
         filters={filters}
         onFiltersChange={setFilters}
-        isMobile={false}
+        isMobile={isMobile}
       />
     </SidebarLayout>
   )
