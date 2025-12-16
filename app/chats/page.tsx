@@ -613,7 +613,10 @@ export default function ChatsPage() {
                       router.replace("/chats")
                     }}
                   >
-                    {button.icon}
+                    {(() => {
+                      const Icon = getChannelIcon(button.key)
+                      return <Icon className="h-5 w-5" />
+                    })()}
                     {button.label}
                   </Button>
                 ))}
@@ -645,7 +648,10 @@ export default function ChatsPage() {
                           >
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-2">
-                                {getChannelIcon(account.platform)}
+                                {(() => {
+                                  const Icon = getChannelIcon(account.platform)
+                                  return <Icon className="h-4 w-4" />
+                                })()}
                                 <span className="font-medium text-sm">{account.name}</span>
                               </div>
                               <div className="ml-auto text-xs font-bold text-white bg-blue-600 dark:bg-blue-500 px-2 py-1 rounded-full min-w-[20px] text-center">
@@ -659,7 +665,10 @@ export default function ChatsPage() {
                   ) : (
                     <div className="p-4">
                       <EmptyState
-                        icon={getChannelIcon("whatsapp")}
+                        icon={(() => {
+                          const Icon = getChannelIcon("whatsapp")
+                          return <Icon className="h-5 w-5" />
+                        })()}
                         title="No hay chats conectados"
                         description="Conecta tu primer canal para comenzar a recibir mensajes"
                         action={{
@@ -678,7 +687,10 @@ export default function ChatsPage() {
                           <Card key={account.id} className="p-3 opacity-60">
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-2">
-                                {getChannelIcon(account.platform)}
+                                {(() => {
+                                  const Icon = getChannelIcon(account.platform)
+                                  return <Icon className="h-4 w-4" />
+                                })()}
                                 <span className="font-medium text-sm">{account.name}</span>
                               </div>
                               <div className="ml-auto text-xs font-bold text-white bg-blue-600 dark:bg-blue-500 px-2 py-1 rounded-full min-w-[20px] text-center">
@@ -847,7 +859,8 @@ export default function ChatsPage() {
                   {(() => {
                     const account = accounts.find((a) => a.id === selectedAccount)
                     if (!account) return null
-                    return getChannelIcon(account.platform)
+                    const Icon = getChannelIcon(account.platform)
+                    return <Icon className="h-5 w-5" />
                   })()}
                   <h3 className="font-medium">{accounts.find((a) => a.id === selectedAccount)?.name}</h3>
                 </div>
@@ -866,7 +879,11 @@ export default function ChatsPage() {
                           >
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-2">
-                                {account && getChannelIcon(account.platform)}
+                                {account &&
+                                  (() => {
+                                    const Icon = getChannelIcon(account.platform)
+                                    return <Icon className="h-4 w-4" />
+                                  })()}
                                 <Avatar className="w-8 h-8">
                                   <AvatarFallback className="text-xs">
                                     {conversation.contactName
@@ -904,7 +921,10 @@ export default function ChatsPage() {
                     </div>
                   ) : (
                     <EmptyState
-                      icon={getChannelIcon("whatsapp")}
+                      icon={(() => {
+                        const Icon = getChannelIcon("whatsapp")
+                        return <Icon className="h-5 w-5" />
+                      })()}
                       title="No hay conversaciones"
                       description="Esta cuenta no tiene conversaciones activas"
                     />
@@ -933,7 +953,11 @@ export default function ChatsPage() {
                           >
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-2">
-                                {account && getChannelIcon(account.platform)}
+                                {account &&
+                                  (() => {
+                                    const Icon = getChannelIcon(account.platform)
+                                    return <Icon className="h-4 w-4" />
+                                  })()}
                                 <Avatar className="w-8 h-8">
                                   <AvatarFallback className="text-xs">
                                     {conversation.contactName
@@ -971,7 +995,10 @@ export default function ChatsPage() {
                     </div>
                   ) : (
                     <EmptyState
-                      icon={getChannelIcon("whatsapp")}
+                      icon={(() => {
+                        const Icon = getChannelIcon("whatsapp")
+                        return <Icon className="h-5 w-5" />
+                      })()}
                       title="No hay conversaciones"
                       description="No se encontraron conversaciones para este filtro"
                       action={{
@@ -985,7 +1012,10 @@ export default function ChatsPage() {
             ) : (
               <div className="flex-1 flex items-center justify-center p-6">
                 <EmptyState
-                  icon={getChannelIcon("whatsapp")}
+                  icon={(() => {
+                    const Icon = getChannelIcon("whatsapp")
+                    return <Icon className="h-5 w-5" />
+                  })()}
                   title="Selecciona una cuenta"
                   description="Elige una cuenta de la lista para ver sus conversaciones"
                 />
