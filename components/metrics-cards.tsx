@@ -84,13 +84,12 @@ function MetricCard({
 export function MetricsCards() {
   const { targets, conversions, trends, dailySeries } = useDashboardStore()
 
-  // Extract last 30 days for sparklines
-  const leadsSparkline = dailySeries.map((d) => d.leads)
-  const contactadosSparkline = dailySeries.map((d) => d.contactados)
-  const seguimientoSparkline = dailySeries.map((d) => d.seguimiento)
-  const entrevistasSparkline = dailySeries.map((d) => d.entrevistas)
-  const reservasSparkline = dailySeries.map((d) => d.reservas)
-  const ventasSparkline = dailySeries.map((d) => d.ventas)
+  const leadsSparkline = dailySeries?.map((d) => d.leads) || []
+  const contactadosSparkline = dailySeries?.map((d) => d.contactados) || []
+  const seguimientoSparkline = dailySeries?.map((d) => d.seguimiento) || []
+  const entrevistasSparkline = dailySeries?.map((d) => d.entrevistas) || []
+  const reservasSparkline = dailySeries?.map((d) => d.reservas) || []
+  const ventasSparkline = dailySeries?.map((d) => d.ventas) || []
 
   return (
     <div className="space-y-4">
