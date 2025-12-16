@@ -577,17 +577,14 @@ export default function ChatsPage() {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input placeholder="Buscar conversaciones..." className="pl-10" />
-            </div>
-
-            <Button variant="outline" onClick={handleConnectChannel} className="gap-2 whitespace-nowrap bg-transparent">
-              <Zap className="w-4 h-4" />
-              Conectar canal
-            </Button>
-            <Button variant="outline" onClick={handleImportTemplates} className="gap-2 whitespace-nowrap bg-transparent">
-              <FileText className="w-4 h-4" />
-              Plantillas
-            </Button>
-          </div>
+              <Button variant="outline" onClick={handleConnectChannel} className="gap-2 whitespace-nowrap bg-transparent">
+                <Zap className="w-4 h-4" />
+                Conectar canal
+              </Button>
+              <Button variant="outline" onClick={handleImportTemplates} className="gap-2 whitespace-nowrap bg-transparent">
+                <FileText className="w-4 h-4" />
+                Plantillas
+              </Button>
         </div>
       </div>
 
