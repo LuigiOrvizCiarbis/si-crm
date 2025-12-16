@@ -2,30 +2,15 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { EditableCell } from "@/components/editable-cell"
-import { BulkEditModal } from "@/components/bulk-edit-modal"
 import { useAutosave } from "@/lib/hooks/useAutosave"
 import { updateContact, bulkUpdateContacts } from "@/lib/api/contacts"
-import {
-  Search,
-  Filter,
-  Plus,
-  MoreVertical,
-  Phone,
-  Mail,
-  MessageSquare,
-  Star,
-  Users,
-  Download,
-  GripVertical,
-  Edit,
-} from "lucide-react"
+import { MoreVertical, Phone, Mail, MessageSquare, Star, Users, GripVertical, Edit } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Toaster, toast } from "sonner"
 import {
@@ -296,7 +281,13 @@ function SortableHeader({ column }: { column: Column }) {
   )
 }
 
-export function ContactsList() {
+export function ContactsList({
+  searchQuery: externalSearchQuery = "",
+  statusFilter: externalStatusFilter = "all",
+}: {
+  searchQuery?: string
+  statusFilter?: string
+}) {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [contacts, setContacts] = useState(mockContacts)
@@ -347,12 +338,15 @@ export function ContactsList() {
     }
   }
 
+  const activeSearchTerm = externalSearchQuery || searchTerm
+  const activeStatusFilter = externalStatusFilter || statusFilter
+
   const filteredContacts = contacts.filter((contact) => {
     const matchesSearch =
-      contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.company.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || contact.status === statusFilter
+      contact.name.toLowerCase().includes(activeSearchTerm.toLowerCase()) ||
+      contact.email.toLowerCase().includes(activeSearchTerm.toLowerCase()) ||
+      contact.company.toLowerCase().includes(activeSearchTerm.toLowerCase())
+    const matchesStatus = activeStatusFilter === "all" || contact.status === activeStatusFilter
     return matchesSearch && matchesStatus
   })
 
@@ -555,6 +549,14 @@ export function ContactsList() {
       }
     }
   }, [undoState])
+
+  useEffect(() => {
+    const handleExport = () => {
+      handleExportCSV()
+    }
+    window.addEventListener("contacts-export-csv", handleExport)
+    return () => window.removeEventListener("contacts-export-csv", handleExport)
+  }, [filteredContacts])
 
   const renderCell = (contact: Contact, columnId: ColumnId) => {
     const isEditing = editingCell?.contactId === contact.id && editingCell?.columnId === columnId
@@ -847,76 +849,35 @@ export function ContactsList() {
   }, [editingCell, contacts, autosave])
 
   return (
-    <div className="space-y-6">
-      <Toaster />
-      <BulkEditModal
-        open={bulkEditOpen}
-        onOpenChange={setBulkEditOpen}
-        selectedCount={selectedContacts.size}
-        onConfirm={handleBulkEdit}
-      />
+    <div className="space-y-4">
+      <Toaster position="top-center" />
 
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              placeholder="Buscar contactos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+      {/* Bulk edit indicator */}
+      {selectedContacts.size > 0 && (
+        <div className="flex items-center justify-between p-4 bg-primary/10 border border-primary/20 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-sm font-semibold">
+              {selectedContacts.size} contacto{selectedContacts.size > 1 ? "s" : ""} seleccionado
+              {selectedContacts.size > 1 ? "s" : ""}
+            </Badge>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setBulkEditOpen(true)}>
+              <Edit className="w-4 h-4 mr-2" />
+              Editar en lote
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setSelectedContacts(new Set())}>
+              Cancelar
+            </Button>
           </div>
         </div>
+      )}
 
-        <div className="flex gap-2 items-center flex-wrap">
-          {selectedContacts.size > 0 && (
-            <>
-              <Badge variant="secondary" className="px-3 py-1">
-                {selectedContacts.size} seleccionado{selectedContacts.size > 1 ? "s" : ""}
-              </Badge>
-              <Button variant="outline" size="sm" onClick={() => setBulkEditOpen(true)}>
-                <Edit className="w-4 h-4 mr-2" />
-                Editar en lote
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedContacts(new Set())}>
-                Limpiar
-              </Button>
-            </>
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Filter className="w-4 h-4 mr-2" />
-                Estado: {statusFilter === "all" ? "Todos" : statusLabels[statusFilter as keyof typeof statusLabels]}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setStatusFilter("all")}>Todos</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("lead")}>Leads</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("qualified")}>Calificados</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("customer")}>Clientes</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter("inactive")}>Inactivos</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button variant="outline" size="sm" onClick={handleExportCSV}>
-            <Download className="w-4 h-4 mr-2" />
-            Exportar CSV
-          </Button>
-
-          <Button size="sm">
-            <Plus className="w-4 h-4 mr-2" />
-            Nuevo Contacto
-          </Button>
-        </div>
-      </div>
-
+      {/* Table container with horizontal scroll */}
       <div className="border rounded-lg overflow-hidden">
-        <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)]">
+        <div className="overflow-x-auto">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <Table className="relative">
+            <Table className="min-w-[1800px]">
               <TableHeader className="sticky top-0 z-10 bg-background border-b">
                 <TableRow>
                   <SortableContext items={columns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
@@ -963,7 +924,7 @@ export function ContactsList() {
           <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium text-foreground mb-2">No se encontraron contactos</h3>
           <p className="text-muted-foreground">
-            {searchTerm ? "Intenta con otros términos de búsqueda" : "Comienza agregando tu primer contacto"}
+            {activeSearchTerm ? "Intenta con otros términos de búsqueda" : "Comienza agregando tu primer contacto"}
           </p>
         </div>
       )}

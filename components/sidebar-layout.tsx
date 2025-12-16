@@ -16,10 +16,10 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   const isMobile = useIsMobile()
   const pathname = usePathname()
 
-  const shouldShowGlobalHeader = pathname !== "/chats"
+  const shouldShowGlobalHeader = pathname !== "/chats" && pathname !== "/contactos"
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-hidden">
       {!isMobile && (
         <>
           {/* Mobile overlay */}
@@ -40,10 +40,10 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
       )}
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 bg-muted/30">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-muted/30 overflow-hidden">
         {shouldShowGlobalHeader && <GlobalHeader />}
 
-        <main className="flex-1 overflow-auto bg-background min-h-[100svh] pb-[max(env(safe-area-inset-bottom),64px)] md:pb-0">
+        <main className="flex-1 overflow-y-auto bg-background pb-[max(env(safe-area-inset-bottom),64px)] md:pb-0">
           {children}
         </main>
       </div>
