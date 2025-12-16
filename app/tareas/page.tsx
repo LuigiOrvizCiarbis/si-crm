@@ -9,6 +9,7 @@ import { TaskKanbanView } from "@/components/tasks/TaskKanbanView"
 import { TaskGanttView } from "@/components/tasks/TaskGanttView"
 import { TaskCalendarView } from "@/components/tasks/TaskCalendarView"
 import { NewTaskModal } from "@/components/tasks/NewTaskModal"
+import { TasksFilterPanel, type TaskFilters } from "@/components/tasks/TasksFilterPanel"
 import {
   allTasks,
   getOverdueTasks,
@@ -24,11 +25,72 @@ export default function TareasPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [filteredTasks, setFilteredTasks] = useState(allTasks)
   const [showNewTask, setShowNewTask] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [filters, setFilters] = useState<TaskFilters>({
+    status: [],
+    assignees: [],
+    types: [],
+    deadline: null,
+  })
 
   useEffect(() => {
-    const filtered = allTasks.filter((task) => task.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    let filtered = allTasks
+
+    // Apply search query
+    if (searchQuery) {
+      filtered = filtered.filter((task) => task.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    }
+
+    // Apply status filter
+    if (filters.status.length > 0) {
+      filtered = filtered.filter((task) => filters.status.includes(task.status))
+    }
+
+    // Apply assignee filter
+    if (filters.assignees.length > 0) {
+      filtered = filtered.filter((task) => filters.assignees.includes(task.assignee))
+    }
+
+    // Apply type filter
+    if (filters.types.length > 0) {
+      filtered = filtered.filter((task) => filters.types.includes(task.type))
+    }
+
+    // Apply deadline filter
+    if (filters.deadline) {
+      const now = new Date()
+      const today = now.toISOString().split("T")[0]
+      const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+
+      filtered = filtered.filter((task) => {
+        if (filters.deadline === "overdue") {
+          return (
+            task.deadline && new Date(task.deadline) < now && task.status !== "hecho" && task.status !== "cancelado"
+          )
+        }
+        if (filters.deadline === "today") {
+          return task.deadline?.startsWith(today) && task.status !== "hecho"
+        }
+        if (filters.deadline === "this-week") {
+          if (!task.deadline || task.status === "hecho" || task.status === "cancelado") return false
+          const deadline = new Date(task.deadline)
+          return deadline >= now && deadline <= weekFromNow
+        }
+        if (filters.deadline === "next-7-days") {
+          if (!task.deadline || task.status === "hecho" || task.status === "cancelado") return false
+          const deadline = new Date(task.deadline)
+          const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+          return deadline >= now && deadline <= next7Days
+        }
+        if (filters.deadline === "no-date") {
+          return !task.deadline
+        }
+        return true
+      })
+    }
+
     setFilteredTasks(filtered)
-  }, [searchQuery])
+  }, [searchQuery, filters])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -98,10 +160,7 @@ export default function TareasPage() {
         onViewChange={setActiveView}
         onSearch={setSearchQuery}
         onNewTask={() => setShowNewTask(true)}
-        onFilterClick={() => {
-          // TODO: implement filters sheet
-          console.log("Filters clicked")
-        }}
+        onFilterClick={() => setShowFilters(true)}
       />
 
       <div className="flex gap-2 px-6 py-3 border-b border-border/50 bg-card">
@@ -131,6 +190,14 @@ export default function TareasPage() {
 
       {/* New Task Modal */}
       <NewTaskModal open={showNewTask} onOpenChange={setShowNewTask} onCreateTask={handleCreateTask} />
+
+      <TasksFilterPanel
+        open={showFilters}
+        onOpenChange={setShowFilters}
+        filters={filters}
+        onFiltersChange={setFilters}
+        isMobile={false}
+      />
     </SidebarLayout>
   )
 }
