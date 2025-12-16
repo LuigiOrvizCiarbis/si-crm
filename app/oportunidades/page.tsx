@@ -5,6 +5,7 @@ import { SidebarLayout } from "@/components/sidebar-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { NotificationsBell } from "@/components/notifications-bell"
 import { useToast } from "@/components/Toast"
 import { useAppStore } from "@/store/useAppStore"
 import { Plus, Filter, Search } from "lucide-react"
@@ -23,19 +24,22 @@ export default function OportunidadesPage() {
 
   return (
     <SidebarLayout>
-      <div className="sticky top-0 z-10 bg-card border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="sticky top-0 z-10 bg-card border-b border-border">
+        <div className="flex items-start justify-between px-6 py-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Pipeline de Oportunidades</h1>
-            <p className="text-muted-foreground">Gestiona tus leads a través del embudo de ventas</p>
+            <p className="text-sm text-muted-foreground mt-1">Gestiona tus leads a través del embudo de ventas</p>
           </div>
-          <Button onClick={handleNewOpportunity} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Nueva oportunidad
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleNewOpportunity} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Nueva oportunidad
+            </Button>
+            <NotificationsBell />
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 px-6 pb-4 bg-card">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input placeholder="Buscar leads..." className="pl-10" />
@@ -56,7 +60,7 @@ export default function OportunidadesPage() {
 
           <Select value={filters.owner} onValueChange={(value) => setFilters({ owner: value })}>
             <SelectTrigger className="w-40">
-              <SelectValue placeholder="Owner" />
+              <SelectValue placeholder="Vendedor" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos</SelectItem>

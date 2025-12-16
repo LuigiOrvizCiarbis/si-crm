@@ -13,6 +13,7 @@ import { ChatQuickBar } from "@/components/ChatQuickBar"
 import { ContactInfoPanel } from "@/components/ContactInfoPanel"
 import { useToast } from "@/components/Toast"
 import { ChatCreateTaskButton } from "@/components/ChatCreateTaskButton"
+import { NotificationsBell } from "@/components/notifications-bell" // Fixed import path to use lowercase
 import {
   MessageSquare,
   Instagram,
@@ -28,7 +29,6 @@ import {
   Linkedin,
   Zap,
   FileText,
-  MessageCircle,
   Info,
 } from "lucide-react"
 import { useState, useEffect } from "react"
@@ -556,23 +556,40 @@ export default function ChatsPage() {
 
   return (
     <SidebarLayout>
-      <div className="sticky top-0 z-10 bg-card border-b border-border px-4 py-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Chats</h1>
-          <div className="flex items-center gap-2">
-            <Button onClick={handleConnectChannel} className="gap-2">
-              <Zap className="w-4 h-4" />
-              Conectar canal
-            </Button>
-            <Button variant="outline" onClick={handleImportTemplates} className="gap-2 bg-transparent">
-              <FileText className="w-4 h-4" />
-              Importar plantillas
-            </Button>
-            <Button variant="outline" onClick={handleNewChat} className="gap-2 bg-transparent">
-              <MessageCircle className="w-4 h-4" />
-              Nuevo chat
-            </Button>
+      <div className="sticky top-0 z-10 bg-card border-b border-border">
+        <div className="flex items-start justify-between px-6 py-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Chats</h1>
+            <p className="text-sm text-muted-foreground mt-1">Gestiona conversaciones omnicanal</p>
           </div>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleNewChat} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Nueva conversación
+            </Button>
+            <NotificationsBell />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 px-6 pb-4 bg-card">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleConnectChannel}
+            className="gap-2 whitespace-nowrap bg-transparent"
+          >
+            <Zap className="w-4 h-4" />
+            Conectar canal
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleImportTemplates}
+            className="gap-2 whitespace-nowrap bg-transparent"
+          >
+            <FileText className="w-4 h-4" />
+            Plantillas
+          </Button>
         </div>
       </div>
 
