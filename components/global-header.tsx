@@ -5,7 +5,7 @@ import { getRouteConfig } from "@/lib/route-config"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NotificationsBell } from "@/components/notifications-bell"
-import { Search, Filter } from "lucide-react"
+import { Search, Filter, Zap, FileText } from "lucide-react"
 
 export function GlobalHeader() {
   const pathname = usePathname()
@@ -18,6 +18,24 @@ export function GlobalHeader() {
       detail: { pathname, ctaLabel: config.ctaLabel },
     })
     window.dispatchEvent(event)
+  }
+
+  const handleSecondaryAction = (action: string) => {
+    const event = new CustomEvent("global-header-secondary-action", {
+      detail: { pathname, action },
+    })
+    window.dispatchEvent(event)
+  }
+
+  const getIcon = (iconName?: string) => {
+    switch (iconName) {
+      case "zap":
+        return <Zap className="w-4 h-4" />
+      case "file-text":
+        return <FileText className="w-4 h-4" />
+      default:
+        return null
+    }
   }
 
   return (
@@ -40,8 +58,8 @@ export function GlobalHeader() {
           </div>
         </div>
 
-        {/* NIVEL 3: Búsqueda + Filtros (si aplica) */}
-        {(config.showSearch || config.showFilters) && (
+        {/* NIVEL 3: Búsqueda + Filtros + Secondary Actions (si aplica) */}
+        {(config.showSearch || config.showFilters || config.secondaryActions) && (
           <div className="flex items-center gap-2 pb-4 border-t border-border pt-4">
             {config.showSearch && (
               <div className="relative flex-1 max-w-sm">
@@ -71,6 +89,18 @@ export function GlobalHeader() {
                 Filtros
               </Button>
             )}
+            {config.secondaryActions?.map((action, idx) => (
+              <Button
+                key={idx}
+                variant="outline"
+                size="sm"
+                onClick={() => handleSecondaryAction(action.action)}
+                className="gap-2"
+              >
+                {getIcon(action.icon)}
+                {action.label}
+              </Button>
+            ))}
           </div>
         )}
       </div>

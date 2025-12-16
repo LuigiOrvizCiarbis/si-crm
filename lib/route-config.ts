@@ -7,6 +7,11 @@ export interface RouteConfig {
   showFilters?: boolean
   searchPlaceholder?: string
   filterOptions?: string[]
+  secondaryActions?: Array<{
+    label: string
+    icon?: string
+    action: string
+  }>
 }
 
 export const routeConfigs: Record<string, RouteConfig> = {
@@ -23,6 +28,10 @@ export const routeConfigs: Record<string, RouteConfig> = {
     showSearch: true,
     showFilters: true,
     searchPlaceholder: "Buscar conversaciones...",
+    secondaryActions: [
+      { label: "Conectar canal", icon: "zap", action: "connect-channel" },
+      { label: "Plantillas", icon: "file-text", action: "import-templates" },
+    ],
   },
   "/contactos": {
     title: "Contactos",

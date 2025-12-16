@@ -1,6 +1,4 @@
 "use client"
-
-import { SidebarLayout } from "@/components/sidebar-layout"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -13,8 +11,7 @@ import { ChatQuickBar } from "@/components/ChatQuickBar"
 import { ContactInfoPanel } from "@/components/ContactInfoPanel"
 import { useToast } from "@/components/Toast"
 import { ChatCreateTaskButton } from "@/components/ChatCreateTaskButton"
-import { NotificationsBell } from "@/components/notifications-bell" // Fixed import path to use lowercase
-import { Search } from "lucide-react"
+import { GlobalHeader } from "@/components/global-header" // Fixed import path from GlobalHeader to global-header (kebab-case)
 import {
   MessageSquare,
   Instagram,
@@ -28,8 +25,6 @@ import {
   ArrowLeft,
   Globe,
   Linkedin,
-  Zap,
-  FileText,
   Info,
 } from "lucide-react"
 import { useState, useEffect } from "react"
@@ -556,38 +551,8 @@ export default function ChatsPage() {
   }
 
   return (
-    <SidebarLayout>
-      <div className="sticky top-0 z-10 bg-card border-b border-border">
-        {/* NIVEL 1: Title and subtitle on left */}
-        <div className="flex items-start justify-between px-6 py-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Chats</h1>
-            <p className="text-sm text-muted-foreground mt-1">Gestiona conversaciones omnicanal</p>
-          </div>
-          {/* NIVEL 2: CTA + Bell together on right */}
-          <div className="flex items-center gap-2">
-            <Button onClick={handleNewChat} className="gap-2">
-              <Plus className="w-4 h-4" />
-              Nueva conversación
-            </Button>
-            <NotificationsBell />
-          </div>
-          {/* NIVEL 3: Search bar and filters in separate sticky row */}
-          <div className="flex items-center gap-4 px-6 pb-4 bg-card">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Buscar conversaciones..." className="pl-10" />
-              <Button variant="outline" onClick={handleConnectChannel} className="gap-2 whitespace-nowrap bg-transparent">
-                <Zap className="w-4 h-4" />
-                Conectar canal
-              </Button>
-              <Button variant="outline" onClick={handleImportTemplates} className="gap-2 whitespace-nowrap bg-transparent">
-                <FileText className="w-4 h-4" />
-                Plantillas
-              </Button>
-        </div>
-      </div>
-
+    <div className="flex flex-col h-screen">
+      <GlobalHeader /> {/* Added GlobalHeader component */}
       <div className="flex flex-1 overflow-hidden">
         <div className="w-80 border-r border-border bg-card flex flex-col">
           <div className="p-4 border-b border-border">
@@ -984,6 +949,6 @@ export default function ChatsPage() {
         )}
       </div>
       <WizardConnectChannel open={wizardOpen} onOpenChange={setWizardOpen} />
-    </SidebarLayout>
+    </div>
   )
 }
