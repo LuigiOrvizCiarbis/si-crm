@@ -16,6 +16,7 @@ import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { getChannelIcon } from "@/lib/channel-icons"
 import { SidebarLayout } from "@/components/sidebar-layout"
+import { ChatsCompactHeader } from "@/components/chats-compact-header"
 
 interface Account {
   id: string
@@ -554,9 +555,28 @@ export default function ChatsPage() {
     router.replace("/chats", { scroll: false })
   }
 
+  const handleNewConversation = () => {
+    // Implement new conversation logic
+    console.log("New conversation")
+  }
+
+  const handleTemplates = () => {
+    router.push("/plantillas-wa")
+  }
+
   return (
     <SidebarLayout>
-      <div className="flex flex-col h-full">
+      <ChatsCompactHeader
+        onNewConversation={handleNewConversation}
+        onConnectChannel={handleConnectChannel}
+        onTemplates={handleTemplates}
+        onSearch={(query) => {
+          // Implement search logic
+          console.log("[v0] Search query:", query)
+        }}
+      />
+
+      <div className="flex flex-col h-[calc(100vh-75px)]">
         {/* Grid principal con menú de cuentas y contenido */}
         <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[320px_1fr]">
           {/* Left Panel: Accounts */}

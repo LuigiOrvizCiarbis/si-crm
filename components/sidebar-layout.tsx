@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
+import { usePathname } from "next/navigation"
 import { CrmSidebar } from "./crm-sidebar"
 import { GlobalHeader } from "./global-header"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -13,6 +14,9 @@ interface SidebarLayoutProps {
 export function SidebarLayout({ children }: SidebarLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const isMobile = useIsMobile()
+  const pathname = usePathname()
+
+  const shouldShowGlobalHeader = pathname !== "/chats"
 
   return (
     <div className="flex h-screen bg-background">
@@ -37,7 +41,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 bg-muted/30">
-        <GlobalHeader />
+        {shouldShowGlobalHeader && <GlobalHeader />}
 
         <main className="flex-1 overflow-auto bg-background min-h-[100svh] pb-[max(env(safe-area-inset-bottom),64px)] md:pb-0">
           {children}
