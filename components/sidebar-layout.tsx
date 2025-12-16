@@ -17,6 +17,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   const pathname = usePathname()
 
   const shouldShowGlobalHeader =
+    pathname !== "/" &&
     pathname !== "/chats" &&
     pathname !== "/contactos" &&
     pathname !== "/oportunidades" &&
