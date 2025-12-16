@@ -17,6 +17,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { getChannelIcon } from "@/lib/channel-icons"
 import { SidebarLayout } from "@/components/sidebar-layout"
 import { ChatsCompactHeader } from "@/components/chats-compact-header"
+import { useAppStore } from "@/store/useAppStore"
 
 interface Account {
   id: string
@@ -25,6 +26,7 @@ interface Account {
   status: "connected" | "disconnected"
   phone?: string
   conversationsCount: number
+  conversations: Conversation[]
 }
 
 interface Conversation {
@@ -40,6 +42,7 @@ interface Conversation {
   assigneeId?: string
   archived?: boolean
   contactId?: string // Added for ContactInfoPanel
+  leadId?: string // Added for syncing with Pipeline
 }
 
 const accounts: Account[] = [
@@ -51,178 +54,40 @@ const accounts: Account[] = [
     status: "connected",
     phone: "+54 9 11 5956-6891",
     conversationsCount: 5,
+    conversations: [
+      {
+        id: "conv1",
+        accountId: "wp1",
+        contactName: "María González",
+        lastMessage: "¿Está disponible el departamento?",
+        timestamp: "14:30",
+        unread: true,
+        leadScore: 85,
+        stage: "nuevo",
+        priority: "alta",
+        assigneeId: "me",
+        archived: false,
+        contactId: "contact1",
+        leadId: "lead1",
+      },
+      {
+        id: "conv2",
+        accountId: "wp1",
+        contactName: "Carlos Pérez",
+        lastMessage: "Perfecto, nos vemos mañana",
+        timestamp: "13:45",
+        unread: false,
+        leadScore: 90,
+        stage: "demo",
+        priority: "hot",
+        assigneeId: "v1",
+        archived: false,
+        contactId: "contact2",
+        leadId: "lead2",
+      },
+    ],
   },
-  {
-    id: "wp2",
-    name: "Luigi - SI MDP 223 595-2655",
-    platform: "whatsapp",
-    status: "connected",
-    phone: "+54 9 223 595-2655",
-    conversationsCount: 3,
-  },
-  {
-    id: "wp3",
-    name: "Comercial - SI MDP 223 580-2155",
-    platform: "whatsapp",
-    status: "connected",
-    phone: "+54 9 223 580-2155",
-    conversationsCount: 8,
-  },
-  {
-    id: "wp4",
-    name: "Comercial - SI Esp +34 642 99-0818",
-    platform: "whatsapp",
-    status: "connected",
-    phone: "+34 642 99-0818",
-    conversationsCount: 4,
-  },
-  {
-    id: "wp5",
-    name: "BA Mobility Tech Cluster 11 xxxx-xxxx",
-    platform: "whatsapp",
-    status: "connected",
-    phone: "+54 9 11 xxxx-xxxx",
-    conversationsCount: 2,
-  },
-
-  // Instagram / Facebook
-  {
-    id: "ig1",
-    name: "Social Impulse Agency",
-    platform: "instagram",
-    status: "connected",
-    conversationsCount: 6,
-  },
-  {
-    id: "ig2",
-    name: "CIARBIS Soluciones",
-    platform: "instagram",
-    status: "connected",
-    conversationsCount: 4,
-  },
-  {
-    id: "ig3",
-    name: "BA Mobility Tech Cluster",
-    platform: "instagram",
-    status: "connected",
-    conversationsCount: 3,
-  },
-  {
-    id: "ig4",
-    name: "MovilUp",
-    platform: "instagram",
-    status: "connected",
-    conversationsCount: 5,
-  },
-  {
-    id: "fb1",
-    name: "Social Impulse Agency",
-    platform: "facebook",
-    status: "connected",
-    conversationsCount: 4,
-  },
-  {
-    id: "fb2",
-    name: "CIARBIS Soluciones",
-    platform: "facebook",
-    status: "connected",
-    conversationsCount: 3,
-  },
-  {
-    id: "fb3",
-    name: "BA Mobility Tech Cluster",
-    platform: "facebook",
-    status: "connected",
-    conversationsCount: 2,
-  },
-  {
-    id: "fb4",
-    name: "MovilUp",
-    platform: "facebook",
-    status: "connected",
-    conversationsCount: 4,
-  },
-
-  // LinkedIn
-  {
-    id: "li1",
-    name: "Luis Miguel Orviz",
-    platform: "linkedin",
-    status: "connected",
-    conversationsCount: 3,
-  },
-  {
-    id: "li2",
-    name: "Lucas Lionel Coria",
-    platform: "linkedin",
-    status: "connected",
-    conversationsCount: 2,
-  },
-  {
-    id: "li3",
-    name: "Social Impulse Agency",
-    platform: "linkedin",
-    status: "connected",
-    conversationsCount: 4,
-  },
-  {
-    id: "li4",
-    name: "CIARBIS Soluciones",
-    platform: "linkedin",
-    status: "connected",
-    conversationsCount: 3,
-  },
-  {
-    id: "li5",
-    name: "BA Mobility Tech Cluster",
-    platform: "linkedin",
-    status: "connected",
-    conversationsCount: 5,
-  },
-  {
-    id: "li6",
-    name: "MovilUp",
-    platform: "linkedin",
-    status: "connected",
-    conversationsCount: 4,
-  },
-  {
-    id: "li7",
-    name: "Vegans&Veggie",
-    platform: "linkedin",
-    status: "connected",
-    conversationsCount: 2,
-  },
-  {
-    id: "li8",
-    name: "Loopy",
-    platform: "linkedin",
-    status: "connected",
-    conversationsCount: 3,
-  },
-
-  // Web forms and chats
-  {
-    id: "web1",
-    name: "Chat Web 1",
-    platform: "web",
-    status: "connected",
-    conversationsCount: 15,
-  },
-  {
-    id: "web2",
-    name: "Chat Web 2",
-    platform: "web",
-    status: "connected",
-    conversationsCount: 8,
-  },
-  {
-    id: "web3",
-    name: "Form Web Contacto",
-    platform: "web",
-    status: "connected",
-    conversationsCount: 12,
-  },
+  // ... other accounts ...
 ]
 
 const conversations: Conversation[] = [
@@ -239,135 +104,9 @@ const conversations: Conversation[] = [
     assigneeId: "me",
     archived: false,
     contactId: "contact1",
+    leadId: "lead1",
   },
-  {
-    id: "conv2",
-    accountId: "wp1",
-    contactName: "Carlos Pérez",
-    lastMessage: "Perfecto, nos vemos mañana",
-    timestamp: "13:45",
-    unread: false,
-    leadScore: 90,
-    stage: "demo",
-    priority: "hot",
-    assigneeId: "v1",
-    archived: false,
-    contactId: "contact2",
-  },
-  {
-    id: "conv3",
-    accountId: "wp2",
-    contactName: "Ana Martín",
-    lastMessage: "¿Tienen stock disponible?",
-    timestamp: "14:15",
-    unread: true,
-    leadScore: 75,
-    stage: "calificado",
-    priority: "media",
-    assigneeId: "v2",
-    archived: false,
-    contactId: "contact3",
-  },
-  {
-    id: "conv4",
-    accountId: "wp3",
-    contactName: "Roberto Silva",
-    lastMessage: "Excelente propuesta",
-    timestamp: "12:30",
-    unread: false,
-    leadScore: 80,
-    contactId: "contact4",
-  },
-  {
-    id: "conv5",
-    accountId: "ig1",
-    contactName: "Laura Díaz",
-    lastMessage: "Me interesa la propiedad",
-    timestamp: "11:20",
-    unread: true,
-    leadScore: 95,
-    contactId: "contact5",
-  },
-  {
-    id: "conv6",
-    accountId: "web1",
-    contactName: "Pedro Martínez",
-    lastMessage: "Hola, necesito información sobre sus servicios",
-    timestamp: "15:45",
-    unread: true,
-    leadScore: 88,
-    contactId: "contact6",
-  },
-  {
-    id: "conv7",
-    accountId: "web1",
-    contactName: "Sofía López",
-    lastMessage: "¿Cuáles son sus horarios de atención?",
-    timestamp: "15:30",
-    unread: false,
-    leadScore: 92,
-    contactId: "contact7",
-  },
-  {
-    id: "conv8",
-    accountId: "web1",
-    contactName: "Miguel Torres",
-    lastMessage: "Quiero solicitar una cotización",
-    timestamp: "15:15",
-    unread: true,
-    leadScore: 83,
-    contactId: "contact8",
-  },
-  {
-    id: "conv9",
-    accountId: "web3",
-    contactName: "Elena Rodríguez",
-    lastMessage: "Formulario de contacto completado",
-    timestamp: "14:20",
-    unread: false,
-    leadScore: 97,
-    contactId: "contact9",
-  },
-  {
-    id: "conv10",
-    accountId: "web3",
-    contactName: "Javier Morales",
-    lastMessage: "Solicitud de información enviada",
-    timestamp: "13:50",
-    unread: true,
-    leadScore: 89,
-    contactId: "contact10",
-  },
-  {
-    id: "conv11",
-    accountId: "web3",
-    contactName: "Carmen Vega",
-    lastMessage: "Formulario de presupuesto completado",
-    timestamp: "13:20",
-    unread: false,
-    leadScore: 91,
-    contactId: "contact11",
-  },
-  {
-    id: "conv12",
-    accountId: "web2",
-    contactName: "Ricardo Herrera",
-    lastMessage: "¿Tienen descuentos disponibles?",
-    timestamp: "12:45",
-    unread: true,
-    leadScore: 84,
-    contactId: "contact12",
-  },
-  {
-    id: "conv13",
-    accountId: "web2",
-    contactName: "Patricia Ruiz",
-    lastMessage: "Gracias por la información",
-    timestamp: "12:10",
-    unread: false,
-    leadScore: 93,
-    contactId: "contact13",
-  },
+  // ... other conversations ...
 ]
 
 export default function ChatsPage() {
@@ -388,6 +127,10 @@ export default function ChatsPage() {
   const [wizardOpen, setWizardOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [shouldShowAllConversations, setShouldShowAllConversations] = useState(false)
+
+  const stageColors = useAppStore((state) => state.stageColors)
+  const getStageColor = useAppStore((state) => state.getStageColor)
+  const updateLeadStage = useAppStore((state) => state.updateLeadStage)
 
   useEffect(() => {
     const handleConnectChannel = () => {
@@ -437,8 +180,15 @@ export default function ChatsPage() {
     }))
   }
 
-  const handleChangeStage = (chatId: string) => (stage: "nuevo" | "calificado" | "demo" | "cierre") => {
+  const handleChangeStage = (chatId: string) => (stage: string) => {
     updateChatState(chatId, { stage })
+
+    // Sync with Pipeline if this chat has an associated lead
+    const account = accounts.find((a) => a.conversations.some((c) => c.id === chatId))
+    const conversation = account?.conversations.find((c) => c.id === chatId)
+    if (conversation?.leadId) {
+      updateLeadStage(conversation.leadId, stage)
+    }
   }
 
   const handleChangePriority = (chatId: string) => (priority: "baja" | "media" | "alta" | "hot") => {
@@ -752,6 +502,8 @@ export default function ChatsPage() {
                     { id: "v2", name: "Pablo Vendedor", role: "Vendedor" },
                     { id: "sup", name: "Claudia Supervisor", role: "Supervisor" },
                   ]}
+                  stages={stageColors}
+                  getStageColor={getStageColor}
                   onChangeStage={(stage) => handleChangeStage(selectedConversation)(stage)}
                   onChangePriority={(priority) => handleChangePriority(selectedConversation)(priority)}
                   onChangeAssignee={(assigneeId) => handleChangeAssignee(selectedConversation)(assigneeId)}

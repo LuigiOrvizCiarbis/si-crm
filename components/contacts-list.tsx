@@ -30,6 +30,7 @@ import {
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { useAppStore } from "@/store/useAppStore"
 
 export interface Contact {
   id: string
@@ -50,6 +51,7 @@ export interface Contact {
   tipoPropiedad: string
   zonaBarrio: string
   notas: string
+  pipelineId?: string
 }
 
 const mockContacts: Contact[] = [
@@ -72,6 +74,7 @@ const mockContacts: Contact[] = [
     tipoPropiedad: "Depto 3 amb.",
     zonaBarrio: "Chauvín, Aldrey, Güemes",
     notas: "Familia de 4 personas, luminoso, c/cochera y balcón a la calle. Puede pagar 750 USD/mes.",
+    pipelineId: "1",
   },
   {
     id: "2",
@@ -92,6 +95,7 @@ const mockContacts: Contact[] = [
     tipoPropiedad: "Oficina comercial",
     zonaBarrio: "Microcentro",
     notas: "Busca espacio para equipo de 15 personas. Presupuesto flexible.",
+    pipelineId: "2",
   },
   {
     id: "3",
@@ -112,6 +116,7 @@ const mockContacts: Contact[] = [
     tipoPropiedad: "PH",
     zonaBarrio: "Parque Luro",
     notas: "Tiene apuro, está en sucesión.",
+    pipelineId: "3",
   },
   {
     id: "4",
@@ -132,6 +137,7 @@ const mockContacts: Contact[] = [
     tipoPropiedad: "Audi A3",
     zonaBarrio: "Mar del Plata",
     notas: "Tiene un A2 para entregar y 25k USD.",
+    pipelineId: "4",
   },
   {
     id: "5",
@@ -152,6 +158,7 @@ const mockContacts: Contact[] = [
     tipoPropiedad: "VW Polo Highline",
     zonaBarrio: "Mar del Plata",
     notas: "Soltero, 30 años.",
+    pipelineId: "5",
   },
   {
     id: "6",
@@ -172,6 +179,7 @@ const mockContacts: Contact[] = [
     tipoPropiedad: "Depto 2 amb.",
     zonaBarrio: "Centro",
     notas: "Busca para inversión, sin apuro.",
+    pipelineId: "6",
   },
   {
     id: "7",
@@ -192,6 +200,7 @@ const mockContacts: Contact[] = [
     tipoPropiedad: "VW Amarok V6",
     zonaBarrio: "Mar del Plata",
     notas: "Trabaja en el campo.",
+    pipelineId: "7",
   },
 ]
 
@@ -319,6 +328,10 @@ export function ContactsList({
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   )
+
+  const getStageColor = useAppStore((state) => state.getStageColor)
+  const updateLeadStage = useAppStore((state) => state.updateLeadStage)
+  const stageColors = useAppStore((state) => state.stageColors)
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -651,14 +664,32 @@ export function ContactsList({
             options={ETAPAS_PIPELINE}
             isEditing={isEditing}
             onEditStart={() => setEditingCell({ contactId: contact.id, columnId })}
-            onSave={(value) => handleCellSave(contact.id, columnId, value)}
+            onSave={(value) => {
+              handleCellSave(contact.id, columnId, value)
+              const stageId = stageColors.find((s) => s.name === value)?.id
+              if (stageId && contact.pipelineId) {
+                updateLeadStage(contact.pipelineId, stageId)
+              }
+            }}
             onCancel={handleCellCancel}
             onNavigate={(dir) => handleNavigate(contact.id, columnId, dir)}
-            renderDisplay={(value) => (
-              <Badge variant="outline" className="text-xs whitespace-nowrap">
-                {value as string}
-              </Badge>
-            )}
+            renderDisplay={(value) => {
+              const stageId = stageColors.find((s) => s.name === value)?.id
+              const color = stageId ? getStageColor(stageId) : "#6b7280"
+              return (
+                <Badge
+                  variant="outline"
+                  className="text-xs whitespace-nowrap"
+                  style={{
+                    borderColor: color,
+                    color: color,
+                    backgroundColor: `${color}15`,
+                  }}
+                >
+                  {value as string}
+                </Badge>
+              )
+            }}
           />
         )
       case "queBusca":

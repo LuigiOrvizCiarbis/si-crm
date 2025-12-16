@@ -4,7 +4,7 @@ import { Badge, LeadScoreBadge } from "@/components/Badges"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/Toast"
-import { Phone, Mail, Calendar, GripVertical, TrendingUp, Clock } from "lucide-react"
+import { Phone, Mail, Calendar, TrendingUp, Clock } from "lucide-react"
 import {
   DndContext,
   closestCenter,
@@ -12,14 +12,17 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  DragOverlay,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core"
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { PipelineTaskIndicator } from "@/components/PipelineTaskIndicator"
 import { useAppStore } from "@/store/useAppStore"
 import { StageColorPicker } from "@/components/stage-color-picker"
+import { useState } from "react"
 
 interface Lead {
   id: string
@@ -36,6 +39,7 @@ interface Lead {
   leadScore: number
   owner: string
   stage: string
+  sortIndex?: number
 }
 
 interface Column {
@@ -145,7 +149,11 @@ function SortableLeadCard({ lead }: { lead: Lead }) {
     <Card
       ref={setNodeRef}
       style={style}
-      className={`mb-3 cursor-move hover:shadow-md transition-shadow ${isDragging ? "shadow-lg" : ""}`}
+      {...attributes}
+      {...listeners}
+      className={`mb-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${
+        isDragging ? "shadow-lg" : ""
+      }`}
     >
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-3">
@@ -167,15 +175,6 @@ function SortableLeadCard({ lead }: { lead: Lead }) {
           <div className="flex items-center gap-1">
             <LeadScoreBadge score={lead.leadScore} />
             <PipelineTaskIndicator pipelineId={lead.id} />
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 cursor-grab active:cursor-grabbing"
-              {...attributes}
-              {...listeners}
-            >
-              <GripVertical className="w-3 h-3" />
-            </Button>
           </div>
         </div>
 
@@ -227,7 +226,8 @@ function SortableLeadCard({ lead }: { lead: Lead }) {
   )
 }
 
-function KanbanColumn({ column, leads }: { column: Column; leads: Lead[] }) {
+function DroppableColumn({ column, leads }: { column: Column; leads: Lead[] }) {
+  const { setNodeRef, isOver } = useSortable({ id: column.id })
   const stageColors = useAppStore((state) => state.stageColors)
   const stageColor = stageColors.find((s) => s.id === column.id)?.color || column.color
 
@@ -237,10 +237,10 @@ function KanbanColumn({ column, leads }: { column: Column; leads: Lead[] }) {
 
   return (
     <div className="flex-1 min-w-80">
-      <Card className="bg-muted/20 overflow-hidden">
+      <Card className={`bg-muted/20 overflow-hidden transition-colors ${isOver ? "ring-2 ring-primary" : ""}`}>
         <div className="h-2 w-full" style={{ backgroundColor: stageColor }} />
 
-        <CardContent className="p-4">
+        <CardContent className="p-4" ref={setNodeRef}>
           <div className="flex items-center gap-2 mb-2">
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stageColor }} />
             <h3 className="font-semibold flex-1">{column.title}</h3>
@@ -263,7 +263,7 @@ function KanbanColumn({ column, leads }: { column: Column; leads: Lead[] }) {
 
               {leads.length === 0 && (
                 <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                  No hay leads en esta etapa
+                  Arrastra leads aquí
                 </div>
               )}
             </div>
@@ -277,8 +277,12 @@ function KanbanColumn({ column, leads }: { column: Column; leads: Lead[] }) {
 export function KanbanBoard() {
   const leads = useAppStore((state) => state.leads)
   const moveLeadToStage = useAppStore((state) => state.moveLeadToStage)
+  const reorderLeadsInStage = useAppStore((state) => state.reorderLeadsInStage)
   const stageColors = useAppStore((state) => state.stageColors)
   const { addToast } = useToast()
+
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const activeLead = leads.find((lead) => lead.id === activeId)
 
   const columns: Column[] = [
     { id: "prospecto", title: "Lead/Prospecto", color: "bg-blue-500", leads: [] },
@@ -299,6 +303,7 @@ export function KanbanBoard() {
     ...col,
     leads: leads
       .filter((lead) => lead.stage === col.id)
+      .sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0))
       .map((lead) => ({
         id: lead.id,
         name: lead.name,
@@ -314,13 +319,14 @@ export function KanbanBoard() {
         owner: lead.owner,
         stage: lead.stage,
         avatar: lead.avatar,
+        sortIndex: lead.sortIndex,
       })),
   }))
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // Require 8px movement before drag starts (allows scrolling)
+        distance: 8, // Require 8px movement before drag starts
       },
     }),
     useSensor(KeyboardSensor, {
@@ -332,30 +338,56 @@ export function KanbanBoard() {
   const totalValue = leads.reduce((sum, lead) => sum + lead.value, 0)
   const weightedProbability = leads.reduce((sum, lead) => sum + (lead.value * lead.probability) / 100, 0)
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(event.active.id as string)
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
+    setActiveId(null)
 
     if (!over) return
 
     const activeId = active.id as string
     const overId = over.id as string
 
-    const sourceLead = leads.find((lead) => lead.id === activeId)
-    if (!sourceLead) return
+    const activeLead = leads.find((lead) => lead.id === activeId)
+    if (!activeLead) return
 
-    const sourceStage = sourceLead.stage
-    const destStage = columns.find((col) => col.id === overId || col.leads.some((lead) => lead.id === overId))
+    const activeStage = activeLead.stage
 
-    if (!destStage) return
+    let destStage = overId
+    const overLead = leads.find((lead) => lead.id === overId)
+    if (overLead) {
+      destStage = overLead.stage || activeStage
+    }
 
-    if (sourceStage !== destStage.id) {
-      console.log("[v0] Moving lead", activeId, "from", sourceStage, "to", destStage.id)
-      moveLeadToStage(activeId, destStage.id)
+    const isValidStage = columns.some((col) => col.id === destStage)
+    if (!isValidStage) return
 
+    if (activeStage === destStage) {
+      const stageLeads = leads
+        .filter((lead) => lead.stage === activeStage)
+        .sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0))
+
+      const oldIndex = stageLeads.findIndex((lead) => lead.id === activeId)
+      const newIndex = stageLeads.findIndex((lead) => lead.id === overId)
+
+      if (oldIndex !== newIndex) {
+        const reordered = arrayMove(stageLeads, oldIndex, newIndex)
+        reorderLeadsInStage(
+          activeStage,
+          reordered.map((l) => l.id),
+        )
+      }
+    } else {
+      moveLeadToStage(activeId, destStage)
+
+      const destColumn = columns.find((col) => col.id === destStage)
       addToast({
         type: "success",
         title: "Lead movido",
-        description: `${sourceLead.name} movido a ${destStage.title}`,
+        description: `${activeLead.name} movido a ${destColumn?.title || destStage}`,
       })
     }
   }
@@ -389,12 +421,43 @@ export function KanbanBoard() {
         </Card>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="flex gap-6 overflow-x-auto pb-4">
-          {columns.map((column) => (
-            <KanbanColumn key={column.id} column={column} leads={column.leads} />
-          ))}
-        </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={columns.map((col) => col.id)} strategy={verticalListSortingStrategy}>
+          <div className="flex gap-6 overflow-x-auto pb-4">
+            {columns.map((column) => (
+              <DroppableColumn key={column.id} column={column} leads={column.leads} />
+            ))}
+          </div>
+        </SortableContext>
+
+        <DragOverlay>
+          {activeLead ? (
+            <Card className="opacity-90 shadow-2xl rotate-3">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={activeLead.avatar || "/placeholder.svg"} />
+                    <AvatarFallback className="text-xs">
+                      {activeLead.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h4 className="font-medium text-sm">{activeLead.name}</h4>
+                    <p className="text-xs text-muted-foreground">{activeLead.company}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+        </DragOverlay>
       </DndContext>
     </div>
   )

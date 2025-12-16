@@ -38,6 +38,7 @@ export interface Lead {
   avatar?: string
   status: "lead" | "qualified" | "customer" | "inactive"
   createdAt: string
+  sortIndex?: number // Added sortIndex for ordering within stages
 }
 
 // Centralized lead data with unique IDs linking all modules
@@ -68,6 +69,7 @@ export const leadsData: Lead[] = [
     status: "qualified",
     createdAt: "2024-01-15",
     avatar: "/placeholder.svg",
+    sortIndex: 0, // Added sortIndex
   },
   {
     id: "lead-2",
@@ -95,6 +97,7 @@ export const leadsData: Lead[] = [
     status: "qualified",
     createdAt: "2024-01-14",
     avatar: "/placeholder.svg",
+    sortIndex: 0, // Added sortIndex
   },
   {
     id: "lead-3",
@@ -122,6 +125,7 @@ export const leadsData: Lead[] = [
     status: "qualified",
     createdAt: "2024-01-13",
     avatar: "/placeholder.svg",
+    sortIndex: 0, // Added sortIndex
   },
   {
     id: "lead-4",
@@ -146,6 +150,7 @@ export const leadsData: Lead[] = [
     tags: ["Nuevo"],
     status: "lead",
     createdAt: "2024-01-16",
+    sortIndex: 0, // Added sortIndex
   },
   {
     id: "lead-5",
@@ -170,6 +175,7 @@ export const leadsData: Lead[] = [
     tags: ["Familia"],
     status: "qualified",
     createdAt: "2024-01-15",
+    sortIndex: 0, // Added sortIndex
   },
   {
     id: "lead-6",
@@ -194,6 +200,7 @@ export const leadsData: Lead[] = [
     tags: ["Cliente", "VIP"],
     status: "customer",
     createdAt: "2024-01-10",
+    sortIndex: 0, // Added sortIndex
   },
 ]
 

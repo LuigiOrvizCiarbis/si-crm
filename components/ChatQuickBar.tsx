@@ -5,9 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useToast } from "@/components/Toast"
 import { MailOpen, Archive, Settings } from "lucide-react"
+import type { StageColor } from "@/store/useAppStore"
 
-// Types
-type Stage = "nuevo" | "calificado" | "demo" | "cierre"
 type Priority = "baja" | "media" | "alta" | "hot"
 
 interface TeamUser {
@@ -17,7 +16,7 @@ interface TeamUser {
 }
 
 interface ChatQuickBarValue {
-  stage?: Stage
+  stage?: string // Changed to string to support all Pipeline stages
   priority?: Priority
   assigneeId?: string
   unread?: number
@@ -28,7 +27,9 @@ interface ChatQuickBarProps {
   chatId: string
   value: ChatQuickBarValue
   team: TeamUser[]
-  onChangeStage: (stage: Stage) => void
+  stages: StageColor[] // Added stages prop for Pipeline stages
+  getStageColor: (stageId: string) => string // Added getStageColor helper
+  onChangeStage: (stage: string) => void // Changed to string
   onChangePriority: (priority: Priority) => void
   onChangeAssignee: (id: string) => void
   onMarkRead: () => void
@@ -46,6 +47,8 @@ export function ChatQuickBar({
   chatId,
   value,
   team = TEAM,
+  stages,
+  getStageColor,
   onChangeStage,
   onChangePriority,
   onChangeAssignee,
@@ -55,7 +58,7 @@ export function ChatQuickBar({
   const { addToast } = useToast()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [tempValues, setTempValues] = useState({
-    stage: value.stage || "nuevo",
+    stage: value.stage || "prospecto",
     priority: value.priority || "baja",
     assigneeId: value.assigneeId || "me",
   })
@@ -87,12 +90,13 @@ export function ChatQuickBar({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [onMarkRead, onToggleArchive, value.archived, addToast])
 
-  const handleStageChange = (stage: Stage) => {
-    onChangeStage(stage)
+  const handleStageChange = (stageId: string) => {
+    onChangeStage(stageId)
+    const stage = stages.find((s) => s.id === stageId)
     addToast({
       type: "success",
       title: "Etapa actualizada",
-      description: `Etapa cambiada a: ${stage}`,
+      description: `Etapa cambiada a: ${stage?.name || stageId}`,
     })
   }
 
@@ -161,6 +165,9 @@ export function ChatQuickBar({
     }
   }
 
+  const currentStage = stages.find((s) => s.id === value.stage) || stages[0]
+  const currentStageColor = getStageColor(value.stage || "prospecto")
+
   return (
     <div className="sticky top-0 z-10 bg-[#0F1117]/80 backdrop-blur rounded-xl border border-[#1e2533] p-2">
       {/* Desktop Layout */}
@@ -168,16 +175,20 @@ export function ChatQuickBar({
         {/* Stage Select */}
         <div className="inline-flex items-center gap-2 text-[12px] text-[#9AA4B2] bg-[#131722] border border-[#1e2533] rounded-xl px-3 py-1.5">
           <span>Etapa:</span>
-          <select
-            value={value.stage || "nuevo"}
-            onChange={(e) => handleStageChange(e.target.value as Stage)}
-            className="bg-transparent text-[#D8DEE9] text-sm focus:outline-none"
-          >
-            <option value="nuevo">Nuevo</option>
-            <option value="calificado">Calificado</option>
-            <option value="demo">Demo</option>
-            <option value="cierre">Cierre</option>
-          </select>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: currentStageColor }} />
+            <select
+              value={value.stage || "prospecto"}
+              onChange={(e) => handleStageChange(e.target.value)}
+              className="bg-transparent text-[#D8DEE9] text-sm focus:outline-none"
+            >
+              {stages.map((stage) => (
+                <option key={stage.id} value={stage.id}>
+                  {stage.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Priority Select */}
@@ -236,8 +247,9 @@ export function ChatQuickBar({
 
       {/* Mobile Layout */}
       <div className="md:hidden flex items-center justify-between">
-        <div className="text-sm text-[#D8DEE9]">
-          <span className="text-[#9AA4B2]">Etapa:</span> {value.stage || "nuevo"} •
+        <div className="text-sm text-[#D8DEE9] flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: currentStageColor }} />
+          <span className="text-[#9AA4B2]">Etapa:</span> {currentStage.name} •
           <span className="text-[#9AA4B2]"> Prioridad:</span>{" "}
           <span className={getPriorityColor(value.priority || "baja")}>{value.priority || "baja"}</span>
         </div>
@@ -283,13 +295,14 @@ export function ChatQuickBar({
                   <label className="block text-sm font-medium text-[#9AA4B2] mb-2">Etapa</label>
                   <select
                     value={tempValues.stage}
-                    onChange={(e) => setTempValues((prev) => ({ ...prev, stage: e.target.value as Stage }))}
+                    onChange={(e) => setTempValues((prev) => ({ ...prev, stage: e.target.value }))}
                     className="w-full bg-[#131722] border border-[#1e2533] rounded-xl px-3 py-2 text-[#D8DEE9] focus:outline-none focus:border-[#00F7FF]"
                   >
-                    <option value="nuevo">Nuevo</option>
-                    <option value="calificado">Calificado</option>
-                    <option value="demo">Demo</option>
-                    <option value="cierre">Cierre</option>
+                    {stages.map((stage) => (
+                      <option key={stage.id} value={stage.id}>
+                        {stage.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -333,7 +346,7 @@ export function ChatQuickBar({
                     variant="outline"
                     onClick={() => {
                       setTempValues({
-                        stage: value.stage || "nuevo",
+                        stage: value.stage || "prospecto",
                         priority: value.priority || "baja",
                         assigneeId: value.assigneeId || "me",
                       })

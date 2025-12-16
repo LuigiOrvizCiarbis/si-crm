@@ -14,6 +14,7 @@ export interface Lead {
   owner?: string
   dropReason?: string
   stage?: string // Added stage property
+  sortIndex?: number // Added sortIndex for reordering within same stage
 }
 
 export interface Conversacion {
@@ -64,6 +65,8 @@ interface AppStore {
   updateLead: (id: string, updates: Partial<Lead>) => void
   moveLead: (id: string, newEstado: Lead["estado"]) => void
   moveLeadToStage: (leadId: string, stageId: string) => void // Added moveLeadToStage function
+  reorderLeadsInStage: (stageId: string, leadIds: string[]) => void // Added reorderLeadsInStage for sortable support
+  updateLeadStage: (leadId: string, stageId: string) => void // Added updateLeadStage for cross-module sync
 
   // Conversations
   conversaciones: Conversacion[]
@@ -89,6 +92,9 @@ interface AppStore {
   stageColors: StageColor[]
   setStageColor: (stageId: string, color: string) => void
   resetStageColor: (stageId: string) => void
+
+  getStageById: (stageId: string) => StageColor | undefined
+  getStageColor: (stageId: string) => string
 }
 
 const defaultStageColors: StageColor[] = [
@@ -123,9 +129,22 @@ export const useAppStore = create<AppStore>()(
         })),
 
       // Leads/Pipeline
-      leads: leadsData, // Using centralized data
+      leads: leadsData.map((lead, index) => ({
+        ...lead,
+        sortIndex: lead.sortIndex ?? index,
+      })),
       setLeads: (leads) => set({ leads }),
-      addLead: (lead) => set((state) => ({ leads: [...state.leads, lead] })),
+      addLead: (lead) =>
+        set((state) => ({
+          leads: [
+            ...state.leads,
+            {
+              ...lead,
+              sortIndex:
+                Math.max(...state.leads.filter((l) => l.stage === lead.stage).map((l) => l.sortIndex ?? 0), -1) + 1,
+            },
+          ],
+        })),
       updateLead: (id, updates) =>
         set((state) => ({
           leads: state.leads.map((lead) => (lead.id === id ? { ...lead, ...updates } : lead)),
@@ -134,10 +153,13 @@ export const useAppStore = create<AppStore>()(
         set((state) => ({
           leads: state.leads.map((lead) => (lead.id === id ? { ...lead, estado: newEstado } : lead)),
         })),
+
       moveLeadToStage: (leadId: string, stageId: string) => {
         set((state) => {
           const lead = state.leads.find((l) => l.id === leadId)
           if (!lead) return state
+
+          const oldStage = lead.stage
 
           // Update probability based on stage
           const probabilityMap: Record<string, number> = {
@@ -157,18 +179,50 @@ export const useAppStore = create<AppStore>()(
             partner: 50,
           }
 
-          return {
-            leads: state.leads.map((l) =>
-              l.id === leadId
-                ? {
-                    ...l,
-                    stage: stageId as Lead["stage"],
-                    prob: probabilityMap[stageId] || 50,
-                  }
-                : l,
-            ),
-          }
+          // Get max sortIndex in destination stage
+          const maxSortIndex = Math.max(
+            ...state.leads.filter((l) => l.stage === stageId).map((l) => l.sortIndex ?? 0),
+            -1,
+          )
+
+          // Reindex old stage after removal
+          const updatedLeads = state.leads.map((l) => {
+            if (l.id === leadId) {
+              // Move the lead to new stage
+              return {
+                ...l,
+                stage: stageId as Lead["stage"],
+                prob: probabilityMap[stageId] || 50,
+                sortIndex: maxSortIndex + 1, // Add to end of destination stage
+              }
+            } else if (l.stage === oldStage && (l.sortIndex ?? 0) > (lead.sortIndex ?? 0)) {
+              // Reindex leads in old stage that were after the moved lead
+              return { ...l, sortIndex: (l.sortIndex ?? 0) - 1 }
+            }
+            return l
+          })
+
+          return { leads: updatedLeads }
         })
+      },
+
+      reorderLeadsInStage: (stageId: string, leadIds: string[]) => {
+        set((state) => {
+          const updatedLeads = state.leads.map((lead) => {
+            if (lead.stage === stageId) {
+              const newIndex = leadIds.indexOf(lead.id)
+              if (newIndex !== -1) {
+                return { ...lead, sortIndex: newIndex }
+              }
+            }
+            return lead
+          })
+          return { leads: updatedLeads }
+        })
+      },
+
+      updateLeadStage: (leadId: string, stageId: string) => {
+        get().moveLeadToStage(leadId, stageId)
       },
 
       // Conversations
@@ -246,6 +300,13 @@ export const useAppStore = create<AppStore>()(
               : stage,
           ),
         })),
+
+      getStageById: (stageId: string) => {
+        return get().stageColors.find((s) => s.id === stageId)
+      },
+      getStageColor: (stageId: string) => {
+        return get().stageColors.find((s) => s.id === stageId)?.color || "#6b7280"
+      },
     }),
     {
       name: "social-impulse-store",
@@ -255,7 +316,7 @@ export const useAppStore = create<AppStore>()(
         sidebarCollapsed: state.sidebarCollapsed,
         whatsappConnected: state.whatsappConnected,
         stageColors: state.stageColors,
-        leads: state.leads, // Persist leads for Pipeline
+        leads: state.leads, // Persist leads with sortIndex
       }),
     },
   ),
