@@ -16,7 +16,7 @@ import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { getChannelIcon } from "@/lib/channel-icons"
 import { SidebarLayout } from "@/components/sidebar-layout"
-import { Select, SelectItem } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface Account {
   id: string
@@ -571,11 +571,16 @@ export default function ChatsPage() {
               />
             </div>
             <Select value={activeFilter} onValueChange={setActiveFilter}>
-              {filterButtons.map((button) => (
-                <SelectItem key={button.key} value={button.key}>
-                  {button.label}
-                </SelectItem>
-              ))}
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filtrar por" />
+              </SelectTrigger>
+              <SelectContent>
+                {filterButtons.map((button) => (
+                  <SelectItem key={button.key} value={button.key}>
+                    {button.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
         </div>
