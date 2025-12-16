@@ -2,10 +2,13 @@
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ChevronRight, Menu, X } from "lucide-react"
+import { ChevronDown, ChevronRight, Menu } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguageSelector } from "@/components/language-selector"
+import { AccountSwitcher } from "@/components/account-switcher"
+import { useLanguage } from "@/lib/language-context"
 import { useState, useEffect } from "react"
 
 interface SidebarProps {
@@ -16,6 +19,7 @@ interface SidebarProps {
 
 export function CrmSidebar({ className, isCollapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname()
+  const { t } = useLanguage()
   const [openSections, setOpenSections] = useState<string[]>([])
 
   const toggleSection = (section: string) => {
@@ -27,27 +31,27 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
     {
       href: "/",
       emoji: "📊",
-      label: "Panel",
+      label: t("panel"),
     },
     {
       href: "/chats",
       emoji: "💬",
-      label: "Chats",
+      label: t("chats"),
     },
     {
       href: "/contactos",
       emoji: "👥",
-      label: "Contactos",
+      label: t("contacts"),
     },
     {
       href: "/oportunidades",
       emoji: "🎯",
-      label: "Embudo de Ventas",
+      label: t("pipeline"),
     },
     {
       href: "/tareas",
       emoji: "✅",
-      label: "Tareas",
+      label: t("tasks"),
     },
   ]
 
@@ -63,9 +67,14 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
       label: "Chatbot IA",
     },
     {
-      href: "/remarketing",
-      emoji: "📧",
-      label: "Remarketing",
+      href: "/plantillas-wa",
+      emoji: "📝",
+      label: "Plantillas WA",
+    },
+    {
+      href: "/difusiones-wa",
+      emoji: "📢",
+      label: "Difusiones WA",
     },
     {
       href: "/workflows",
@@ -88,12 +97,12 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
     {
       href: "/administracion",
       emoji: "💼",
-      label: "Administración",
+      label: t("administration"),
     },
     {
       href: "/configuracion",
       emoji: "⚙️",
-      label: "Configuración",
+      label: t("configuration"),
     },
   ]
 
@@ -115,27 +124,19 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
         className,
       )}
     >
-      <div
-        className={cn(
-          "flex items-center border-b border-sidebar-border",
-          isCollapsed ? "p-3 justify-center" : "p-6 gap-2",
-        )}
-      >
-        {!isCollapsed && (
-          <>
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <div className="w-4 h-4 bg-primary-foreground rounded-sm" />
-            </div>
-            <div className="flex-1">
-              <h1 className="font-bold text-sidebar-foreground">SI CRM</h1>
-              <p className="text-xs text-muted-foreground">Tablero principal</p>
-            </div>
-          </>
-        )}
-        <Button variant="ghost" size="sm" onClick={onToggle} className="p-2 hover:bg-sidebar-accent">
-          {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
-        </Button>
-      </div>
+      {!isCollapsed && (
+        <div className="border-b border-sidebar-border">
+          <AccountSwitcher />
+        </div>
+      )}
+
+      {isCollapsed && (
+        <div className="flex items-center justify-center p-3 border-b border-sidebar-border">
+          <Button variant="ghost" size="sm" onClick={onToggle} className="p-2 hover:bg-sidebar-accent">
+            <Menu className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className={cn("flex-1 space-y-2", isCollapsed ? "p-2" : "p-4")}>
@@ -173,12 +174,12 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
                 : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             )}
-            title={isCollapsed ? "Automatización & IA" : undefined}
+            title={isCollapsed ? t("automation") : undefined}
           >
             <span className="text-base">🚀</span>
             {!isCollapsed && (
               <>
-                Automatización & IA
+                {t("automation")}
                 {openSections.includes("automatizacion") ? (
                   <ChevronDown className="w-4 h-4 ml-auto" />
                 ) : (
@@ -239,24 +240,30 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
         })}
       </nav>
 
-      {/* Footer */}
       {!isCollapsed && (
-        <div className="p-4 border-t border-sidebar-border">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-muted-foreground">MVP • V4.7.0</p>
-            <ThemeToggle />
+        <div className="p-4 border-t border-sidebar-border space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground">MVP • V4.7.2</p>
+            <div className="flex items-center gap-1">
+              <LanguageSelector />
+              <ThemeToggle />
+            </div>
           </div>
-          <div className="flex gap-2 text-xs text-muted-foreground">
-            <span>CRM</span>
-            <span>Multicuenta</span>
-            <span>Omnicanal</span>
-            <span>con IA</span>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-xs">SI</div>
+            <div>
+              <p className="text-xs font-semibold">SI CRM</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                Gestioná tus ventas con IA, Omnicanalidad y Multicuenta
+              </p>
+            </div>
           </div>
         </div>
       )}
 
       {isCollapsed && (
-        <div className="p-2 border-t border-sidebar-border flex justify-center">
+        <div className="p-2 border-t border-sidebar-border flex flex-col gap-2 items-center">
+          <LanguageSelector />
           <ThemeToggle />
         </div>
       )}

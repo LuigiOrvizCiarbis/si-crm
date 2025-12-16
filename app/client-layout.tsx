@@ -6,6 +6,7 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { ThemeProvider } from "@/components/theme-provider"
+import { LanguageProvider } from "@/lib/language-context"
 import { CommandPalette } from "@/components/CommandPalette"
 import { MobileBottomNav } from "@/components/MobileBottomNav"
 import { useToast } from "@/components/Toast"
@@ -37,13 +38,15 @@ export default function ClientLayout({
       </head>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-          <ToastProvider>
-            <div className="pb-[max(env(safe-area-inset-bottom),64px)] md:pb-0">
-              <Suspense fallback={null}>{children}</Suspense>
-            </div>
-            <CommandPalette />
-            <MobileBottomNav />
-          </ToastProvider>
+          <LanguageProvider>
+            <ToastProvider>
+              <div className="pb-[max(env(safe-area-inset-bottom),64px)] md:pb-0">
+                <Suspense fallback={null}>{children}</Suspense>
+              </div>
+              <CommandPalette />
+              <MobileBottomNav />
+            </ToastProvider>
+          </LanguageProvider>
         </ThemeProvider>
         <Analytics />
       </body>
