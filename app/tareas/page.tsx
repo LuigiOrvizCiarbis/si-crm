@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { SidebarLayout } from "@/components/sidebar-layout"
+import { TasksCompactHeader } from "@/components/tasks-compact-header"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { List, LayoutGrid, GanttChart, CalendarIcon } from "lucide-react"
 import { TaskListView } from "@/components/tasks/TaskListView"
 import { TaskKanbanView } from "@/components/tasks/TaskKanbanView"
 import { TaskGanttView } from "@/components/tasks/TaskGanttView"
@@ -94,7 +93,17 @@ export default function TareasPage() {
 
   return (
     <SidebarLayout>
-      {/* Metrics badges - moved to top of content */}
+      <TasksCompactHeader
+        activeView={activeView}
+        onViewChange={setActiveView}
+        onSearch={setSearchQuery}
+        onNewTask={() => setShowNewTask(true)}
+        onFilterClick={() => {
+          // TODO: implement filters sheet
+          console.log("Filters clicked")
+        }}
+      />
+
       <div className="flex gap-2 px-6 py-3 border-b border-border/50 bg-card">
         <Badge variant="outline" className="text-xs gap-1 bg-red-500/10 text-red-400 border-red-500/30">
           <span className="font-bold">{overdueTasks.length}</span> Vencidas
@@ -113,44 +122,11 @@ export default function TareasPage() {
         </Badge>
       </div>
 
-      {/* Content */}
-      <div className="p-4 space-y-4 bg-background">
-        <Tabs value={activeView} onValueChange={setActiveView}>
-          <TabsList className="grid w-full max-w-md grid-cols-4 bg-muted">
-            <TabsTrigger value="lista" className="gap-2">
-              <List className="w-4 h-4" />
-              Lista
-            </TabsTrigger>
-            <TabsTrigger value="kanban" className="gap-2">
-              <LayoutGrid className="w-4 h-4" />
-              Kanban
-            </TabsTrigger>
-            <TabsTrigger value="gantt" className="gap-2">
-              <GanttChart className="w-4 h-4" />
-              Gantt
-            </TabsTrigger>
-            <TabsTrigger value="calendario" className="gap-2">
-              <CalendarIcon className="w-4 h-4" />
-              Calendario
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="lista" className="mt-4">
-            <TaskListView tasks={filteredTasks} />
-          </TabsContent>
-
-          <TabsContent value="kanban" className="mt-4">
-            <TaskKanbanView tasks={filteredTasks} />
-          </TabsContent>
-
-          <TabsContent value="gantt" className="mt-4">
-            <TaskGanttView tasks={filteredTasks} />
-          </TabsContent>
-
-          <TabsContent value="calendario" className="mt-4">
-            <TaskCalendarView tasks={filteredTasks} />
-          </TabsContent>
-        </Tabs>
+      <div className="flex-1 overflow-y-auto p-6">
+        {activeView === "lista" && <TaskListView tasks={filteredTasks} />}
+        {activeView === "kanban" && <TaskKanbanView tasks={filteredTasks} />}
+        {activeView === "gantt" && <TaskGanttView tasks={filteredTasks} />}
+        {activeView === "calendario" && <TaskCalendarView tasks={filteredTasks} />}
       </div>
 
       {/* New Task Modal */}
