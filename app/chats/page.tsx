@@ -11,12 +11,12 @@ import { ChatQuickBar } from "@/components/ChatQuickBar"
 import { ContactInfoPanel } from "@/components/ContactInfoPanel"
 import { useToast } from "@/components/Toast"
 import { ChatCreateTaskButton } from "@/components/ChatCreateTaskButton"
-import { NotificationsBell } from "@/components/notifications-bell"
-import { FileText, Search, ChevronLeft, User, MoreVertical } from "lucide-react"
+import { Search, ChevronLeft, User, MoreVertical } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { getChannelIcon } from "@/lib/channel-icons"
 import { SidebarLayout } from "@/components/sidebar-layout"
+import { Select, SelectItem } from "@/components/ui/select"
 
 interface Account {
   id: string
@@ -558,31 +558,9 @@ export default function ChatsPage() {
   return (
     <SidebarLayout>
       <div className="flex flex-col h-full">
-        {/* NIVEL 1: Título y subtítulo */}
-        <div className="p-6 pb-3 border-b border-border bg-background">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Chats</h1>
-              <p className="text-muted-foreground mt-1">Gestiona todas tus conversaciones desde un solo lugar</p>
-            </div>
-            {/* NIVEL 2: CTA y campanita */}
-            <div className="flex items-center gap-2">
-              <Button onClick={handleConnectChannel} className="gap-2">
-                <div className="w-4 h-4 bg-green-500 rounded-full" />
-                Conectar canal
-              </Button>
-              <Button variant="outline" onClick={handleOpenTemplates} className="gap-2 bg-transparent">
-                <FileText className="w-4 h-4" />
-                Plantillas
-              </Button>
-              <NotificationsBell />
-            </div>
-          </div>
-        </div>
-
         {/* NIVEL 3: Búsqueda y filtros */}
-        <div className="px-6 py-4 border-b border-border bg-background sticky top-0 z-10">
-          <div className="flex gap-2">
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
+          <div className="p-4 flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -592,10 +570,18 @@ export default function ChatsPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            <Select value={activeFilter} onValueChange={setActiveFilter}>
+              {filterButtons.map((button) => (
+                <SelectItem key={button.key} value={button.key}>
+                  {button.label}
+                </SelectItem>
+              ))}
+            </Select>
           </div>
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
+        {/* Grid principal con menú de cuentas y contenido */}
+        <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[320px_1fr]">
           {/* Left Panel: Accounts */}
           <div className="w-80 border-r border-border bg-card flex flex-col">
             <div className="p-4 border-b border-border">
@@ -718,7 +704,7 @@ export default function ChatsPage() {
                 <div className="p-4 border-b border-border bg-card">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Button variant="ghost" size="sm" onClick={handleBackToConversations} className="md:hidden">
+                      <Button variant="ghost" size="sm" onClick={handleBackToConversations}>
                         <ChevronLeft className="w-4 h-4" />
                       </Button>
                       <Avatar className="w-10 h-10">
@@ -848,9 +834,9 @@ export default function ChatsPage() {
                 </div>
               </>
             ) : selectedAccount ? (
-              <div className="flex-1 flex flex-col">
-                <div className="p-4 border-b border-border bg-card flex items-center gap-3">
-                  <Button variant="ghost" size="sm" onClick={handleBackToAccounts} className="md:hidden">
+              <div className="h-full flex flex-col">
+                <div className="p-4 border-b border-border flex items-center gap-3 bg-card">
+                  <Button variant="ghost" size="sm" onClick={handleBackToAccounts}>
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
                   {(() => {

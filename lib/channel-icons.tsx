@@ -1,20 +1,20 @@
-import { MessageCircle, Mail, Globe, type LucideIcon } from "lucide-react"
+import { MessageCircle, Mail, Globe, Instagram, Facebook, Linkedin, type LucideIcon } from "lucide-react"
 
 export function getChannelIcon(channel: string): LucideIcon {
   const channelLower = channel.toLowerCase()
 
   const iconMap: Record<string, LucideIcon> = {
-    whatsapp: MessageCircle, // WhatsApp uses MessageCircle as closest match
-    instagram: MessageCircle, // Instagram uses MessageCircle
-    facebook: MessageCircle, // Facebook uses MessageCircle
-    messenger: MessageCircle, // Messenger uses MessageCircle
-    linkedin: MessageCircle, // LinkedIn uses MessageCircle
-    tiktok: MessageCircle, // TikTok uses MessageCircle
+    whatsapp: MessageCircle, // WhatsApp green bubble
+    instagram: Instagram, // Instagram camera icon
+    facebook: Facebook, // Facebook F
+    messenger: Facebook, // Messenger uses Facebook icon
+    linkedin: Linkedin, // LinkedIn logo
+    tiktok: MessageCircle, // TikTok uses generic message
     gmail: Mail,
     email: Mail,
     outlook: Mail,
     web: Globe,
-    telegram: MessageCircle, // Telegram uses MessageCircle
+    telegram: MessageCircle, // Telegram plane icon (using MessageCircle as fallback)
   }
 
   return iconMap[channelLower] || MessageCircle
