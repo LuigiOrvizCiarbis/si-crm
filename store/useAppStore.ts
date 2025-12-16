@@ -41,6 +41,12 @@ export interface AppFilters {
   owner: string
 }
 
+export interface StageColor {
+  id: string
+  name: string
+  color: string // hex color
+}
+
 interface AppStore {
   // User state
   usuario: { nombre: string; email: string } | null
@@ -76,7 +82,29 @@ interface AppStore {
   // WhatsApp Integration
   whatsappConnected: boolean
   setWhatsappConnected: (connected: boolean) => void
+
+  // Stage Colors Management
+  stageColors: StageColor[]
+  setStageColor: (stageId: string, color: string) => void
+  resetStageColor: (stageId: string) => void
 }
+
+const defaultStageColors: StageColor[] = [
+  { id: "prospecto", name: "Lead/Prospecto", color: "#3b82f6" }, // blue-500
+  { id: "contactado", name: "Contactado", color: "#06b6d4" }, // cyan-500
+  { id: "seguimiento", name: "En seguimiento", color: "#6366f1" }, // indigo-500
+  { id: "propuesta", name: "Envié propuesta", color: "#a855f7" }, // purple-500
+  { id: "interesado", name: "Interesado", color: "#ec4899" }, // pink-500
+  { id: "recontactar", name: "Re-contactar", color: "#f59e0b" }, // amber-500
+  { id: "entrevista-pactada", name: "Entrevista pactada", color: "#14b8a6" }, // teal-500
+  { id: "entrevista-realizada", name: "Entrevista realizada", color: "#10b981" }, // emerald-500
+  { id: "reagendar", name: "Reagendar entrevista", color: "#f97316" }, // orange-500
+  { id: "segunda-entrevista", name: "2da Entrevista", color: "#84cc16" }, // lime-500
+  { id: "cierre", name: "Seguimiento para cierre", color: "#22c55e" }, // green-500
+  { id: "convertido", name: "Cliente Convertido", color: "#16a34a" }, // green-600
+  { id: "no-interesa", name: "No le interesa", color: "#ef4444" }, // red-500
+  { id: "partner", name: "Partner/Colega", color: "#8b5cf6" }, // violet-500
+]
 
 export const useAppStore = create<AppStore>()(
   persist(
@@ -165,6 +193,21 @@ export const useAppStore = create<AppStore>()(
       // WhatsApp Integration
       whatsappConnected: false,
       setWhatsappConnected: (connected) => set({ whatsappConnected: connected }),
+
+      // Stage Colors Management
+      stageColors: defaultStageColors,
+      setStageColor: (stageId, color) =>
+        set((state) => ({
+          stageColors: state.stageColors.map((stage) => (stage.id === stageId ? { ...stage, color } : stage)),
+        })),
+      resetStageColor: (stageId) =>
+        set((state) => ({
+          stageColors: state.stageColors.map((stage) =>
+            stage.id === stageId
+              ? { ...stage, color: defaultStageColors.find((s) => s.id === stageId)?.color || "#6b7280" }
+              : stage,
+          ),
+        })),
     }),
     {
       name: "social-impulse-store",
@@ -173,6 +216,7 @@ export const useAppStore = create<AppStore>()(
         filters: state.filters,
         sidebarCollapsed: state.sidebarCollapsed,
         whatsappConnected: state.whatsappConnected,
+        stageColors: state.stageColors, // Persist stage colors
       }),
     },
   ),

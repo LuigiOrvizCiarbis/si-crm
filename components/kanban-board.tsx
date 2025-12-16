@@ -20,6 +20,8 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { PipelineTaskIndicator } from "@/components/PipelineTaskIndicator"
+import { useAppStore } from "@/store/useAppStore"
+import { StageColorPicker } from "@/components/stage-color-picker"
 
 interface Lead {
   id: string
@@ -409,18 +411,24 @@ function SortableLeadCard({ lead }: { lead: Lead }) {
 }
 
 function KanbanColumn({ column, leads }: { column: Column; leads: Lead[] }) {
+  const stageColors = useAppStore((state) => state.stageColors)
+  const stageColor = stageColors.find((s) => s.id === column.id)?.color || column.color
+
   const totalValue = leads.reduce((sum, lead) => sum + lead.value, 0)
   const avgProbability =
     leads.length > 0 ? Math.round(leads.reduce((sum, lead) => sum + lead.probability, 0) / leads.length) : 0
 
   return (
     <div className="flex-1 min-w-80">
-      <Card className="bg-muted/20">
+      <Card className="bg-muted/20 overflow-hidden">
+        <div className="h-2 w-full" style={{ backgroundColor: stageColor }} />
+
         <CardContent className="p-4">
           <div className="flex items-center gap-2 mb-2">
-            <div className={`w-3 h-3 rounded-full ${column.color}`} />
-            <h3 className="font-semibold">{column.title}</h3>
-            <Badge variant="default" className="ml-auto">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stageColor }} />
+            <h3 className="font-semibold flex-1">{column.title}</h3>
+            <StageColorPicker stageId={column.id} currentColor={stageColor} />
+            <Badge variant="default" className="ml-1">
               {leads.length}
             </Badge>
           </div>
