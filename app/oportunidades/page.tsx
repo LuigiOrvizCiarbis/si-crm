@@ -4,7 +4,6 @@ import { KanbanBoard } from "@/components/kanban-board"
 import { SidebarLayout } from "@/components/sidebar-layout"
 import { useToast } from "@/components/Toast"
 import { useAppStore } from "@/store/useAppStore"
-import { GlobalHeader } from "@/components/global-header"
 
 export default function OportunidadesPage() {
   const { addToast } = useToast()
@@ -20,8 +19,6 @@ export default function OportunidadesPage() {
 
   return (
     <SidebarLayout>
-      <GlobalHeader />
-
       {/* Pipeline Content */}
       <div className="p-6">
         <KanbanBoard />

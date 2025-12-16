@@ -572,23 +572,22 @@ export default function ChatsPage() {
             </Button>
             <NotificationsBell />
           </div>
-        </div>
+          {/* NIVEL 3: Search bar and filters in separate sticky row */}
+          <div className="flex items-center gap-4 px-6 pb-4 bg-card">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Buscar conversaciones..." className="pl-10" />
+            </div>
 
-        {/* NIVEL 3: Search bar and filters in separate sticky row */}
-        <div className="flex items-center gap-4 px-6 pb-4 bg-card">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Buscar conversaciones..." className="pl-10" />
+            <Button variant="outline" onClick={handleConnectChannel} className="gap-2 whitespace-nowrap bg-transparent">
+              <Zap className="w-4 h-4" />
+              Conectar canal
+            </Button>
+            <Button variant="outline" onClick={handleImportTemplates} className="gap-2 whitespace-nowrap bg-transparent">
+              <FileText className="w-4 h-4" />
+              Plantillas
+            </Button>
           </div>
-
-          <Button variant="outline" onClick={handleConnectChannel} className="gap-2 whitespace-nowrap bg-transparent">
-            <Zap className="w-4 h-4" />
-            Conectar canal
-          </Button>
-          <Button variant="outline" onClick={handleImportTemplates} className="gap-2 whitespace-nowrap bg-transparent">
-            <FileText className="w-4 h-4" />
-            Plantillas
-          </Button>
         </div>
       </div>
 
