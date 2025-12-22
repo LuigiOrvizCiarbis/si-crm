@@ -2,7 +2,25 @@
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ChevronRight, Menu } from "lucide-react"
+import {
+  ChevronDown,
+  ChevronRight,
+  Menu,
+  LayoutDashboard,
+  MessageSquare,
+  Users,
+  Target,
+  CheckSquare,
+  Sparkles,
+  Bot,
+  FileText,
+  Megaphone,
+  Zap,
+  Shuffle,
+  TrendingUp,
+  Briefcase,
+  Settings,
+} from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -10,6 +28,7 @@ import { LanguageSelector } from "@/components/language-selector"
 import { AccountSwitcher } from "@/components/account-switcher"
 import { useLanguage } from "@/lib/language-context"
 import { useState, useEffect } from "react"
+import Image from "next/image"
 
 interface SidebarProps {
   className?: string
@@ -30,27 +49,27 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
   const navItems = [
     {
       href: "/",
-      emoji: "📊",
+      icon: LayoutDashboard,
       label: t("panel"),
     },
     {
       href: "/chats",
-      emoji: "💬",
+      icon: MessageSquare,
       label: t("chats"),
     },
     {
       href: "/contactos",
-      emoji: "👥",
+      icon: Users,
       label: t("contacts"),
     },
     {
       href: "/oportunidades",
-      emoji: "🎯",
+      icon: Target,
       label: t("pipeline"),
     },
     {
       href: "/tareas",
-      emoji: "✅",
+      icon: CheckSquare,
       label: t("tasks"),
     },
   ]
@@ -58,37 +77,37 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
   const automationItems = [
     {
       href: "/asistente-ia",
-      emoji: "✨",
+      icon: Sparkles,
       label: "Atlas IA",
     },
     {
       href: "/chatbot",
-      emoji: "🤖",
+      icon: Bot,
       label: "Chatbot IA",
     },
     {
       href: "/plantillas-wa",
-      emoji: "📝",
+      icon: FileText,
       label: "Plantillas WA",
     },
     {
       href: "/difusiones-wa",
-      emoji: "📢",
+      icon: Megaphone,
       label: "Difusiones WA",
     },
     {
       href: "/workflows",
-      emoji: "⚡",
+      icon: Zap,
       label: "Workflows",
     },
     {
       href: "/asignacion-ia",
-      emoji: "🎲",
+      icon: Shuffle,
       label: "Asignación IA",
     },
     {
       href: "/analytics-ia",
-      emoji: "📈",
+      icon: TrendingUp,
       label: "Analytics IA",
     },
   ]
@@ -96,13 +115,13 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
   const bottomItems = [
     {
       href: "/administracion",
-      emoji: "💼",
+      icon: Briefcase,
       label: t("administration"),
       desktopOnly: true,
     },
     {
       href: "/configuracion",
-      emoji: "⚙️",
+      icon: Settings,
       label: t("configuration"),
     },
   ]
@@ -144,6 +163,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
         {/* Main navigation items */}
         {navItems.map((item) => {
           const isActive = pathname === item.href
+          const Icon = item.icon
 
           return (
             <Link key={item.href} href={item.href}>
@@ -157,7 +177,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
                 )}
                 title={isCollapsed ? item.label : undefined}
               >
-                <span className="text-base">{item.emoji}</span>
+                <Icon className="h-4 w-4" />
                 {!isCollapsed && item.label}
               </Button>
             </Link>
@@ -177,7 +197,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
             )}
             title={isCollapsed ? t("automation") : undefined}
           >
-            <span className="text-base">🚀</span>
+            <Sparkles className="h-4 w-4" />
             {!isCollapsed && (
               <>
                 {t("automation")}
@@ -194,6 +214,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
             <div className="ml-4 mt-1 space-y-1">
               {automationItems.map((item) => {
                 const isActive = pathname === item.href
+                const Icon = item.icon
 
                 return (
                   <Link key={item.href} href={item.href}>
@@ -207,7 +228,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
                           : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                       )}
                     >
-                      <span className="text-sm">{item.emoji}</span>
+                      <Icon className="h-4 w-4" />
                       {item.label}
                     </Button>
                   </Link>
@@ -220,6 +241,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
         {/* Bottom items */}
         {bottomItems.map((item) => {
           const isActive = pathname === item.href
+          const Icon = item.icon
 
           return (
             <Link key={item.href} href={item.href}>
@@ -233,7 +255,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
                 )}
                 title={isCollapsed ? item.label : undefined}
               >
-                <span className="text-base">{item.emoji}</span>
+                <Icon className="h-4 w-4" />
                 {!isCollapsed && item.label}
               </Button>
             </Link>
@@ -251,7 +273,9 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-xs">SI</div>
+            <div className="w-6 h-6 relative flex-shrink-0">
+              <Image src="/logo-sicrm..png" alt="SI CRM Logo" width={24} height={24} className="object-contain" />
+            </div>
             <div>
               <p className="text-xs font-semibold">SI CRM</p>
               <p className="text-[10px] text-muted-foreground leading-tight">

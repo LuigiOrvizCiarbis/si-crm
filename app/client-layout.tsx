@@ -8,6 +8,7 @@ import { LanguageProvider } from "@/lib/language-context"
 import { CommandPalette } from "@/components/CommandPalette"
 import { MobileBottomNav } from "@/components/MobileBottomNav"
 import { useToast } from "@/components/Toast"
+import "@/lib/clear-emoji-storage"
 import "./globals.css"
 
 function ToastProvider({ children }: { children: React.ReactNode }) {
