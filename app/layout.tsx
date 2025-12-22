@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Social Impulse — CRM IA Omnicanal",
     description: "CRM Conversacional con IA para WhatsApp, Instagram y más canales",
-    images: ["/og-image.png"],
+    images: ["..\public\logo-sicrm..png"],
   },
   robots: {
     index: true,
