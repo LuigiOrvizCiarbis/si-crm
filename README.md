@@ -12,5 +12,5 @@ dev-luigi → rama exclusiva Luigi.
 
 Crea su rama: feature/chat-improvements
 Trabaja ahí.
-Hace PR a dev.
+Hace MR a dev.
 Dev se testea → se mergea a test → si funciona → main.
