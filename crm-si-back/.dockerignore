@@ -1,0 +1,24 @@
+# Ignorar archivos de entorno
+.env
+.env.backup
+.env.production
+
+# Ignorar archivos de Docker
+docker-compose.override.yml
+
+# Ignorar volúmenes locales
+/postgres-data/
+/vendor/
+/node_modules/
+
+# Ignorar archivos de Laravel
+/storage/*.key
+/storage/logs/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/bootstrap/cache/*
+
+# Ignorar archivos del sistema
+.DS_Store
+Thumbs.db

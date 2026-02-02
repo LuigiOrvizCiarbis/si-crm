@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "3000:3000"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=https://localhost:3000
+      - ANOTHER_ENV_VAR=value
+      - FACEBOOK_APP_SECRET=c949a93e57224c735042187ff4400e07
+      - NEXT_PUBLIC_TOKEN=5|uRlu7FNKuzLooygx4xeV6umq5B3mWljKsHogmtXG495c3bdf
+      - NEXT_PUBLIC_FACEBOOK_APP_ID=1135332922070411
+      - NEXT_PUBLIC_FACEBOOK_CONFIGURATION_ID=827435583310243
+      - NEXT_PUBLIC_FACEBOOK_GRAPH_API_VERSION=v24.0
+    command: npm run dev:https

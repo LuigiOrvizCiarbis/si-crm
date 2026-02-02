@@ -1,0 +1,19 @@
+FROM php:8.3-cli
+
+# Dependencias básicas
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    git \
+    unzip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Extensiones mínimas
+RUN docker-php-ext-install \
+    pdo_pgsql \
+    pcntl
+
+# Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+WORKDIR /var/www/html
