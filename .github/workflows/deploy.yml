@@ -1,0 +1,30 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [staging]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/apps/si-crm
+            git pull origin staging
+
+            # Backend
+            cd crm-si-back
+            docker compose up -d --build
+            docker compose exec -T app php artisan migrate --force
+            docker compose exec -T app php artisan config:clear
+            docker compose exec -T app php artisan cache:clear
+
+            # Frontend
+            cd ../crm-si-front
+            docker compose up -d --build
