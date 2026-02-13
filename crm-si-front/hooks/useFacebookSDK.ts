@@ -101,11 +101,8 @@ export const useFacebookSDK = () => {
     signupData?: any
   ) => {
     try {
-      //const token = localStorage.getItem("auth_token");
-
-      const token = process.env.NEXT_PUBLIC_TOKEN;
-
-      console.log("Using token:", token);
+      const authStorage = localStorage.getItem("auth-storage");
+      const token = authStorage ? JSON.parse(authStorage)?.state?.token : null;
 
       if (!token) {
         throw new Error("No authentication token found");
