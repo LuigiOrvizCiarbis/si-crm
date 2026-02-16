@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Search, Filter, Plus, MoreVertical, Phone, Mail, MessageSquare, Star, Users, Loader2 } from "lucide-react"
+import { getAuthToken } from "@/lib/api/auth-token"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -61,7 +62,10 @@ export function ContactsList() {
         queryParams.append("search", searchTerm)
       }
       
-      const response = await fetch(`/api/contacts?${queryParams.toString()}`)
+      const token = getAuthToken();
+      const response = await fetch(`/api/contacts?${queryParams.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       
       if (!response.ok) {
         throw new Error("Error al cargar contactos")

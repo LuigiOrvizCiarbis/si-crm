@@ -127,7 +127,7 @@ export default function ChatsPage() {
 
   useSSEMessages({
     conversationId: selectedConversationId,
-    token: process.env.NEXT_PUBLIC_TOKEN || "",
+    token: (() => { const s = localStorage.getItem("auth-storage"); try { return s ? JSON.parse(s)?.state?.token ?? "" : ""; } catch { return ""; } })(),
     onMessage: handleRealTimeMessage
   });
 

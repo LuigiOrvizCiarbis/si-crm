@@ -85,6 +85,24 @@ export const useFacebookSDK = () => {
                 signupEventRef.current
               );
             }
+          } else if (typeof event.data === "string" && event.data.includes("&code=")) {
+            const params = new URLSearchParams(event.data);
+            const code = params.get("code");
+            if (code) {
+              console.log("Authorization code from message event:", code);
+              codeRef.current = code;
+              if (signupEventRef.current && !sentRef.current) {
+                sentRef.current = true;
+                sendToBackend(code, null, signupEventRef.current);
+              } else {
+                setTimeout(() => {
+                  if (!sentRef.current && codeRef.current) {
+                    sentRef.current = true;
+                    sendToBackend(codeRef.current, null, signupEventRef.current);
+                  }
+                }, 4000);
+              }
+            }
           } else {
             console.log("Facebook message event:", event.data);
           }

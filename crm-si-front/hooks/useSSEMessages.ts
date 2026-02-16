@@ -25,10 +25,8 @@ export function useSSEMessages({
       eventSourceRef.current.close();
     }
 
-    // Construir URL: Backend + ID + Token + LastID
-    // Nota: Ajusta la URL base según tu entorno (localhost:8000 o tu proxy API)
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    const url = `${baseUrl}/api/conversations/${conversationId}/stream?token=${token}&last_id=${lastMessageIdRef.current}`;
+    // Construir URL: usa el proxy de Next.js para evitar CORS
+    const url = `/api/conversations/${conversationId}/stream?token=${token}&last_id=${lastMessageIdRef.current}`;
 
     console.log(`🔌 SSE: Conectando a chat ${conversationId}...`);
 

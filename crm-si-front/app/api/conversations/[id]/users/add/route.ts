@@ -9,7 +9,7 @@ export async function POST(
   const { id } = await params;
   const headerAuth = request.headers.get("authorization");
   const incomingToken = headerAuth?.startsWith("Bearer ") ? headerAuth.split(" ")[1] : undefined;
-  const token = incomingToken || process.env.NEXT_PUBLIC_TOKEN;
+  const token = incomingToken;
 
   if (!token) {
     return NextResponse.json({ error: "Authorization token missing" }, { status: 401 });

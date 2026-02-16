@@ -1,10 +1,8 @@
 import type { Conversation } from "@/data/types";
+import { getAuthToken } from "./auth-token";
 
 export async function getConversations(): Promise<Conversation[]> {
-/*   const token = localStorage.getItem("auth_token");
- */
-    const token = process.env.NEXT_PUBLIC_TOKEN;
-
+  const token = getAuthToken();
 
   if (!token) {
     throw new Error("No authentication token found");
@@ -16,7 +14,7 @@ export async function getConversations(): Promise<Conversation[]> {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    cache: "no-store", // Evita cache en producción
+    cache: "no-store",
   });
 
   if (!response.ok) {
@@ -52,9 +50,7 @@ export async function getConversations(): Promise<Conversation[]> {
 }
 
 export async function getChannelConversations(channelId: number, perPage = 50) {
-  /*   const token = localStorage.getItem("token"); */
-  const token = process.env.NEXT_PUBLIC_TOKEN;
-
+  const token = getAuthToken();
   if (!token) throw new Error("Token faltante");
 
   const params = new URLSearchParams();
@@ -99,8 +95,7 @@ export async function getChannelConversations(channelId: number, perPage = 50) {
  * Usado por admin para ver las conversaciones de un vendedor
  */
 export async function getUserConversations(userId: number, perPage = 50) {
-  const token = process.env.NEXT_PUBLIC_TOKEN;
-
+  const token = getAuthToken();
   if (!token) throw new Error("Token faltante");
 
   const params = new URLSearchParams();
@@ -140,7 +135,7 @@ export async function getUserConversations(userId: number, perPage = 50) {
 }
 
 export async function getConversationWithMessages(conversationId: number) {
-  const token = localStorage.getItem("token") || process.env.NEXT_PUBLIC_TOKEN;
+  const token = getAuthToken();
   if (!token) throw new Error("No authentication token found");
 
   const res = await fetch(`/api/conversations/${conversationId}`, {
@@ -177,10 +172,9 @@ export async function getConversationWithMessages(conversationId: number) {
 }
 
 export async function getConversationMessages(conversationId: number, page: number = 1) {
-  const token = localStorage.getItem("token") || process.env.NEXT_PUBLIC_TOKEN;
+  const token = getAuthToken();
   if (!token) throw new Error("No authentication token found");
 
-  // Llamamos al nuevo endpoint con el parámetro ?page=X
   const res = await fetch(`/api/conversations/${conversationId}/messages?page=${page}`, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -192,19 +186,16 @@ export async function getConversationMessages(conversationId: number, page: numb
   if (!res.ok)
     throw new Error(payload?.message || "Error al cargar historial de mensajes");
 
-  // Retorna la estructura de paginación de Laravel: { data: [], current_page: 1, last_page: 5, ... }
   return payload;
 }
 
 export async function updateConversationStage(conversationId: number, stage: number | string) {
-  const token = localStorage.getItem("token") || process.env.NEXT_PUBLIC_TOKEN;
-
+  const token = getAuthToken();
   if (!token) throw new Error("No token found");
 
-  // Siempre usar el formato nuevo con pipeline_stage_id
-  const body = typeof stage === 'number' 
+  const body = typeof stage === 'number'
     ? { pipeline_stage_id: stage }
-    : { pipeline_stage_id: Number(stage) }; // Intentar convertir si viene como string
+    : { pipeline_stage_id: Number(stage) };
 
   const res = await fetch(`/api/conversations/${conversationId}/stage`, {
     method: "PATCH",
@@ -225,7 +216,7 @@ export async function updateConversationStage(conversationId: number, stage: num
 }
 
 export async function assignConversationUser(conversationId: number, userId: number) {
-  const token = localStorage.getItem("token") || process.env.NEXT_PUBLIC_TOKEN;
+  const token = getAuthToken();
   if (!token) throw new Error("No token found");
 
   const res = await fetch(`/api/conversations/${conversationId}/users/add`, {
