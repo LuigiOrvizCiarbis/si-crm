@@ -137,6 +137,10 @@ export function ChatQuickBar({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName
+      const isInput = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable
+      if (isInput) return
+
       if (e.key === "l" || e.key === "L") {
         e.preventDefault()
         onMarkRead()

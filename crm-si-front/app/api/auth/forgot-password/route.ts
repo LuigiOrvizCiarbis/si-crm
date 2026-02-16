@@ -10,7 +10,6 @@ async function tryBackendRequest(endpoint: string, options: RequestInit) {
   for (const baseUrl of BACKEND_URLS) {
     const url = `${baseUrl}${endpoint}`
     try {
-      console.log(`[Auth] Trying: ${url}`)
       const res = await fetch(url, {
         ...options,
         headers: {

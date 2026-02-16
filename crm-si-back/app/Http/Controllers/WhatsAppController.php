@@ -120,14 +120,18 @@ class WhatsAppController extends Controller
             ]
         );
 
-        WhatsAppConfig::updateOrCreate(
-            ['channel_id' => $channel->id],
+        $whatsappConfig = WhatsAppConfig::updateOrCreate(
             [
                 'phone_number_id' => $request->data['phone_number_id'],
                 'waba_id' => $request->data['waba_id'],
+            ],
+            [
                 'bussines_token' => $encryptedToken,
             ]
         );
+
+        $channel->whatsapp_config_id = $whatsappConfig->id;
+        $channel->save();
 
         return $channel;
     }

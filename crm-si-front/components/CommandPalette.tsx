@@ -35,6 +35,10 @@ export function CommandPalette() {
 
       // Global shortcuts
       if (!commandPaletteOpen) {
+        const tag = (e.target as HTMLElement)?.tagName
+        const isInput = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable
+        if (isInput) return
+
         if (e.key === "g" && e.ctrlKey) {
           e.preventDefault()
           return
