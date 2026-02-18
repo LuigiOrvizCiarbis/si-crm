@@ -51,12 +51,9 @@ export const useFacebookSDK = () => {
         try {
           const data = JSON.parse(event.data);
           if (data.type === "WA_EMBEDDED_SIGNUP") {
-            console.log("WhatsApp Embedded Signup event:", data);
 
-            // Persistimos el objeto 'data' que incluye waba_id, phone_number_id, etc.
             signupEventRef.current = data.data ?? null;
 
-            // Si ya tenemos el code, enviamos ahora junto al 'data'
             if (codeRef.current && !sentRef.current) {
               sentRef.current = true;
               sendToBackend(
@@ -67,14 +64,12 @@ export const useFacebookSDK = () => {
             }
           }
         } catch {
-          // Puede venir como objeto ya parseado
           const raw: any = (event as any).data;
           if (
             raw &&
             typeof raw === "object" &&
             raw.type === "WA_EMBEDDED_SIGNUP"
           ) {
-            console.log("WhatsApp Embedded Signup event (raw object):", raw);
             signupEventRef.current = raw.data ?? null;
 
             if (codeRef.current && !sentRef.current) {
@@ -89,7 +84,6 @@ export const useFacebookSDK = () => {
             const params = new URLSearchParams(event.data);
             const code = params.get("code");
             if (code) {
-              console.log("Authorization code from message event:", code);
               codeRef.current = code;
               if (signupEventRef.current && !sentRef.current) {
                 sentRef.current = true;
@@ -104,8 +98,7 @@ export const useFacebookSDK = () => {
               }
             }
           } else {
-            console.log("Facebook message event:", event.data);
-          }
+            console.warn("Received non-JSON message from Facebook:", event.data);}
         }
       };
 
@@ -145,7 +138,6 @@ export const useFacebookSDK = () => {
       });
 
       const data = await backendResponse.json();
-      console.log("Backend response:", data);
 
       if (data.success) {
       } else {
@@ -158,11 +150,9 @@ export const useFacebookSDK = () => {
 
   // Response callback - debe ser síncrono
   const fbLoginCallback = (response: any) => {
-    console.log("Facebook login response:", response);
 
     if (response.authResponse) {
       const code = response.authResponse.code;
-      console.log("Authorization code received:", code);
       codeRef.current = code;
       lastResponseRef.current = response;
 
@@ -185,8 +175,7 @@ export const useFacebookSDK = () => {
         }
       }, 4000);
     } else {
-      console.log("User cancelled login or did not authorize:", response);
-    }
+      console.warn("Facebook login cancelled or failed:", response);}
   };
 
   // Launch method and callback registration
@@ -201,6 +190,8 @@ export const useFacebookSDK = () => {
       override_default_response_type: true,
       extras: {
         setup: {},
+        featureType: "whatsapp_business_app_onboarding",
+        sessionInfoVersion: "3",
       },
     });
   };
