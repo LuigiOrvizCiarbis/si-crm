@@ -30,8 +30,6 @@ export async function GET(request: NextRequest) {
         },
         cache: 'no-store'
       });
-      // Nota: este log aparece en el servidor (no en el navegador)
-      console.log("[proxy:/api/users]", baseUrl, response.status);
 
       if (response.ok) {
         const data = await response.json();

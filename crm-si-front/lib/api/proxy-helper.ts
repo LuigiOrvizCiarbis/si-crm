@@ -25,7 +25,6 @@ export async function proxyToLaravel(
     tried.push(url);
 
     try {
-      console.log(`[Proxy] Trying: ${url}`);
       
       const res = await fetch(url, {
         ...options,
@@ -41,7 +40,6 @@ export async function proxyToLaravel(
 
       // Retornar si es exitoso o error cliente (400-499)
       if (res.ok || (res.status >= 400 && res.status < 500)) {
-        console.log(`[Proxy] Success from ${base}`);
         return { data, status: res.status };
       }
 

@@ -19,7 +19,6 @@ export async function getChannels(): Promise<Channel[]> {
   }
 
   const json = await response.json();
-  console.log("🚀 ~ getChannels ~ json:", json);
 
   return json.data ?? [];
 }

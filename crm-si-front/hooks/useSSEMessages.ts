@@ -28,21 +28,14 @@ export function useSSEMessages({
     // Construir URL: usa el proxy de Next.js para evitar CORS
     const url = `/api/conversations/${conversationId}/stream?token=${token}&last_id=${lastMessageIdRef.current}`;
 
-    console.log(`🔌 SSE: Conectando a chat ${conversationId}...`);
 
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
-    eventSource.onopen = () => {
-      console.log("🟢 SSE: Conexión establecida");
-    };
-
     eventSource.addEventListener("message", (event) => {
       try {
         const newMessage = JSON.parse(event.data);
-        console.log("📩 SSE: Mensaje recibido", newMessage);
 
-        // Actualizar el puntero del último mensaje recibido
         if (newMessage.id) {
           lastMessageIdRef.current = newMessage.id;
         }
@@ -60,7 +53,6 @@ export function useSSEMessages({
     };
 
     return () => {
-      console.log("🔌 SSE: Cerrando conexión...");
       eventSource.close();
     };
   }, [conversationId, token, onMessage]);

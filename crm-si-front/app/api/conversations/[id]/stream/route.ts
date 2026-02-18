@@ -50,7 +50,6 @@ export async function GET(
       });
 
       if (response.ok) {
-        // console.log(`✅ Proxy SSE: Conectado a ${baseUrl}`);
         return new NextResponse(response.body, {
           headers: {
             "Content-Type": "text/event-stream",

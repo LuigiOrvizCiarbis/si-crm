@@ -34,7 +34,6 @@ export async function getUsers(): Promise<SystemUser[]> {
       email: u.email,
       role: u.role || 'Vendedor'
     }));
-    console.log('[getUsers] loaded', mapped.length);
     return mapped;
   } catch (e) {
     console.error('Error fetching users', e);

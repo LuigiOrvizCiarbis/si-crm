@@ -25,7 +25,6 @@ export async function getConversations(): Promise<Conversation[]> {
   }
 
   const json = await response.json();
-  console.log("[getAllConversations] Response:", json);
 
   const mapped: Conversation[] = (json.data || []).map((c: any) => ({
     id: c.id,
@@ -65,7 +64,6 @@ export async function getChannelConversations(channelId: number, perPage = 50) {
   });
 
   const payload = await res.json().catch(() => ({}));
-  console.log("[getChannelConversations] channelId:", channelId, "payload:", payload);
   if (!res.ok) throw new Error(payload?.message || "Error conversaciones");
 
   const mapped: Conversation[] = (payload.data || []).map((c: any) => ({
