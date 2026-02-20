@@ -268,7 +268,10 @@ class WhatsAppController extends Controller
 
         try {
             $response = Http::withToken($token)
-                ->post("https://graph.facebook.com/{$version}/{$phoneNumberId}/smb_app_data");
+                ->post("https://graph.facebook.com/{$version}/{$phoneNumberId}/smb_app_data", [
+                    'messaging_product' => 'whatsapp',
+                    'sync_type' => 'smb_app_state_sync',
+                ]);
 
             if ($response->successful()) {
                 Log::info('triggerContactSync: sincronización de contactos iniciada', [
