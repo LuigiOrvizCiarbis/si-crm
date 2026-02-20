@@ -106,15 +106,14 @@ export const useFacebookSDK = () => {
                 sendToBackend(code, null, signupEventRef.current);
               } else {
                 setTimeout(() => {
-                  if (
-                    !sentRef.current &&
-                    codeRef.current &&
-                    signupEventRef.current?.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING"
-                  ) {
+                  if (!sentRef.current && codeRef.current) {
+                    console.warn(
+                      "[WA Embedded Signup] No llegó FINISH en 6s. Enviando fallback al backend."
+                    );
                     sentRef.current = true;
                     sendToBackend(codeRef.current, null, signupEventRef.current);
                   }
-                }, 4000);
+                }, 6000);
               }
             }
           } else {
@@ -187,12 +186,12 @@ export const useFacebookSDK = () => {
         return;
       }
 
-      // Espera un poco más por si el evento llega con retraso; luego enviamos fallback
+      // Si no llega FINISH, enviamos de todos modos como fallback para no perder el code
       setTimeout(() => {
-        if (
-          !sentRef.current &&
-          signupEventRef.current?.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING"
-        ) {
+        if (!sentRef.current && codeRef.current) {
+          console.warn(
+            "[WA Embedded Signup] No llegó FINISH en 6s tras login callback. Enviando fallback al backend."
+          );
           sentRef.current = true;
           sendToBackend(
             codeRef.current as string,
@@ -200,7 +199,7 @@ export const useFacebookSDK = () => {
             signupEventRef.current
           );
         }
-      }, 4000);
+      }, 6000);
     } else {
       console.warn("Facebook login cancelled or failed:", response);
     }
