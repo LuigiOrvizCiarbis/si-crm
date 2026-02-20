@@ -5,32 +5,34 @@ import { Button } from "@/components/ui/button"
 import { useConfigStore } from "@/store/useConfigStore"
 import { Key, Copy, Trash2, ExternalLink } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/hooks/useTranslation"
 
 export function ApiKeysCard() {
   const { apiKeys, generateApiKey, revokeApiKey } = useConfigStore()
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   const handleGenerate = (env: "live" | "test") => {
     generateApiKey(env)
     toast({
-      title: "API Key generada",
-      description: `Se generó una nueva ${env === "live" ? "Production" : "Development"} API Key`,
+      title: t("settings.apiKeyGenerated"),
+      description: t("settings.apiKeyGeneratedDesc"),
     })
   }
 
   const handleCopy = (masked: string) => {
     navigator.clipboard.writeText(masked)
     toast({
-      title: "Copiado",
-      description: "La API Key se copió al portapapeles",
+      title: t("settings.apiKeyCopied"),
+      description: t("settings.apiKeyCopiedDesc"),
     })
   }
 
   const handleRevoke = (id: string) => {
     revokeApiKey(id)
     toast({
-      title: "API Key revocada",
-      description: "La API Key se revocó correctamente",
+      title: t("settings.apiKeyRevoked"),
+      description: t("settings.apiKeyRevokedDesc"),
       variant: "destructive",
     })
   }
@@ -40,16 +42,16 @@ export function ApiKeysCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Key className="w-5 h-5" />
-          API Keys
+          {t("settings.apiKeys")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => handleGenerate("live")} className="flex-1">
-            Generar Production Key
+            {t("settings.generateProductionKey")}
           </Button>
           <Button variant="outline" onClick={() => handleGenerate("test")} className="flex-1">
-            Generar Development Key
+            {t("settings.generateDevelopmentKey")}
           </Button>
         </div>
 
@@ -59,7 +61,7 @@ export function ApiKeysCard() {
               <div>
                 <p className="font-medium font-mono text-sm">{key.masked}</p>
                 <p className="text-xs text-muted-foreground">
-                  {key.env === "live" ? "Production" : "Development"} · Creada {key.createdAt}
+                  {key.env === "live" ? "Production" : "Development"} · {t("settings.apiKeyCreatedAt")} {t(key.createdAt)}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -81,7 +83,7 @@ export function ApiKeysCard() {
 
         <Button variant="link" className="w-full" asChild>
           <a href="/docs" target="_blank" rel="noreferrer">
-            📚 Documentación de API
+            📚 {t("settings.apiDocumentation")}
             <ExternalLink className="w-4 h-4 ml-2" />
           </a>
         </Button>

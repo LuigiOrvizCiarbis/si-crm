@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { useConfigStore, type PlanId } from "@/store/useConfigStore"
 import { CreditCard, ArrowRight } from "lucide-react"
 import Link from "next/link"
+import { useTranslation } from "@/hooks/useTranslation"
 
 const plans = [
   { id: "starter" as PlanId, nombre: "Starter", precio: 50, recommended: false, bestselling: false },
@@ -30,99 +31,36 @@ const plans = [
   },
 ]
 
-const groupedFeatures = [
-  {
-    category: "Métricas",
-    rows: [
-      { name: "Métricas básicas", values: ["✓", ".", ".", ".", ".", "."] },
-      { name: "Métricas completas", values: ["—", "✓", "✓", "✓", "✓", "✓"] },
-    ],
-  },
-  {
-    category: "Usuarios",
-    rows: [
-      { name: "Cantidad de usuarios", values: ["1", "1", "3", "10", "Ilimitados", "Custom"] },
-      { name: "+ Usuario extra", values: ["—", "$100", "$75", "$50", ".", "Custom"], isNote: true },
-    ],
-  },
-  {
-    category: "Conversaciones",
-    rows: [
-      {
-        name: "Conversaciones nuevas al mes",
-        values: ["3.000", "3.000", "5.000", "15.000", "Ilimitadas", "3.000 por sub-cliente"],
-      },
-      { name: "+ 1000 conversaciones extra", values: ["—", "$100", "$100", "$100", ".", "."], isNote: true },
-    ],
-  },
-  {
-    category: "Funcionalidades",
-    rows: [
-      { name: "Embudo/Pipeline", values: ["✓", "✓", "✓", "✓", "✓", "✓"] },
-      { name: "Base de datos", values: ["✓", "✓", "✓", "✓", "✓", "✓"] },
-      { name: "Tareas", values: ["—", "✓", "✓", "✓", "✓", "✓"] },
-      { name: "Roles y permisos", values: ["—", "—", "✓", "✓", "✓", "✓"] },
-      { name: "ChatBot IA", values: ["—", "—", "✓", "✓", "✓", "Custom"] },
-      { name: "IA avanzada", values: ["—", "—", "—", "✓", "✓", "Custom"] },
-      { name: "Plan re-marketing con IA", values: ["—", "—", "—", "✓", "✓", "Custom"] },
-      { name: "Marca Blanca", values: ["—", "—", "—", "—", "Custom", "✓"] },
-      { name: "Módulos a medida", values: ["—", "—", "—", "—", "Custom", "Custom"] },
-      { name: "Soporte prioritario", values: ["—", "—", "—", "—", "✓", "✓"] },
-      { name: "Look&Feel Personalizado", values: ["—", "—", "—", "—", "✓", "✓"] },
-    ],
-  },
-  {
-    category: "Sub-clientes",
-    rows: [
-      { name: "Cantidad de sub-clientes", values: ["—", "—", "—", "—", "—", "Custom"] },
-      { name: "Usuarios por sub-cliente", values: ["—", "—", "—", "—", "—", "Custom"] },
-    ],
-  },
-]
-
-const channels = [
-  "WhatsApp",
-  "Telegram",
-  "Instagram",
-  "Facebook Messenger",
-  "LinkedIn",
-  "TikTok",
-  "Gmail",
-  "Outlook (hotmail)",
-  "Mail corporativo (web mail)",
-  "Formulario Web",
-  "Chat flotante Web",
-]
-
 export function BillingCard() {
   const { billing } = useConfigStore()
+  const { t } = useTranslation()
 
   return (
     <Card className="rounded-2xl border-[#1e2533]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CreditCard className="w-5 h-5" />
-          Facturación
+          {t("settings.billing")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Plan actual */}
+        {/* Current plan */}
         <div className="p-4 rounded-lg border border-[#1e2533] bg-white/5">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-muted-foreground">Plan actual</p>
+            <p className="text-sm text-muted-foreground">{t("settings.currentPlan")}</p>
             <Badge variant="default">{billing.actual}</Badge>
           </div>
-          <p className="text-2xl font-bold">${billing.montoUSD} USD/mes</p>
-          <p className="text-sm text-muted-foreground">Vence el {billing.vencimiento}</p>
+          <p className="text-2xl font-bold">${billing.montoUSD} USD{t("settings.perMonth")}</p>
+          <p className="text-sm text-muted-foreground">{t("settings.expiresOn")} {t(billing.vencimiento)}</p>
         </div>
 
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Gestiona tu suscripción, compara planes y actualiza tu facturación.
+            {t("settings.billingDesc")}
           </p>
           <Link href="/pricing">
             <Button className="w-full gap-2">
-              Ver planes y pagar
+              {t("settings.viewPlans")}
               <ArrowRight className="w-4 h-4" />
             </Button>
           </Link>

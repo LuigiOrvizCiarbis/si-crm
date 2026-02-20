@@ -15,6 +15,7 @@ export const useFacebookSDK = () => {
   const lastResponseRef = useRef<any>(null);
   const codeRef = useRef<string | null>(null);
   const sentRef = useRef<boolean>(false);
+  const debugEnabled = process.env.NEXT_PUBLIC_WHATSAPP_DEBUG === "1";
 
   useEffect(() => {
     loadFacebookSDK();
@@ -45,24 +46,45 @@ export const useFacebookSDK = () => {
 
       setIsFacebookSDKLoaded(true);
 
+      const logDebug = (...args: any[]) => {
+        if (debugEnabled) {
+          console.info("[WA Embedded Signup]", ...args);
+        }
+      };
+
+      const handleEmbeddedEvent = (payload: any) => {
+        if (!payload || payload.type !== "WA_EMBEDDED_SIGNUP") return;
+
+        signupEventRef.current = payload;
+        logDebug("Event recibido:", payload.event, payload);
+
+        // Solo enviamos al backend cuando el onboarding terminó exitosamente.
+        if (payload.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") {
+          if (codeRef.current && !sentRef.current) {
+            sentRef.current = true;
+            sendToBackend(
+              codeRef.current,
+              lastResponseRef.current,
+              signupEventRef.current
+            );
+          }
+          return;
+        }
+
+        if (payload.event === "CANCEL") {
+          console.warn(
+            "[WA Embedded Signup] Flujo cancelado/abortado en paso:",
+            payload?.data?.current_step ?? "desconocido"
+          );
+        }
+      };
+
       const handleMessage = (event: MessageEvent) => {
         if (!event.origin.endsWith("facebook.com")) return;
 
         try {
           const data = JSON.parse(event.data);
-          if (data.type === "WA_EMBEDDED_SIGNUP") {
-
-            signupEventRef.current = data.data ?? null;
-
-            if (codeRef.current && !sentRef.current) {
-              sentRef.current = true;
-              sendToBackend(
-                codeRef.current,
-                lastResponseRef.current,
-                signupEventRef.current
-              );
-            }
-          }
+          handleEmbeddedEvent(data);
         } catch {
           const raw: any = (event as any).data;
           if (
@@ -70,31 +92,28 @@ export const useFacebookSDK = () => {
             typeof raw === "object" &&
             raw.type === "WA_EMBEDDED_SIGNUP"
           ) {
-            signupEventRef.current = raw.data ?? null;
-
-            if (codeRef.current && !sentRef.current) {
-              sentRef.current = true;
-              sendToBackend(
-                codeRef.current,
-                lastResponseRef.current,
-                signupEventRef.current
-              );
-            }
+            handleEmbeddedEvent(raw);
           } else if (typeof event.data === "string" && event.data.includes("&code=")) {
             const params = new URLSearchParams(event.data);
             const code = params.get("code");
             if (code) {
               codeRef.current = code;
-              if (signupEventRef.current && !sentRef.current) {
+              if (
+                signupEventRef.current?.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING" &&
+                !sentRef.current
+              ) {
                 sentRef.current = true;
                 sendToBackend(code, null, signupEventRef.current);
               } else {
                 setTimeout(() => {
                   if (!sentRef.current && codeRef.current) {
+                    console.warn(
+                      "[WA Embedded Signup] No llegó FINISH en 6s. Enviando fallback al backend."
+                    );
                     sentRef.current = true;
                     sendToBackend(codeRef.current, null, signupEventRef.current);
                   }
-                }, 4000);
+                }, 6000);
               }
             }
           } else {
@@ -109,11 +128,13 @@ export const useFacebookSDK = () => {
   const sendToBackend = async (
     code: string,
     response: any,
-    signupData?: any
+    signupPayload?: any
   ) => {
     try {
       const authStorage = localStorage.getItem("auth-storage");
       const token = authStorage ? JSON.parse(authStorage)?.state?.token : null;
+      const embeddedEvent = signupPayload ?? signupEventRef.current ?? null;
+      const embeddedData = embeddedEvent?.data ?? null;
 
       if (!token) {
         throw new Error("No authentication token found");
@@ -125,15 +146,14 @@ export const useFacebookSDK = () => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          //type: "authorization",
           code: code,
           full_response: response,
-          data: signupData ?? signupEventRef.current ?? null,
-          waba_id: (signupData ?? signupEventRef.current)?.waba_id ?? null,
-          phone_number_id:
-            (signupData ?? signupEventRef.current)?.phone_number_id ?? null,
-          business_id:
-            (signupData ?? signupEventRef.current)?.business_id ?? null,
+          data: embeddedData,
+          embedded_signup_event: embeddedEvent?.event ?? null,
+          embedded_signup_version: embeddedEvent?.version ?? null,
+          waba_id: embeddedData?.waba_id ?? null,
+          phone_number_id: embeddedData?.phone_number_id ?? null,
+          business_id: embeddedData?.business_id ?? null,
         }),
       });
 
@@ -157,15 +177,21 @@ export const useFacebookSDK = () => {
       lastResponseRef.current = response;
 
       // Si ya tenemos el evento, enviamos con 'data' ahora
-      if (signupEventRef.current && !sentRef.current) {
+      if (
+        signupEventRef.current?.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING" &&
+        !sentRef.current
+      ) {
         sentRef.current = true;
         sendToBackend(code, response, signupEventRef.current);
         return;
       }
 
-      // Espera un poco más por si el evento llega con retraso; luego enviamos fallback
+      // Si no llega FINISH, enviamos de todos modos como fallback para no perder el code
       setTimeout(() => {
-        if (!sentRef.current) {
+        if (!sentRef.current && codeRef.current) {
+          console.warn(
+            "[WA Embedded Signup] No llegó FINISH en 6s tras login callback. Enviando fallback al backend."
+          );
           sentRef.current = true;
           sendToBackend(
             codeRef.current as string,
@@ -173,9 +199,10 @@ export const useFacebookSDK = () => {
             signupEventRef.current
           );
         }
-      }, 4000);
+      }, 6000);
     } else {
-      console.warn("Facebook login cancelled or failed:", response);}
+      console.warn("Facebook login cancelled or failed:", response);
+    }
   };
 
   // Launch method and callback registration
