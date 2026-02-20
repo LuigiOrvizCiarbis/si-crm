@@ -29,9 +29,11 @@ import { filterTypeToChannelType } from "@/data/enums"
 import { ChannelHeader } from "@/components/chat/AccountHeader"
 import { useConversationFilters } from "@/hooks/useConversationFilters"
 import { useSSEMessages } from "@/hooks/useSSEMessages"
+import { useTranslation } from "@/hooks/useTranslation"
 
 export default function ChatsPage() {
   const { addToast } = useToast()
+  const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { launchWhatsAppSignup } = useFacebookSDK()
@@ -549,12 +551,10 @@ export default function ChatsPage() {
                 selectedConversationId={selectedConversationId}
                 onConversationClick={handleConversationClick}
                 emptyState={{
-                  title: selectedChannelId
-                    ? "No hay conversaciones en este canal"
-                    : `No hay conversaciones ${activeFilter === "no-leidos" ? "no leídas" : ""}`,
+                  title: t("chats.noConversations"),
                   description: selectedChannelId
-                    ? `El canal "${activeChannel?.name}" no tiene conversaciones activas`
-                    : `No se encontraron conversaciones de "${activeFilter}"`,
+                    ? `${activeChannel?.name}`
+                    : t("chats.noConversationsDesc"),
                 }}
               />
             </>

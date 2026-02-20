@@ -5,17 +5,19 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { useConfigStore } from "@/store/useConfigStore"
 import { Bell } from "lucide-react"
+import { useTranslation } from "@/hooks/useTranslation"
 
 export function NotificationsCard() {
   const { notifications, setNotifications } = useConfigStore()
+  const { t } = useTranslation()
 
   const notificationTypes = [
-    { key: "nuevoMensaje", label: "Nuevo mensaje" },
-    { key: "tareaVencida", label: "Tarea vencida" },
-    { key: "tareaProxima", label: "Tarea próxima" },
-    { key: "cierreVenta", label: "Cierre de una venta" },
-    { key: "recordatoriosDiarios", label: "Recordatorios diarios" },
-    { key: "reporteSemanal", label: "Reporte semanal" },
+    { key: "nuevoMensaje", label: t("settings.newMessage") },
+    { key: "tareaVencida", label: t("settings.taskOverdue") },
+    { key: "tareaProxima", label: t("settings.taskUpcoming") },
+    { key: "cierreVenta", label: t("settings.saleClosed") },
+    { key: "recordatoriosDiarios", label: t("settings.dailyReminders") },
+    { key: "reporteSemanal", label: t("settings.weeklyReport") },
   ]
 
   return (
@@ -23,7 +25,7 @@ export function NotificationsCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bell className="w-5 h-5" />
-          Notificaciones
+          {t("settings.notifications")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

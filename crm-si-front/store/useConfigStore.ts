@@ -95,6 +95,9 @@ export interface UserWithRole {
 }
 
 interface ConfigStore {
+  language: "es" | "en"
+  setLanguage: (language: "es" | "en") => void
+
   profile: Profile
   setProfile: (profile: Profile) => void
   updateProfile: (updates: Partial<Profile>) => void
@@ -127,6 +130,9 @@ interface ConfigStore {
 export const useConfigStore = create<ConfigStore>()(
   persist(
     (set, get) => ({
+      language: "es" as "es" | "en",
+      setLanguage: (language: "es" | "en") => set({ language }),
+
       profile: {
         accountType: "persona",
         persona: {
@@ -235,14 +241,14 @@ export const useConfigStore = create<ConfigStore>()(
             id: "1",
             agente: "Chrome",
             dispositivo: "Windows",
-            ultimaActividad: "Hace 5 minutos",
+            ultimaActividad: "settings.time5min",
             actual: true,
           },
           {
             id: "2",
             agente: "Safari",
             dispositivo: "iPhone",
-            ultimaActividad: "Hace 2 horas",
+            ultimaActividad: "settings.time2hours",
           },
         ],
       },
@@ -295,13 +301,13 @@ export const useConfigStore = create<ConfigStore>()(
           id: "1",
           env: "live",
           masked: "sk_live_••••••••••••4521",
-          createdAt: "Hace 3 meses",
+          createdAt: "settings.time3months",
         },
         {
           id: "2",
           env: "test",
           masked: "sk_test_••••••••••••8932",
-          createdAt: "Hace 1 mes",
+          createdAt: "settings.time1month",
         },
       ],
       generateApiKey: (env) =>
@@ -312,7 +318,7 @@ export const useConfigStore = create<ConfigStore>()(
               id: Date.now().toString(),
               env,
               masked: `sk_${env}_••••••••••••${Math.floor(Math.random() * 10000)}`,
-              createdAt: "Ahora",
+              createdAt: "settings.timeNow",
             },
           ],
         })),
@@ -323,7 +329,7 @@ export const useConfigStore = create<ConfigStore>()(
 
       billing: {
         actual: "intermediate",
-        vencimiento: "15 de febrero, 2024",
+        vencimiento: "settings.billingDate",
         montoUSD: 250,
       },
       setBilling: (billing) =>

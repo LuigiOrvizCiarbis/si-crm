@@ -6,26 +6,24 @@ import { Badge } from "@/components/ui/badge"
 import { useConfigStore } from "@/store/useConfigStore"
 import { Shield, Smartphone } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/hooks/useTranslation"
 
 export function SecurityCard() {
   const { security, setSecurity, removeSession } = useConfigStore()
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   const handleToggle2FA = () => {
     setSecurity({ twoFAEnabled: !security.twoFAEnabled })
     toast({
-      title: security.twoFAEnabled ? "2FA desactivado" : "2FA activado",
-      description: security.twoFAEnabled
-        ? "La autenticación de dos factores se desactivó"
-        : "La autenticación de dos factores se activó correctamente",
+      title: security.twoFAEnabled ? t("settings.disable2FA") : t("settings.enable2FA"),
     })
   }
 
   const handleRemoveSession = (id: string) => {
     removeSession(id)
     toast({
-      title: "Sesión cerrada",
-      description: "La sesión se cerró correctamente",
+      title: t("settings.logoutSession"),
     })
   }
 
@@ -34,7 +32,7 @@ export function SecurityCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Shield className="w-5 h-5" />
-          Seguridad
+          {t("settings.security")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -42,21 +40,21 @@ export function SecurityCard() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium">Autenticación de dos factores (2FA)</p>
-              <p className="text-sm text-muted-foreground">Agrega una capa extra de seguridad a tu cuenta</p>
+              <p className="font-medium">{t("settings.twoFA")}</p>
+              <p className="text-sm text-muted-foreground">{t("settings.twoFADesc")}</p>
             </div>
             <Badge variant={security.twoFAEnabled ? "default" : "outline"}>
-              {security.twoFAEnabled ? "Activo" : "Inactivo"}
+              {security.twoFAEnabled ? t("settings.active") : t("settings.inactive")}
             </Badge>
           </div>
           <Button variant="outline" onClick={handleToggle2FA} className="w-full bg-transparent">
-            {security.twoFAEnabled ? "Desactivar 2FA" : "Activar 2FA"}
+            {security.twoFAEnabled ? t("settings.disable2FA") : t("settings.enable2FA")}
           </Button>
         </div>
 
-        {/* Sesiones activas */}
+        {/* Active sessions */}
         <div className="space-y-3">
-          <p className="font-medium">Sesiones activas</p>
+          <p className="font-medium">{t("settings.activeSessions")}</p>
           {security.sesiones.map((sesion) => (
             <div key={sesion.id} className="flex items-center justify-between p-3 rounded-lg border border-[#1e2533]">
               <div className="flex items-center gap-3">
@@ -66,14 +64,14 @@ export function SecurityCard() {
                     {sesion.agente} — {sesion.dispositivo}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Última actividad: {sesion.ultimaActividad}
-                    {sesion.actual && " · Actual"}
+                    {t("settings.lastActivity")} {t(sesion.ultimaActividad)}
+                    {sesion.actual && ` · ${t("settings.currentSession")}`}
                   </p>
                 </div>
               </div>
               {!sesion.actual && (
                 <Button variant="ghost" size="sm" onClick={() => handleRemoveSession(sesion.id)}>
-                  Cerrar sesión
+                  {t("settings.logoutSession")}
                 </Button>
               )}
             </div>
