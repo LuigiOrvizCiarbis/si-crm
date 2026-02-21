@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Loader2, Search, MessageCircle, Calendar, User } from "lucide-react"
+import { getAuthToken } from "@/lib/api/auth-token"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -77,7 +78,10 @@ export function ContactHistoryDrawer({
     setError(null)
     
     try {
-      const response = await fetch(`/api/contacts/${contactId}/history`)
+      const token = getAuthToken();
+      const response = await fetch(`/api/contacts/${contactId}/history`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       
       if (!response.ok) {
         throw new Error("Error al cargar el historial")

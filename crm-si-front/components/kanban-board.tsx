@@ -6,6 +6,7 @@ import { Badge, LeadScoreBadge } from "@/components/Badges"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/Toast"
+import { getAuthToken } from "@/lib/api/auth-token"
 import { Phone, Mail, Calendar, GripVertical, TrendingUp, Clock, Loader2 } from "lucide-react"
 import {
   DndContext,
@@ -224,9 +225,11 @@ export function KanbanBoard() {
 
     try {
       // Fetch stages and conversations in parallel
+      const token = getAuthToken();
+      const headers = { Authorization: `Bearer ${token}` };
       const [stagesResponse, conversationsResponse] = await Promise.all([
-        fetch("/api/pipeline-stages"),
-        fetch("/api/conversations?per_page=100"),
+        fetch("/api/pipeline-stages", { headers }),
+        fetch("/api/conversations?per_page=100", { headers }),
       ])
 
       if (!stagesResponse.ok || !conversationsResponse.ok) {
@@ -310,7 +313,7 @@ export function KanbanBoard() {
       try {
         const response = await fetch(`/api/conversations/${activeId}/stage`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
           body: JSON.stringify({ pipeline_stage_id: destColumn.id === 0 ? null : destColumn.id }),
         })
 

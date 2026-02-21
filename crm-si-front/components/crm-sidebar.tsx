@@ -15,6 +15,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useTranslation } from "@/hooks/useTranslation"
+import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 
 interface SidebarProps {
   className?: string
@@ -27,6 +29,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
   const router = useRouter()
   const [openSections, setOpenSections] = useState<string[]>([])
   const { user, token, logout } = useAuthStore()
+  const { t } = useTranslation()
 
   const handleLogout = async () => {
     try {
@@ -46,7 +49,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
     : user?.email?.slice(0, 2).toUpperCase() || "U"
 
   const toggleSection = (section: string) => {
-    if (isCollapsed) return // No permitir expandir secciones cuando está colapsado
+    if (isCollapsed) return
     setOpenSections((prev) => (prev.includes(section) ? prev.filter((s) => s !== section) : [...prev, section]))
   }
 
@@ -54,27 +57,27 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
     {
       href: "/",
       emoji: "📊",
-      label: "Panel",
+      label: t("nav.panel"),
     },
     {
       href: "/chats",
       emoji: "💬",
-      label: "Chats",
+      label: t("nav.chats"),
     },
     {
       href: "/contactos",
       emoji: "👥",
-      label: "Contactos",
+      label: t("nav.contacts"),
     },
     {
       href: "/oportunidades",
       emoji: "🎯",
-      label: "Embudo de Ventas",
+      label: t("nav.pipeline"),
     },
     {
       href: "/tareas",
       emoji: "✅",
-      label: "Tareas",
+      label: t("nav.tasks"),
     },
   ]
 
@@ -115,12 +118,12 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
     {
       href: "/administracion",
       emoji: "💼",
-      label: "Administración",
+      label: t("nav.admin"),
     },
     {
       href: "/configuracion",
       emoji: "⚙️",
-      label: "Configuración",
+      label: t("nav.settings"),
     },
   ]
 
@@ -130,7 +133,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
     if (isAutomationActive && !isCollapsed) {
       setOpenSections((prev) => (prev.includes("automatizacion") ? prev : [...prev, "automatizacion"]))
     } else if (isCollapsed) {
-      setOpenSections([]) // Cerrar todas las secciones cuando está colapsado
+      setOpenSections([])
     }
   }, [isAutomationActive, isCollapsed])
 
@@ -155,7 +158,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
             </div>
             <div className="flex-1">
               <h1 className="font-bold text-sidebar-foreground">SI CRM</h1>
-              <p className="text-xs text-muted-foreground">Tablero principal</p>
+              <p className="text-xs text-muted-foreground">{t("nav.dashboard")}</p>
             </div>
           </>
         )}
@@ -200,12 +203,12 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
                 : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             )}
-            title={isCollapsed ? "Automatización & IA" : undefined}
+            title={isCollapsed ? t("nav.automation") : undefined}
           >
             <span className="text-base">🚀</span>
             {!isCollapsed && (
               <>
-                Automatización & IA
+                {t("nav.automation")}
                 {openSections.includes("automatizacion") ? (
                   <ChevronDown className="w-4 h-4 ml-auto" />
                 ) : (
@@ -297,15 +300,18 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  <p>Cerrar sesión</p>
+                  <p>{t("nav.logout")}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
 
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">MVP • V4.4.6</p>
-            <ThemeToggle />
+            <LanguageSwitcher />
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">V4.4.6</p>
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       )}
@@ -325,7 +331,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right">
-                <p>Cerrar sesión</p>
+                <p>{t("nav.logout")}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

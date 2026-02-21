@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
-  const token = process.env.NEXT_PUBLIC_TOKEN;
+  const auth = req.headers.get("authorization");
+  const token = auth?.replace("Bearer ", "");
   if (!token) return NextResponse.json({ message: "No auth" }, { status: 401 });
 
   const publicBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");

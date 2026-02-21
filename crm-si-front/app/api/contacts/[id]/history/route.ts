@@ -4,8 +4,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  //const auth = req.headers.get("authorization");
-    const token = process.env.NEXT_PUBLIC_TOKEN;
+  const auth = req.headers.get("authorization");
+  const token = auth?.replace("Bearer ", "");
 
   if (!token) return NextResponse.json({ message: "No auth" }, { status: 401 });
 

@@ -13,9 +13,9 @@ import {
   isChannelConnected,
   getChannelConversationsCount,
   canSendMessages,
-  getConnectButtonLabel
 } from '@/lib/utils/channelHelpers'
 import { useMemo } from 'react'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface ChannelsListProps {
   channels: Channel[]
@@ -38,6 +38,20 @@ export function ChannelsList({
   onConnectChannel,
   onRetry,
 }: ChannelsListProps) {
+  const { t } = useTranslation()
+
+  const connectLabels: Record<FilterType, string> = {
+    whatsapp: t("chats.connectWhatsApp"),
+    instagram: t("chats.connectInstagram"),
+    facebook: t("chats.connectFacebook"),
+    linkedin: t("chats.connectLinkedIn"),
+    telegram: t("chats.connectTelegram"),
+    web: t("chats.connectWebChat"),
+    mail: t("chats.connectMail"),
+    manual: t("chats.connectManual"),
+    todos: t("chats.connectChannel"),
+    "no-leidos": t("chats.connectChannel"),
+  }
 
   const { connected, disconnected } = useMemo(() => ({
     connected: channels.filter(isChannelConnected),
@@ -47,7 +61,7 @@ export function ChannelsList({
   if (isLoading) {
     return (
       <div className="p-4 text-center">
-        <p className="text-muted-foreground text-sm">Cargando canales...</p>
+        <p className="text-muted-foreground text-sm">{t("chats.loadingChannels")}</p>
       </div>
     )
   }
@@ -57,10 +71,10 @@ export function ChannelsList({
       <div className="p-4">
         <EmptyState
           icon={MessageSquare}
-          title="Error al cargar canales"
+          title={t("chats.errorChannels")}
           description={error.message}
           action={onRetry ? {
-            label: 'Reintentar',
+            label: t("chats.retry"),
             onClick: onRetry,
           } : undefined}
         />
@@ -72,7 +86,7 @@ export function ChannelsList({
     <div className="p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium text-muted-foreground">
-          Canales ({channels.length})
+          {t("chats.channels")} ({channels.length})
         </h3>
         {activeFilter !== "todos" && (
           <Badge variant="outline" className="text-xs">
@@ -87,7 +101,7 @@ export function ChannelsList({
           <div className="flex items-center gap-2 mb-2">
             <Wifi className="w-3 h-3 text-green-600" />
             <p className="text-xs font-medium text-green-600">
-              Conectados ({connected.length})
+              {t("chats.connected")} ({connected.length})
             </p>
           </div>
 
@@ -121,7 +135,7 @@ export function ChannelsList({
                 <div className="flex items-center gap-2">
                   {!canSendMessages(channel.type) && (
                     <Badge variant="secondary" className="text-xs">
-                      Solo lectura
+                      {t("chats.readOnly")}
                     </Badge>
                   )}
 
@@ -143,7 +157,7 @@ export function ChannelsList({
           <div className="flex items-center gap-2 mb-2">
             <WifiOff className="w-3 h-3 text-red-600" />
             <p className="text-xs font-medium text-red-600">
-              Desconectados ({disconnected.length})
+              {t("chats.disconnected")} ({disconnected.length})
             </p>
           </div>
 
@@ -158,7 +172,7 @@ export function ChannelsList({
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm truncate">{channel.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {getChannelDisplayName(channel.type)} • Desconectado
+                    {getChannelDisplayName(channel.type)} • {t("chats.disconnectedLabel")}
                   </p>
                 </div>
 
@@ -176,8 +190,8 @@ export function ChannelsList({
         <div className="mb-4">
           <EmptyState
             icon={MessageSquare}
-            title="No hay canales disponibles"
-            description={`No tienes canales ${activeFilter !== "todos" ? `de ${getChannelDisplayName(filterTypeToChannelType(activeFilter) || ChannelType.MANUAL)}` : ""} configurados`}
+            title={t("chats.noChannels")}
+            description={`${t("chats.noChannelsDesc")}${activeFilter !== "todos" ? ` de ${getChannelDisplayName(filterTypeToChannelType(activeFilter) || ChannelType.MANUAL)}` : ""}`}
           />
         </div>
       )}
@@ -189,7 +203,7 @@ export function ChannelsList({
         onClick={onConnectChannel}
       >
         <Plus className="w-4 h-4" />
-        {getConnectButtonLabel(activeFilter)}
+        {connectLabels[activeFilter]}
       </Button>
     </div>
   )

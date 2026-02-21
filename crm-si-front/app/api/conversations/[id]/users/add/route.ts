@@ -9,7 +9,7 @@ export async function POST(
   const { id } = await params;
   const headerAuth = request.headers.get("authorization");
   const incomingToken = headerAuth?.startsWith("Bearer ") ? headerAuth.split(" ")[1] : undefined;
-  const token = incomingToken || process.env.NEXT_PUBLIC_TOKEN;
+  const token = incomingToken;
 
   if (!token) {
     return NextResponse.json({ error: "Authorization token missing" }, { status: 401 });
@@ -40,20 +40,16 @@ export async function POST(
         cache: 'no-store'
       });
 
-      console.log(`[proxy:/api/conversations/${id}/users/add]`, baseUrl, response.status);
-
       if (response.ok) {
         const data = await response.json();
         return NextResponse.json(data);
       }
 
-      // Si hay error específico del backend, devolverlo
       if (response.status >= 400 && response.status < 500) {
         const errorData = await response.json().catch(() => ({}));
         return NextResponse.json(errorData, { status: response.status });
       }
     } catch (e) {
-      // intentar siguiente URL
     }
   }
 

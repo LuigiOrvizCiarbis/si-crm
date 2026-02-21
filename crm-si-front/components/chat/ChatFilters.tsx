@@ -1,30 +1,33 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { PlatformIcon } from "./PlatformIcon"
 import { MessageSquare } from "lucide-react"
 import { FilterType } from "@/data/types"
+import { useTranslation } from "@/hooks/useTranslation"
 
 interface ChatFiltersProps {
   activeFilter: FilterType
   onFilterChange: (filter: FilterType) => void
-  availableChannelTypes?: FilterType[]  // ✅ Opcional: mostrar solo tipos disponibles
+  availableChannelTypes?: FilterType[]
 }
 
-export const ChatFilters = ({ 
-  activeFilter, 
-  onFilterChange, 
-  availableChannelTypes 
+export const ChatFilters = ({
+  activeFilter,
+  onFilterChange,
+  availableChannelTypes
 }: ChatFiltersProps) => {
-  
-  // ✅ Todos los filtros disponibles con iconos actualizados
+  const { t } = useTranslation()
+
   const allFilterButtons = [
     {
       key: "todos" as FilterType,
-      label: "TODOS",
+      label: t("chats.all"),
       icon: <MessageSquare className="w-3 h-3" />
     },
     {
       key: "no-leidos" as FilterType,
-      label: "NO LEÍDOS",
+      label: t("chats.unread"),
       icon: <div className="w-3 h-3 bg-blue-500 rounded-full" />
     },
     {
@@ -69,11 +72,10 @@ export const ChatFilters = ({
     },
   ]
 
-  // ✅ Filtrar botones según tipos disponibles (opcional)
   const filterButtons = availableChannelTypes
-    ? allFilterButtons.filter(btn => 
-        btn.key === "todos" || 
-        btn.key === "no-leidos" || 
+    ? allFilterButtons.filter(btn =>
+        btn.key === "todos" ||
+        btn.key === "no-leidos" ||
         availableChannelTypes.includes(btn.key)
       )
     : allFilterButtons

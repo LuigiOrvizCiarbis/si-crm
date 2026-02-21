@@ -1,12 +1,14 @@
+import { getAuthToken } from "./auth-token";
+
 export interface SystemUser {
   id: number;
   name: string;
   email?: string;
-  role?: string; // Placeholder hasta que exista en backend
+  role?: string;
 }
 
 export async function getUsers(): Promise<SystemUser[]> {
-  const token = (typeof window !== 'undefined' && localStorage.getItem('token')) || process.env.NEXT_PUBLIC_TOKEN;
+  const token = getAuthToken();
   if (!token) return [];
 
   try {
@@ -32,7 +34,6 @@ export async function getUsers(): Promise<SystemUser[]> {
       email: u.email,
       role: u.role || 'Vendedor'
     }));
-    console.log('[getUsers] loaded', mapped.length);
     return mapped;
   } catch (e) {
     console.error('Error fetching users', e);

@@ -10,7 +10,6 @@ async function tryBackendRequest(endpoint: string, options: RequestInit) {
   for (const baseUrl of BACKEND_URLS) {
     const url = `${baseUrl}${endpoint}`
     try {
-      console.log(`[Auth] Trying: ${url}`)
       const res = await fetch(url, {
         ...options,
         headers: {
@@ -23,7 +22,6 @@ async function tryBackendRequest(endpoint: string, options: RequestInit) {
       const data = await res.json().catch(() => ({}))
       
       if (res.ok || (res.status >= 400 && res.status < 500)) {
-        console.log(`[Auth] Success from ${baseUrl}`)
         return { data, status: res.status }
       }
     } catch (err: any) {

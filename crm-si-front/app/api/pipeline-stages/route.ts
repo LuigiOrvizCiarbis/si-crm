@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  //const authHeader = request.headers.get("authorization");
-    const token = process.env.NEXT_PUBLIC_TOKEN;
+  const auth = request.headers.get("authorization");
+  const token = auth?.replace("Bearer ", "");
 
 
   if (!token) {

@@ -8,7 +8,10 @@ export async function GET(
 ) {
   const { id } = await params;
   const searchParams = request.nextUrl.searchParams;
-  const token = process.env.NEXT_PUBLIC_TOKEN;
+  const auth = request.headers.get("authorization");
+  const headerToken = auth?.replace("Bearer ", "");
+  const queryToken = searchParams.get("token");
+  const token = headerToken || queryToken;
   const lastId = searchParams.get("last_id") || "0";
 
   if (!token) {
@@ -47,7 +50,6 @@ export async function GET(
       });
 
       if (response.ok) {
-        // console.log(`✅ Proxy SSE: Conectado a ${baseUrl}`);
         return new NextResponse(response.body, {
           headers: {
             "Content-Type": "text/event-stream",

@@ -3,9 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  const headerAuth = request.headers.get("authorization");
-  const incomingToken = headerAuth?.startsWith("Bearer ") ? headerAuth.split(" ")[1] : undefined;
-  const token = incomingToken || process.env.NEXT_PUBLIC_TOKEN;
+  const auth = request.headers.get("authorization");
+  const token = auth?.replace("Bearer ", "");
 
   if (!token) {
     return NextResponse.json({ error: "Authorization token missing" }, { status: 401 });
@@ -31,8 +30,6 @@ export async function GET(request: NextRequest) {
         },
         cache: 'no-store'
       });
-      // Nota: este log aparece en el servidor (no en el navegador)
-      console.log("[proxy:/api/users]", baseUrl, response.status);
 
       if (response.ok) {
         const data = await response.json();

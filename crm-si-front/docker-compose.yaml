@@ -2,6 +2,7 @@ services:
   app:
     build:
       context: .
+      target: dev
     ports:
       - "3000:3000"
       - "443:443"

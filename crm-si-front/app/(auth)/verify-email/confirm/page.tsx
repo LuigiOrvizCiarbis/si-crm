@@ -38,7 +38,6 @@ export default function VerifyEmailConfirmPage() {
         const response = await fetch(`/api/auth/verify-email?id=${id}&hash=${hash}&expires=${expires}&signature=${signature}`)
         const data = await response.json()
         
-        console.log('Verify response:', { status: response.status, data })
 
         if (response.ok) {
           // El backend devuelve { success: true } para verificación exitosa

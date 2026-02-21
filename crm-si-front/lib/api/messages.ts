@@ -1,9 +1,8 @@
 import { Message } from "react-hook-form";
+import { getAuthToken } from "./auth-token";
 
 export async function sendMessage(conversationId: number, content: string) {
-  //const token = localStorage.getItem("token");
-      const token = process.env.NEXT_PUBLIC_TOKEN;
-
+  const token = getAuthToken();
   if (!token) throw new Error("Token faltante");
 
   const res = await fetch("/api/messages", {
@@ -26,7 +25,7 @@ export async function sendMessage(conversationId: number, content: string) {
 }
 
 export async function getMessages(): Promise<Message[]> {
-  const token = process.env.NEXT_PUBLIC_TOKEN;
+  const token = getAuthToken();
   if (!token) throw new Error("No authentication token found");
 
   const response = await fetch("/api/messages", {
@@ -46,6 +45,3 @@ export async function getMessages(): Promise<Message[]> {
 
   return json.data ?? [];
 }
-
-
-

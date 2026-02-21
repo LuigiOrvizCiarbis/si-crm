@@ -181,6 +181,106 @@ class WhatsAppMessageService
         return $message;
     }
 
+    /**
+     * Procesa el webhook smb_app_state_sync (coexistencia).
+     * Sincroniza los contactos del WhatsApp Business App al CRM.
+     *
+     * Actions soportadas (normalizadas a lowercase):
+     *   upsert  → add, added, edit, edited, update, updated
+     *   remove lógico (no se borra del CRM para preservar historial)
+     *           → remove, removed, delete, deleted
+     *
+     * @see https://developers.facebook.com/docs/whatsapp/embedded-signup/onboarding-business-app-users
+     */
+    public function processSmbAppStateSync(array $changeValue, int $tenantId): void
+    {
+        $stateSync = $changeValue['state_sync'] ?? [];
+
+        // Acciones que significan crear/actualizar el contacto en el CRM.
+        $upsertActions = ['add', 'added', 'edit', 'edited', 'update', 'updated'];
+
+        // Acciones que significan que el contacto fue eliminado de la agenda.
+        // No borramos el registro para preservar historial de conversaciones.
+        $removeActions = ['remove', 'removed', 'delete', 'deleted'];
+
+        foreach ($stateSync as $syncItem) {
+            if (($syncItem['type'] ?? '') !== 'contact') {
+                continue;
+            }
+
+            $contactData = $syncItem['contact'] ?? [];
+            $action      = strtolower(trim($syncItem['action'] ?? 'add'));
+            $phoneNumber = $contactData['phone_number'] ?? null;
+            $bsuid       = $contactData['user_id'] ?? null;
+            $fullName    = $contactData['full_name'] ?? $contactData['first_name'] ?? 'Sin nombre';
+
+            if (!$phoneNumber && !$bsuid) {
+                Log::warning('smb_app_state_sync: contacto sin phone_number ni user_id, ignorado', [
+                    'action' => $action,
+                ]);
+                continue;
+            }
+
+            if (in_array($action, $upsertActions, true)) {
+                if ($phoneNumber) {
+                    // Anti-duplicado: si antes llegó el mismo contacto sin phone (keyed por
+                    // external_id/BSUID) y ahora llega con phone, actualizamos ese registro
+                    // en vez de crear uno nuevo.
+                    if ($bsuid) {
+                        $existingByBsuid = Contact::where('tenant_id', $tenantId)
+                            ->where('external_id', $bsuid)
+                            ->whereNull('phone')
+                            ->first();
+
+                        if ($existingByBsuid) {
+                            $existingByBsuid->update([
+                                'phone' => $phoneNumber,
+                                'name'  => $fullName,
+                            ]);
+                            continue;
+                        }
+                    }
+
+                    Contact::updateOrCreate(
+                        ['tenant_id' => $tenantId, 'phone' => $phoneNumber],
+                        ['name' => $fullName, 'external_id' => $bsuid, 'source' => 'whatsapp']
+                    );
+                } else {
+                    // Sin phone_number (username activado o sin mensajes recientes).
+                    // Anti-duplicado: si ya existe por external_id, actualizamos ese registro
+                    // en vez de crear uno nuevo.
+                    $existingByBsuid = Contact::where('tenant_id', $tenantId)
+                        ->where('external_id', $bsuid)
+                        ->first();
+
+                    if ($existingByBsuid) {
+                        $existingByBsuid->update(['name' => $fullName]);
+                        continue;
+                    }
+
+                    Contact::updateOrCreate(
+                        ['tenant_id' => $tenantId, 'external_id' => $bsuid],
+                        ['name' => $fullName, 'source' => 'whatsapp']
+                    );
+                }
+            } elseif (in_array($action, $removeActions, true)) {
+                // Preservamos el contacto y su historial; solo lo logueamos.
+                Log::info('smb_app_state_sync: contacto removido de WA Business App (no se elimina del CRM)', [
+                    'tenant_id'   => $tenantId,
+                    'phone'       => $phoneNumber,
+                    'external_id' => $bsuid,
+                    'name'        => $fullName,
+                ]);
+            } else {
+                Log::warning('smb_app_state_sync: action desconocida ignorada', [
+                    'action'      => $action,
+                    'phone'       => $phoneNumber,
+                    'external_id' => $bsuid,
+                ]);
+            }
+        }
+    }
+
     public function sendTextMessageFromCRM(Conversation $conversation, string $content, $user): Message
     {
         $channel = $conversation->channel;

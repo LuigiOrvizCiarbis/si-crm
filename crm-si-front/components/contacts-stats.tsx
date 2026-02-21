@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { getAuthToken } from "@/lib/api/auth-token"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, UserCheck, UserPlus, TrendingUp, Loader2 } from "lucide-react"
 
@@ -18,7 +19,10 @@ export function ContactsStats() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/contacts?per_page=1000')
+      const token = getAuthToken();
+      const response = await fetch('/api/contacts?per_page=1000', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       if (response.ok) {
         const result = await response.json()
         const contacts = result.data || []

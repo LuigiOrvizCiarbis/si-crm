@@ -6,16 +6,29 @@ import { useConfigStore } from "@/store/useConfigStore"
 import { Plug } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/hooks/useTranslation"
+
+const descKeys: Record<string, string> = {
+  whatsapp: "settings.intWhatsAppDesc",
+  instagram: "settings.intInstagramDesc",
+  facebook: "settings.intFacebookDesc",
+  telegram: "settings.intTelegramDesc",
+  smtp: "settings.intSmtpDesc",
+  gcal: "settings.intGcalDesc",
+  mp: "settings.intMpDesc",
+  stripe: "settings.intStripeDesc",
+}
 
 export function IntegrationsCard() {
   const { integrations, toggleIntegration } = useConfigStore()
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   const handleToggle = (id: any) => {
     toggleIntegration(id)
     toast({
-      title: "Integración actualizada",
-      description: "El estado de la integración se actualizó correctamente",
+      title: t("settings.integrationUpdated"),
+      description: t("settings.integrationUpdatedDesc"),
     })
   }
 
@@ -24,7 +37,7 @@ export function IntegrationsCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Plug className="w-5 h-5" />
-          Integraciones
+          {t("settings.integrations")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -37,19 +50,19 @@ export function IntegrationsCard() {
               <span className="text-2xl">{integration.icono}</span>
               <div>
                 <p className="font-medium">{integration.nombre}</p>
-                <p className="text-sm text-muted-foreground">{integration.descripcion}</p>
+                <p className="text-sm text-muted-foreground">{t(descKeys[integration.id] ?? integration.descripcion)}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               {integration.conectado ? (
                 <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500/30">
-                  Conectado
+                  {t("settings.connected")}
                 </Badge>
               ) : (
-                <Badge variant="outline">No conectado</Badge>
+                <Badge variant="outline">{t("settings.notConnected")}</Badge>
               )}
               <Button variant="outline" size="sm" onClick={() => handleToggle(integration.id)}>
-                {integration.conectado ? "Desconectar" : "Conectar"}
+                {integration.conectado ? t("settings.disconnect") : t("settings.connect")}
               </Button>
             </div>
           </div>

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
-  //const auth = req.headers.get("authorization");
-  const token = process.env.NEXT_PUBLIC_TOKEN;
+  const auth = req.headers.get("authorization");
+  const token = auth?.replace("Bearer ", "");
 
   if (!token) return NextResponse.json({ message: "No auth" }, { status: 401 });
 

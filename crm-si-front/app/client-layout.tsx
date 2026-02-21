@@ -3,7 +3,6 @@
 import type React from "react"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
-import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { CommandPalette } from "@/components/CommandPalette"
@@ -48,7 +47,6 @@ export default function ClientLayout({
             </AuthGuard>
           </ToastProvider>
         </ThemeProvider>
-        <Analytics />
       </body>
     </html>
   )

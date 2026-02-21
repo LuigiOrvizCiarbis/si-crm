@@ -1,3 +1,5 @@
+import { getAuthToken } from "./auth-token";
+
 export interface PipelineStage {
   id: number
   name: string
@@ -6,8 +8,8 @@ export interface PipelineStage {
 }
 
 export async function getPipelineStages(): Promise<PipelineStage[]> {
-  const token = process.env.NEXT_PUBLIC_TOKEN;
-  
+  const token = getAuthToken();
+
   if (!token) return [];
 
   try {
