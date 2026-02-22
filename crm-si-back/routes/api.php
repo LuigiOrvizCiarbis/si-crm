@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ContactHistoryController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationStreamController;
+use App\Http\Controllers\Api\TenantStreamController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\MessageStreamController;
 use App\Http\Controllers\Api\PipelineStageController;
@@ -251,6 +252,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/conversations/{conversation}/stream', [ConversationStreamController::class, 'stream'])
         ->name('conversations.stream');
+
+    Route::get('/tenant/stream', [TenantStreamController::class, 'stream'])
+        ->name('tenant.stream');
 
     Route::get('/conversations/{id}/messages', [ConversationController::class, 'fetchMessages']);
 

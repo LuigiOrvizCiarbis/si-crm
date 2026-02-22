@@ -7,6 +7,7 @@ import { SkeletonList } from "@/components/Skeleton"
 import { MessageSquare } from "lucide-react"
 import { Conversation, Channel } from "@/data/types"
 import { channelTypeToFilterType } from "@/data/enums"
+import { useTranslation } from "@/hooks/useTranslation"
 
 interface ConversationListProps {
   conversations: Conversation[]
@@ -26,11 +27,13 @@ export function ConversationList({
   isLoading = false,
   selectedConversationId,
   onConversationClick,
-  emptyState = {
-    title: "No hay conversaciones",
-    description: "Esta cuenta no tiene conversaciones activas",
-  },
+  emptyState,
 }: ConversationListProps) {
+  const { t } = useTranslation()
+  const resolvedEmptyState = emptyState ?? {
+    title: t("chats.noConversations"),
+    description: t("chats.noConversationsDesc"),
+  }
 
   if (isLoading) {
     return (
@@ -45,8 +48,8 @@ export function ConversationList({
       <div className="flex-1 p-4 overflow-y-auto">
         <EmptyState
           icon={MessageSquare}
-          title={emptyState.title}
-          description={emptyState.description}
+          title={resolvedEmptyState.title}
+          description={resolvedEmptyState.description}
         />
       </div>
     )
@@ -57,7 +60,8 @@ export function ConversationList({
       <div className="space-y-2">
         {conversations.map((conversation) => {
 
-          const contactName = conversation.contact?.name || conversation.contact.name || "Sin nombre"
+          const contactName = conversation.contact?.name || conversation.contact.name || t("chats.unnamedContact")
+          const leadScore = conversation.leadScore ?? null
 
           const channel = conversation.channel || channels.find((ch) => ch.id === conversation.channelId)
 
@@ -105,11 +109,13 @@ export function ConversationList({
                       </span>
 
                       {/* ✅ Badge de lead score opcional */}
+                      {leadScore != null && leadScore > 0 && (
                         <LeadScoreBadge
-                          score={conversation.leadScore ?? 90}
+                          score={leadScore}
                           className="cursor-help"
-                          title={`Lead Score: ${conversation.leadScore}/100`}
+                          title={`${t("chats.leadScore")}: ${leadScore}/100`}
                         />
+                      )}
                     </div>
 
                     {/* ✅ Timestamp formateado */}

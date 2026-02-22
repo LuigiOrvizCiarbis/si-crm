@@ -160,11 +160,13 @@ export const useFacebookSDK = () => {
       const data = await backendResponse.json();
 
       if (data.success) {
+        window.dispatchEvent(new CustomEvent("channel-connected"));
       } else {
         throw new Error(data.message || "Error al conectar");
       }
     } catch (error) {
       console.error("Error enviando datos al backend:", error);
+      window.dispatchEvent(new CustomEvent("channel-error"));
     }
   };
 
@@ -175,6 +177,8 @@ export const useFacebookSDK = () => {
       const code = response.authResponse.code;
       codeRef.current = code;
       lastResponseRef.current = response;
+
+      window.dispatchEvent(new CustomEvent("channel-connecting"));
 
       // Si ya tenemos el evento, enviamos con 'data' ahora
       if (

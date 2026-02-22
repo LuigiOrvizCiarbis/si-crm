@@ -111,9 +111,18 @@ class WhatsAppController extends Controller
         $wabaId        = $request->data['waba_id'] ?? null;
         $phoneNumberId = $request->data['phone_number_id'] ?? null;
 
-        // Paso 1: flujo de coexistencia — Meta no devuelve phone_number_id en el evento.
-        if (!$phoneNumberId && $wabaId) {
-            $phoneNumberId = $this->fetchFirstPhoneNumberId($wabaId, $businessToken);
+        // Paso 1: obtener datos del número de teléfono desde la Graph API.
+        // Siempre intentamos para obtener display_phone_number, y si no teníamos
+        // phone_number_id (flujo coexistencia), lo obtenemos también.
+        $displayPhoneNumber = null;
+        if ($wabaId) {
+            $phoneData = $this->fetchFirstPhoneNumber($wabaId, $businessToken);
+            if ($phoneData) {
+                if (!$phoneNumberId) {
+                    $phoneNumberId = $phoneData['id'] ?? null;
+                }
+                $displayPhoneNumber = $phoneData['display_phone_number'] ?? null;
+            }
         }
 
         // Paso 2: si la API de Meta falló (fallo transitorio / re-auth), recuperar
@@ -156,6 +165,9 @@ class WhatsAppController extends Controller
         if ($phoneNumberId) {
             $updateData['phone_number_id'] = $phoneNumberId;
         }
+        if ($displayPhoneNumber) {
+            $updateData['display_phone_number'] = $displayPhoneNumber;
+        }
 
         $whatsappConfig = WhatsAppConfig::updateOrCreate(
             ['waba_id' => $wabaId],
@@ -175,7 +187,7 @@ class WhatsAppController extends Controller
      * Advertencia: si el WABA tiene más de un número, se toma el primero.
      * En ese caso habría que agregar UI para que el usuario elija.
      */
-    private function fetchFirstPhoneNumberId(string $wabaId, string $token): ?string
+    private function fetchFirstPhoneNumber(string $wabaId, string $token): ?array
     {
         $version = config('services.facebook.graph_version', 'v21.0');
 
@@ -195,7 +207,7 @@ class WhatsAppController extends Controller
                     ]);
                 }
 
-                return $numbers[0]['id'] ?? null;
+                return $numbers[0] ?? null;
             }
 
             Log::error('fetchFirstPhoneNumberId failed', [
