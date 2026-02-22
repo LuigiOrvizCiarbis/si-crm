@@ -15,6 +15,7 @@ export interface Channel {
     id: number
     channel_id: number
     phone_number_id: string
+    display_phone_number?: string
     waba_id: string
     verify_token: string | null
     created_at: string

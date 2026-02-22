@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('channel_id')->constrained('channels')->onDelete('cascade');
             $table->string('phone_number_id');
+            $table->string('display_phone_number')->nullable();
             $table->string('waba_id');
             $table->string('verify_token')->nullable();
             $table->longText('bussines_token');

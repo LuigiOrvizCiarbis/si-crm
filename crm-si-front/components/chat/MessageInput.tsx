@@ -1,5 +1,8 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useTranslation } from "@/hooks/useTranslation"
 import { Paperclip, Smile, Send } from "lucide-react"
 import { KeyboardEvent, SyntheticEvent } from "react"
 
@@ -16,8 +19,10 @@ export function MessageInput({
   onChange,
   onSend,
   disabled = false,
-  placeholder = "Escribe un mensaje...",
+  placeholder,
 }: MessageInputProps) {
+  const { t } = useTranslation()
+  const resolvedPlaceholder = placeholder ?? t("chats.messagePlaceholder")
   
   // Función auxiliar para detener propagación en cualquier evento
   const stopPropagation = (e: SyntheticEvent) => {
@@ -41,7 +46,7 @@ export function MessageInput({
           <Paperclip className="w-4 h-4" />
         </Button>
         <Input
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           className="flex-1"
           value={value}
           onChange={(e) => onChange(e.target.value)}

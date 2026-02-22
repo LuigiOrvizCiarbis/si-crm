@@ -11,6 +11,7 @@ import { getConversationWithMessages } from '@/lib/api/conversations'
 import { useToast } from '@/components/Toast'
 import { aiSuggestions, teamMembers } from '@/data/constants'
 import { useState } from 'react'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface ConversationViewProps {
     conversation: Conversation
@@ -30,6 +31,7 @@ export function ConversationView({
     onConversationUpdate,
 }: ConversationViewProps) {
     const { addToast } = useToast()
+    const { t } = useTranslation()
     const [message, setMessage] = useState("")
     const [isSending, setIsSending] = useState(false)
 
@@ -45,7 +47,7 @@ export function ConversationView({
 
             addToast({
                 type: "success",
-                title: "Mensaje enviado"
+                title: t("chats.messageSent"),
             })
 
             // Recargar conversación para obtener mensajes actualizados
@@ -56,8 +58,8 @@ export function ConversationView({
             console.error('[ConversationView] Error sending message:', error)
             addToast({
                 type: "error",
-                title: "Error al enviar mensaje",
-                description: error instanceof Error ? error.message : "Error desconocido"
+                title: t("chats.sendMessageError"),
+                description: error instanceof Error ? error.message : t("chats.unknownError"),
             })
         } finally {
             setIsSending(false)
@@ -92,7 +94,7 @@ export function ConversationView({
                 onChange={setMessage}
                 onSend={handleSend}
                 disabled={isSending}
-                placeholder="Escribe un mensaje..."
+                placeholder={t("chats.messagePlaceholder")}
             />
 
             <ChatQuickBar teamMembers={teamMembers} />

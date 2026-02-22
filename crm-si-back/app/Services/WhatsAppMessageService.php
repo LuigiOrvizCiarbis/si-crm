@@ -171,9 +171,13 @@ class WhatsAppMessageService
         }
 
         try {
-            Redis::publish('conversation.' . $message->conversation_id, json_encode($message));
+            $payload = json_encode($message);
+            Redis::publish('conversation.' . $message->conversation_id, $payload);
+
+            if (isset($messageData['tenant_id'])) {
+                Redis::publish('tenant.' . $messageData['tenant_id'], $payload);
+            }
         } catch (\Exception $e) {
-            // Loguear error pero no detener el flujo si Redis falla
             Log::error("Error publicando en Redis: " . $e->getMessage());
         }
 

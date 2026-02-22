@@ -5,6 +5,7 @@ import { ArrowLeft, Info, MoreVertical, History } from "lucide-react"
 import { Conversation } from "@/data/types"
 import { useState } from "react"
 import { ContactHistoryDrawer } from "./ContactHistoryDrawer"
+import { useTranslation } from "@/hooks/useTranslation"
 
 interface ConversationHeaderProps {
   conversation: Conversation
@@ -20,6 +21,8 @@ export function ConversationHeader({
   onToggleContactInfo,
 }: ConversationHeaderProps) {
   const [historyOpen, setHistoryOpen] = useState(false)
+  const { t } = useTranslation()
+  const leadScore = conversation.leadScore ?? 0
 
   const initials = conversation.contact.name
     .split(" ")
@@ -41,12 +44,12 @@ export function ConversationHeader({
             <div className="flex items-center gap-2">
               <h3 className="font-medium">{conversation.contact.name}</h3>
               <LeadScoreBadge
-                score={conversation.leadScore || 0}
+                score={leadScore}
                 className="cursor-help"
-                title={`Lead Score: ${conversation.leadScore}/100 - Basado en intención, recencia y canal`}
+                title={`${t("chats.leadScore")}: ${leadScore}/100 - ${t("chats.leadScoreHint")}`}
               />
             </div>
-            <p className="text-xs text-muted-foreground">En línea</p>
+            <p className="text-xs text-muted-foreground">{t("chats.online")}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -54,7 +57,7 @@ export function ConversationHeader({
             variant="ghost"
             size="sm"
             onClick={() => setHistoryOpen(true)}
-            title="Ver historial completo"
+            title={t("chats.viewFullHistory")}
           >
             <History className="w-4 h-4" />
           </Button>

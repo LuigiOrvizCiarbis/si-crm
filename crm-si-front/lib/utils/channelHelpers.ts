@@ -8,7 +8,7 @@ import { ChannelType } from "@/data/enums";
 export function getChannelIdentifier(channel: Channel): string | undefined {
   switch (channel.type) {
     case ChannelType.WHATSAPP:
-      return channel.whatsapp_config?.phone_number_id;
+      return channel.whatsapp_config?.display_phone_number || channel.whatsapp_config?.phone_number_id;
 
     case ChannelType.INSTAGRAM:
       return channel.instagram_config?.page_id;

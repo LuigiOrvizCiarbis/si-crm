@@ -47,8 +47,19 @@ class UserSeeder extends Seeder
             'role' => 2, // User
         ]);
 
+        // Crear Usuario Reviewer (para Meta App Review)
+        User::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Meta Reviewer',
+            'email' => 'reviewer@sicrmapp.com',
+            'password' => bcrypt('Reviewers2026'),
+            'email_verified_at' => now(),
+            'role' => 1, // Admin
+        ]);
+
         $this->command->info('✅ Tenant y usuarios creados exitosamente');
         $this->command->info('📧 Admin: admin@demo.com | password: password');
+        $this->command->info('📧 Reviewer: reviewer@sicrmapp.com | password: Reviewers2026');
         $this->command->info('📧 User: test@demo.com | password: password');
     }
 }

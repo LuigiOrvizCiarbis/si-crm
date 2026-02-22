@@ -126,7 +126,6 @@ export function ChannelsList({
                       <>
                         <span>•</span>
                          <span className="truncate">{getChannelIdentifier(channel)}</span>
-                         <span className="truncate">223 5876567</span>
                       </>
                     )}
                   </div>
@@ -177,7 +176,7 @@ export function ChannelsList({
                 </div>
 
                 <Badge variant="destructive" className="text-xs">
-                  Offline
+                  {t("chats.offline")}
                 </Badge>
               </div>
             </Card>
