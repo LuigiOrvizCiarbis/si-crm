@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 declare global {
   interface Window {
@@ -17,115 +17,13 @@ export const useFacebookSDK = () => {
   const sentRef = useRef<boolean>(false);
   const debugEnabled = process.env.NEXT_PUBLIC_WHATSAPP_DEBUG === "1";
 
-  useEffect(() => {
-    loadFacebookSDK();
-  }, []);
-
-  const loadFacebookSDK = () => {
-    if (document.getElementById("facebook-jssdk")) {
-      setIsFacebookSDKLoaded(true);
-      return;
+  const logDebug = useCallback((...args: any[]) => {
+    if (debugEnabled) {
+      console.info("[WA Embedded Signup]", ...args);
     }
+  }, [debugEnabled]);
 
-    const script = document.createElement("script");
-    script.id = "facebook-jssdk";
-    script.src = "https://connect.facebook.net/en_US/sdk.js";
-    script.async = true;
-    script.defer = true;
-    script.crossOrigin = "anonymous";
-
-    document.head.appendChild(script);
-
-    window.fbAsyncInit = function () {
-      window.FB.init({
-        appId: process.env.NEXT_PUBLIC_FACEBOOK_APP_ID,
-        autoLogAppEvents: true,
-        xfbml: true,
-        version: process.env.NEXT_PUBLIC_FACEBOOK_GRAPH_API_VERSION,
-      });
-
-      setIsFacebookSDKLoaded(true);
-
-      const logDebug = (...args: any[]) => {
-        if (debugEnabled) {
-          console.info("[WA Embedded Signup]", ...args);
-        }
-      };
-
-      const handleEmbeddedEvent = (payload: any) => {
-        if (!payload || payload.type !== "WA_EMBEDDED_SIGNUP") return;
-
-        signupEventRef.current = payload;
-        logDebug("Event recibido:", payload.event, payload);
-
-        // Solo enviamos al backend cuando el onboarding terminó exitosamente.
-        if (payload.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") {
-          if (codeRef.current && !sentRef.current) {
-            sentRef.current = true;
-            sendToBackend(
-              codeRef.current,
-              lastResponseRef.current,
-              signupEventRef.current
-            );
-          }
-          return;
-        }
-
-        if (payload.event === "CANCEL") {
-          console.warn(
-            "[WA Embedded Signup] Flujo cancelado/abortado en paso:",
-            payload?.data?.current_step ?? "desconocido"
-          );
-        }
-      };
-
-      const handleMessage = (event: MessageEvent) => {
-        if (!event.origin.endsWith("facebook.com")) return;
-
-        try {
-          const data = JSON.parse(event.data);
-          handleEmbeddedEvent(data);
-        } catch {
-          const raw: any = (event as any).data;
-          if (
-            raw &&
-            typeof raw === "object" &&
-            raw.type === "WA_EMBEDDED_SIGNUP"
-          ) {
-            handleEmbeddedEvent(raw);
-          } else if (typeof event.data === "string" && event.data.includes("&code=")) {
-            const params = new URLSearchParams(event.data);
-            const code = params.get("code");
-            if (code) {
-              codeRef.current = code;
-              if (
-                signupEventRef.current?.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING" &&
-                !sentRef.current
-              ) {
-                sentRef.current = true;
-                sendToBackend(code, null, signupEventRef.current);
-              } else {
-                setTimeout(() => {
-                  if (!sentRef.current && codeRef.current) {
-                    console.warn(
-                      "[WA Embedded Signup] No llegó FINISH en 6s. Enviando fallback al backend."
-                    );
-                    sentRef.current = true;
-                    sendToBackend(codeRef.current, null, signupEventRef.current);
-                  }
-                }, 6000);
-              }
-            }
-          } else {
-            console.warn("Received non-JSON message from Facebook:", event.data);}
-        }
-      };
-
-      window.addEventListener("message", handleMessage);
-    };
-  };
-
-  const sendToBackend = async (
+  const sendToBackend = useCallback(async (
     code: string,
     response: any,
     signupPayload?: any
@@ -168,11 +66,115 @@ export const useFacebookSDK = () => {
       console.error("Error enviando datos al backend:", error);
       window.dispatchEvent(new CustomEvent("channel-error"));
     }
-  };
+  }, []);
 
-  // Response callback - debe ser síncrono
-  const fbLoginCallback = (response: any) => {
+  // Load Facebook SDK script
+  useEffect(() => {
+    if (document.getElementById("facebook-jssdk")) {
+      setIsFacebookSDKLoaded(true);
+      return;
+    }
 
+    const script = document.createElement("script");
+    script.id = "facebook-jssdk";
+    script.src = "https://connect.facebook.net/en_US/sdk.js";
+    script.async = true;
+    script.defer = true;
+    script.crossOrigin = "anonymous";
+
+    document.head.appendChild(script);
+
+    window.fbAsyncInit = function () {
+      window.FB.init({
+        appId: process.env.NEXT_PUBLIC_FACEBOOK_APP_ID,
+        autoLogAppEvents: true,
+        xfbml: true,
+        version: process.env.NEXT_PUBLIC_FACEBOOK_GRAPH_API_VERSION,
+      });
+
+      setIsFacebookSDKLoaded(true);
+    };
+  }, []);
+
+  // Message listener — separate effect with proper cleanup
+  useEffect(() => {
+    const handleEmbeddedEvent = (payload: any) => {
+      if (!payload || payload.type !== "WA_EMBEDDED_SIGNUP") return;
+
+      signupEventRef.current = payload;
+      logDebug("Event recibido:", payload.event, payload);
+
+      if (payload.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") {
+        if (codeRef.current && !sentRef.current) {
+          sentRef.current = true;
+          sendToBackend(
+            codeRef.current,
+            lastResponseRef.current,
+            signupEventRef.current
+          );
+        }
+        return;
+      }
+
+      if (payload.event === "CANCEL") {
+        console.warn(
+          "[WA Embedded Signup] Flujo cancelado/abortado en paso:",
+          payload?.data?.current_step ?? "desconocido"
+        );
+      }
+    };
+
+    const handleMessage = (event: MessageEvent) => {
+      if (!event.origin.endsWith("facebook.com")) return;
+
+      try {
+        const data = JSON.parse(event.data);
+        handleEmbeddedEvent(data);
+      } catch {
+        const raw: any = (event as any).data;
+        if (
+          raw &&
+          typeof raw === "object" &&
+          raw.type === "WA_EMBEDDED_SIGNUP"
+        ) {
+          handleEmbeddedEvent(raw);
+        } else if (typeof event.data === "string" && event.data.includes("&code=")) {
+          const params = new URLSearchParams(event.data);
+          const code = params.get("code");
+          if (code) {
+            codeRef.current = code;
+            if (
+              signupEventRef.current?.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING" &&
+              !sentRef.current
+            ) {
+              sentRef.current = true;
+              sendToBackend(code, null, signupEventRef.current);
+            } else {
+              setTimeout(() => {
+                if (!sentRef.current && codeRef.current) {
+                  console.warn(
+                    "[WA Embedded Signup] No llegó FINISH en 6s. Enviando fallback al backend."
+                  );
+                  sentRef.current = true;
+                  sendToBackend(codeRef.current, null, signupEventRef.current);
+                }
+              }, 6000);
+            }
+          }
+        } else {
+          console.warn("Received non-JSON message from Facebook:", event.data);
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [logDebug, sendToBackend]);
+
+  // Response callback
+  const fbLoginCallback = useCallback((response: any) => {
     if (response.authResponse) {
       const code = response.authResponse.code;
       codeRef.current = code;
@@ -180,7 +182,6 @@ export const useFacebookSDK = () => {
 
       window.dispatchEvent(new CustomEvent("channel-connecting"));
 
-      // Si ya tenemos el evento, enviamos con 'data' ahora
       if (
         signupEventRef.current?.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING" &&
         !sentRef.current
@@ -190,7 +191,6 @@ export const useFacebookSDK = () => {
         return;
       }
 
-      // Si no llega FINISH, enviamos de todos modos como fallback para no perder el code
       setTimeout(() => {
         if (!sentRef.current && codeRef.current) {
           console.warn(
@@ -207,10 +207,9 @@ export const useFacebookSDK = () => {
     } else {
       console.warn("Facebook login cancelled or failed:", response);
     }
-  };
+  }, [sendToBackend]);
 
-  // Launch method and callback registration
-  const launchWhatsAppSignup = () => {
+  const launchWhatsAppSignup = useCallback(() => {
     if (!window.FB) {
       return;
     }
@@ -225,7 +224,7 @@ export const useFacebookSDK = () => {
         sessionInfoVersion: "3",
       },
     });
-  };
+  }, [fbLoginCallback]);
 
   return {
     launchWhatsAppSignup,
