@@ -8,18 +8,20 @@ import { useConfigStore } from "@/store/useConfigStore"
 import { useState } from "react"
 import { User } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useTranslation } from "@/hooks/useTranslation"
 
 export function ProfileCard() {
   const { profile, updateProfile } = useConfigStore()
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [accountType, setAccountType] = useState(profile.accountType)
   const [formData, setFormData] = useState(profile)
 
   const handleSave = () => {
     updateProfile(formData)
     toast({
-      title: "Perfil guardado",
-      description: "Los cambios se guardaron correctamente",
+      title: t("settings.profileSaved"),
+      description: t("settings.profileSavedDesc"),
     })
   }
 
@@ -33,36 +35,34 @@ export function ProfileCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <User className="w-5 h-5" />
-          Perfil
+          {t("settings.profile")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Toggle Tipo de Cuenta */}
         <div className="space-y-2">
-          <Label>Tipo de cuenta</Label>
+          <Label>{t("settings.accountType")}</Label>
           <div className="flex gap-2">
             <Button
               variant={accountType === "persona" ? "default" : "outline"}
               onClick={() => handleTypeChange("persona")}
               className="flex-1"
             >
-              Persona
+              {t("settings.individual")}
             </Button>
             <Button
               variant={accountType === "empresa" ? "default" : "outline"}
               onClick={() => handleTypeChange("empresa")}
               className="flex-1"
             >
-              Empresa
+              {t("settings.company")}
             </Button>
           </div>
         </div>
 
-        {/* Campos según tipo */}
         {accountType === "persona" ? (
           <>
             <div className="space-y-2">
-              <Label htmlFor="nombre">Nombre y apellido *</Label>
+              <Label htmlFor="nombre">{t("settings.fullName")}</Label>
               <Input
                 id="nombre"
                 value={formData.persona?.nombre || ""}
@@ -90,7 +90,7 @@ export function ProfileCard() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="apodo">Apodo / nombre de usuario</Label>
+              <Label htmlFor="apodo">{t("settings.username")}</Label>
               <Input
                 id="apodo"
                 value={formData.persona?.apodo || ""}
@@ -107,7 +107,7 @@ export function ProfileCard() {
         ) : (
           <>
             <div className="space-y-2">
-              <Label htmlFor="razonSocial">Nombre de la sociedad *</Label>
+              <Label htmlFor="razonSocial">{t("settings.companyName")}</Label>
               <Input
                 id="razonSocial"
                 value={formData.empresa?.razonSocial || ""}
@@ -121,7 +121,7 @@ export function ProfileCard() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cuit">CUIT</Label>
+              <Label htmlFor="cuit">{t("settings.taxId")}</Label>
               <Input
                 id="cuit"
                 value={formData.empresa?.cuit || ""}
@@ -135,7 +135,7 @@ export function ProfileCard() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fantasia">Nombre de fantasía / comercial</Label>
+              <Label htmlFor="fantasia">{t("settings.tradeName")}</Label>
               <Input
                 id="fantasia"
                 value={formData.empresa?.fantasia || ""}
@@ -150,7 +150,6 @@ export function ProfileCard() {
           </>
         )}
 
-        {/* Campos comunes */}
         <div className="space-y-2">
           <Label htmlFor="email">Email *</Label>
           <Input
@@ -168,7 +167,7 @@ export function ProfileCard() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="website">Sitio web</Label>
+          <Label htmlFor="website">{t("settings.website")}</Label>
           <Input
             id="website"
             value={formData.comunes.website || ""}
@@ -220,7 +219,7 @@ export function ProfileCard() {
         </div>
 
         <Button onClick={handleSave} className="w-full">
-          Guardar cambios
+          {t("settings.save")}
         </Button>
       </CardContent>
     </Card>

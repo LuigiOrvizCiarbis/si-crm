@@ -1,7 +1,8 @@
 import { Channel } from "@/data/types";
+import { getAuthToken } from "./auth-token";
 
 export async function getChannels(): Promise<Channel[]> {
-  const token = process.env.NEXT_PUBLIC_TOKEN;
+  const token = getAuthToken();
   if (!token) throw new Error("No authentication token found");
 
   const response = await fetch("/api/channels", {
@@ -18,7 +19,6 @@ export async function getChannels(): Promise<Channel[]> {
   }
 
   const json = await response.json();
-  console.log("🚀 ~ getChannels ~ json:", json);
 
   return json.data ?? [];
 }

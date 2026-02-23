@@ -1,19 +1,13 @@
 import { useEffect, useRef } from "react";
 import { Message } from "@/data/types";
 
-interface UseSSEMessagesProps {
-  conversationId: string | number | null;
+interface UseTenantSSEProps {
   token: string | null;
   onMessage: (message: Message) => void;
 }
 
-export function useSSEMessages({
-  conversationId,
-  token,
-  onMessage,
-}: UseSSEMessagesProps) {
+export function useTenantSSE({ token, onMessage }: UseTenantSSEProps) {
   const eventSourceRef = useRef<EventSource | null>(null);
-  const lastMessageIdRef = useRef<number>(0);
   const onMessageRef = useRef(onMessage);
 
   useEffect(() => {
@@ -21,27 +15,22 @@ export function useSSEMessages({
   }, [onMessage]);
 
   useEffect(() => {
-    if (!conversationId || !token) return;
+    if (!token) return;
 
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
 
-    const url = `/api/conversations/${conversationId}/stream?token=${token}&last_id=${lastMessageIdRef.current}`;
+    const url = `/api/tenant/stream?token=${token}`;
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
     eventSource.addEventListener("message", (event) => {
       try {
-        const newMessage = JSON.parse(event.data);
-
-        if (newMessage.id) {
-          lastMessageIdRef.current = newMessage.id;
-        }
-
-        onMessageRef.current(newMessage);
+        const message = JSON.parse(event.data);
+        onMessageRef.current(message);
       } catch (error) {
-        console.error("SSE: Error parsing JSON", error);
+        console.error("Tenant SSE: error parsing", error);
       }
     });
 
@@ -52,5 +41,5 @@ export function useSSEMessages({
     return () => {
       eventSource.close();
     };
-  }, [conversationId, token]);
+  }, [token]);
 }

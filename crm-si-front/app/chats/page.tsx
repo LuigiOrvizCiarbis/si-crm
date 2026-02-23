@@ -1,22 +1,29 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { SidebarLayout } from "@/components/SidebarLayout"
 import { ChatHeader } from "@/components/chat/ChatHeader"
 import { ChatFilters } from "@/components/chat/ChatFilters"
-import { WizardConnectChannel } from "@/components/WizardConnectChannel"
-import { ContactInfoPanel } from "@/components/ContactInfoPanel"
+
+const WizardConnectChannel = dynamic(
+  () => import("@/components/WizardConnectChannel").then(m => m.WizardConnectChannel),
+  { loading: () => null }
+)
+const ContactInfoPanel = dynamic(
+  () => import("@/components/ContactInfoPanel").then(m => m.ContactInfoPanel),
+  { loading: () => null }
+)
 import { useFacebookSDK } from "@/hooks/useFacebookSDK"
 import { useChatState } from "@/hooks/useChatState"
 import { useToast } from "@/components/Toast"
-//import { channels, conversations } from "@/data/mockData"
-import { aiSuggestions } from "@/data/constants"
 import { FilterType, Channel, Conversation, Message } from "@/data/types"
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ChatQuickBar } from "@/components/ChatQuickBar"
-import { getChannelConversations, getConversationMessages, getConversations, getConversationWithMessages, getUserConversations } from "@/lib/api/conversations"
+import { getChannelConversations, getConversationMessages, getConversations, getConversationWithMessages } from "@/lib/api/conversations"
+
 import { sendMessage } from "@/lib/api/messages"
-// import { configureEcho, useEcho } from "@laravel/echo-react";
+import { getAuthToken } from "@/lib/api/auth-token"
 import { ConversationHeader } from "@/components/chat/ConversationHeader"
 import { AISuggestions } from "@/components/chat/AISuggestions"
 import { MessageList } from "@/components/chat/MessageList"
@@ -25,13 +32,15 @@ import { ConversationList } from "@/components/chat/ConversationList"
 import { FilteredConversationsHeader } from "@/components/chat/FilteredConversationsHeader"
 import { ChannelsList } from "@/components/chat/ChannelsList"
 import { getChannels } from "@/lib/api/channels"
-import { filterTypeToChannelType } from "@/data/enums"
 import { ChannelHeader } from "@/components/chat/AccountHeader"
 import { useConversationFilters } from "@/hooks/useConversationFilters"
 import { useSSEMessages } from "@/hooks/useSSEMessages"
+import { useTenantSSE } from "@/hooks/useTenantSSE"
+import { useTranslation } from "@/hooks/useTranslation"
 
 export default function ChatsPage() {
-  const { addToast } = useToast()
+  const { addToast, removeToast, ToastContainer } = useToast()
+  const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { launchWhatsAppSignup } = useFacebookSDK()
@@ -53,12 +62,12 @@ export default function ChatsPage() {
   const [wizardOpen, setWizardOpen] = useState(false)
   const [channels, setChannels] = useState<Channel[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
-  const [conversation, setConversation] = useState<any>(null);
+  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(chatIdNumber)
 
-  const activeConversation = conversations.find((c) => c.id === selectedConversationId)
-  const activeChannel = channels.find((channel) => channel.id === selectedChannelId)
-  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
+  const activeConversation = useMemo(() => conversations.find((c) => c.id === selectedConversationId), [conversations, selectedConversationId])
+  const activeChannel = useMemo(() => channels.find((channel) => channel.id === selectedChannelId), [channels, selectedChannelId])
+  const localizedAiSuggestions = [t("chats.aiSuggestion1"), t("chats.aiSuggestion2"), t("chats.aiSuggestion3")]
 
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
@@ -73,36 +82,30 @@ export default function ChatsPage() {
   const handleRealTimeMessage = useCallback((newMessage: Message) => {
     // 1. Actualizar el chat abierto (si coincide el ID)
     if (selectedConversationId === newMessage.conversation_id) {
-      setConversation((prev: any) => {
+      setCurrentConversation((prev) => {
         if (!prev) return prev;
 
-        // Evitar duplicados: Si el mensaje ya existe por ID
-        if (prev.messages && prev.messages.some((m: Message) => m.id === newMessage.id)) {
+        const messages = prev.messages || [];
+
+        // Evitar duplicados
+        if (messages.some((m: Message) => m.id === newMessage.id)) {
           return prev;
         }
 
-        // Reemplazar mensaje optimista si existe uno con el mismo contenido
-        const optimisticIndex = prev.messages?.findIndex((m: any) =>
+        // Reemplazar mensaje optimista si existe
+        const optimisticIndex = messages.findIndex((m: any) =>
           m.status === 'sending' &&
           m.content === newMessage.content &&
-          Math.abs(new Date(m.created_at).getTime() - new Date(newMessage.created_at).getTime()) < 5000 // Dentro de 5 segundos
+          Math.abs(new Date(m.created_at).getTime() - new Date(newMessage.created_at).getTime()) < 5000
         );
 
         if (optimisticIndex !== -1) {
-          // Reemplazar mensaje optimista con el real del servidor
-          const updatedMessages = [...prev.messages];
+          const updatedMessages = [...messages];
           updatedMessages[optimisticIndex] = newMessage;
-          return {
-            ...prev,
-            messages: updatedMessages
-          };
+          return { ...prev, messages: updatedMessages };
         }
 
-        // Agregar como mensaje nuevo
-        return {
-          ...prev,
-          messages: [...(prev.messages || []), newMessage]
-        };
+        return { ...prev, messages: [...messages, newMessage] };
       });
     }
 
@@ -125,10 +128,48 @@ export default function ChatsPage() {
 
 
 
+  const [authToken] = useState(() => getAuthToken() ?? "");
+
   useSSEMessages({
     conversationId: selectedConversationId,
-    token: process.env.NEXT_PUBLIC_TOKEN || "",
+    token: authToken,
     onMessage: handleRealTimeMessage
+  });
+
+  const selectedChannelIdRef = useRef(selectedChannelId);
+  useEffect(() => { selectedChannelIdRef.current = selectedChannelId; }, [selectedChannelId]);
+
+  const tenantRefreshVersionRef = useRef(0);
+
+  const handleTenantMessage = useCallback((message: Message) => {
+    setConversations(prev => {
+      const idx = prev.findIndex(c => c.id === message.conversation_id);
+      if (idx !== -1) {
+        const updated = {
+          ...prev[idx],
+          last_message: message.content,
+          updated_at: message.created_at,
+        };
+        const next = [...prev];
+        next.splice(idx, 1);
+        return [updated, ...next];
+      }
+      // New conversation — refetch respecting the active channel filter
+      const channelId = selectedChannelIdRef.current;
+      const version = ++tenantRefreshVersionRef.current;
+      const fetcher = channelId ? getChannelConversations(channelId) : getConversations();
+      fetcher.then(data => {
+        if (version !== tenantRefreshVersionRef.current) return;
+        if (selectedChannelIdRef.current !== channelId) return;
+        setConversations(data);
+      }).catch(() => {});
+      return prev;
+    });
+  }, []);
+
+  useTenantSSE({
+    token: authToken,
+    onMessage: handleTenantMessage,
   });
 
   const handleLoadMoreMessages = async () => {
@@ -146,21 +187,14 @@ export default function ChatsPage() {
       const lastPage = response.last_page || 1
 
       if (newMessages.length > 0) {
-        setConversation((prev: any) => {
+        setCurrentConversation((prev) => {
           if (!prev) return prev;
 
-          // Filtramos duplicados por ID para seguridad
-          const existingIds = new Set(prev.messages.map((m: any) => m.id));
+          const existingIds = new Set((prev.messages || []).map((m: any) => m.id));
           const uniqueNewMessages = newMessages.filter((m: any) => !existingIds.has(m.id));
+          const combinedMessages = [...uniqueNewMessages, ...(prev.messages || [])].sort((a: any, b: any) => a.id - b.id);
 
-          // Ordenamos cronológicamente (ID ascendente)
-          // Combinamos: [Nuevos (Viejos en tiempo), ...Existentes]
-          const combinedMessages = [...uniqueNewMessages, ...prev.messages].sort((a: any, b: any) => a.id - b.id);
-
-          return {
-            ...prev,
-            messages: combinedMessages
-          };
+          return { ...prev, messages: combinedMessages };
         });
 
         setPage(nextPage)
@@ -171,7 +205,7 @@ export default function ChatsPage() {
 
     } catch (error) {
       console.error("Error cargando más mensajes:", error)
-      addToast({ type: "error", title: "Error cargando historial" })
+      addToast({ type: "error", title: t("chats.loadHistoryError") })
     } finally {
       setIsLoadingMore(false)
     }
@@ -190,100 +224,89 @@ export default function ChatsPage() {
     selectedChannelId,
   })
 
+  // Parallel initial fetch: channels + conversations (independent — partial success OK)
   useEffect(() => {
-    const fetchChannels = async () => {
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true)
+      const [channelsResult, conversationsResult] = await Promise.allSettled([
+        getChannels(),
+        getConversations(),
+      ])
+      if (cancelled) return
+
+      if (channelsResult.status === "fulfilled") {
+        setChannels(channelsResult.value)
+      } else {
+        addToast({ type: "error", title: t("chats.loadAccountsError"), description: t("chats.loadAccountsErrorDesc") })
+      }
+
+      if (conversationsResult.status === "fulfilled") {
+        setConversations(conversationsResult.value)
+      } else {
+        addToast({ type: "error", title: t("chats.loadConversationsError") })
+      }
+
+      setIsLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  // Channel connection events
+  useEffect(() => {
+    const CONNECTING_TOAST_ID = "channel-connecting"
+
+    const onConnecting = () => {
+      addToast({ id: CONNECTING_TOAST_ID, type: "loading", title: t("chats.channelConnecting"), description: t("chats.channelConnectingDesc") })
+    }
+
+    const onConnected = async () => {
+      removeToast(CONNECTING_TOAST_ID)
       try {
-        setIsLoading(true)
         const data = await getChannels()
-
         setChannels(data)
-
-      } catch (error) {
-        addToast({
-          type: "error",
-          title: "Error al cargar cuentas",
-          description: error instanceof Error ? error.message : "No se pudieron cargar las cuentas conectadas",
-        })
-        setChannels([])
-      } finally {
-        setIsLoading(false)
+        addToast({ type: "success", title: t("chats.channelConnected"), description: t("chats.channelConnectedDesc") })
+      } catch (e) {
+        console.error("Error refetching channels:", e)
       }
     }
 
-    fetchChannels()
+    const onError = () => {
+      removeToast(CONNECTING_TOAST_ID)
+      addToast({ type: "error", title: t("chats.channelError"), description: t("chats.channelErrorDesc") })
+    }
+
+    window.addEventListener("channel-connecting", onConnecting)
+    window.addEventListener("channel-connected", onConnected)
+    window.addEventListener("channel-error", onError)
+    return () => {
+      window.removeEventListener("channel-connecting", onConnecting)
+      window.removeEventListener("channel-connected", onConnected)
+      window.removeEventListener("channel-error", onError)
+    }
   }, [])
-
-  useEffect(() => {
-    const fetchConversations = async () => {
-      try {
-        setIsLoading(true)
-        const data = await getConversations()
-
-        setConversations(data)
-
-      } catch (error) {
-        addToast({
-          type: "error",
-          title: "Error al cargar cuentas",
-          description: error instanceof Error ? error.message : "No se pudieron cargar las cuentas conectadas",
-        })
-        setConversations([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchConversations()
-  }, [])
-
-  useEffect(() => {
-    if (!selectedConversationId) {
-      setCurrentConversation(null)
-      return
-    }
-
-    const fetchConversation = async () => {
-      try {
-        const data = await getConversationWithMessages(selectedConversationId)
-        setCurrentConversation(data)
-      } catch (error) {
-        console.error('[ChatsPage] Error loading conversation:', error)
-        addToast({
-          type: "error",
-          title: "Error al cargar conversación",
-          description: error instanceof Error ? error.message : "Error desconocido",
-        })
-      }
-    }
-
-    fetchConversation()
-  }, [selectedConversationId])
 
   useEffect(() => {
     if (chatIdFromUrl) {
       const id = parseInt(chatIdFromUrl, 10)
       setSelectedConversationId(id)
     } else {
-      setSelectedConversationId(null)  // ← Se limpia cuando URL no tiene ?chat=
+      setSelectedConversationId(null)
     }
   }, [chatIdFromUrl])
 
+  // Fetch channel conversations when a channel is selected
   useEffect(() => {
-    if (!selectedChannelId) {
-      // Si no hay canal seleccionado, no hacer nada (las conversaciones ya se cargaron)
-      return;
-    }
+    if (!selectedChannelId) return;
 
     let cancelled = false;
     (async () => {
       try {
         setIsLoading(true);
-        // Filtrar conversaciones por channel_id
         const data = await getChannelConversations(selectedChannelId);
-
         if (!cancelled) setConversations(data);
       } catch (e) {
-        addToast({ type: "error", title: "Error cargando conversaciones" });
+        addToast({ type: "error", title: t("chats.loadConversationsError") });
         if (!cancelled) setConversations([]);
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -292,29 +315,31 @@ export default function ChatsPage() {
     return () => { cancelled = true };
   }, [selectedChannelId]);
 
+  // Single effect: fetch conversation with messages when selected
   useEffect(() => {
-    if (!selectedConversationId || selectedConversationId === null) {
-      setConversation(null);
+    if (!selectedConversationId) {
+      setCurrentConversation(null);
       return;
     }
 
-    let cancelled = false;
+    // Clear stale data immediately so we never show conversation A under conversation B's header
+    setCurrentConversation(null);
 
+    let cancelled = false;
     (async () => {
       try {
-        setIsLoading(true);
         const data = await getConversationWithMessages(selectedConversationId);
-        if (!cancelled) setConversation(data);
-      } catch (e) {
-        addToast({ type: "error", title: "Error cargando conversación" });
-        if (!cancelled) setConversation(null);
-      } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) setCurrentConversation(data);
+      } catch (error) {
+        if (cancelled) return;
+        setCurrentConversation(null);
+        addToast({
+          type: "error",
+          title: t("chats.loadConversationError"),
+          description: error instanceof Error ? error.message : t("chats.unknownError"),
+        });
       }
     })();
-
-
-
     return () => { cancelled = true };
   }, [selectedConversationId]);
 
@@ -331,20 +356,21 @@ export default function ChatsPage() {
   const handleImportTemplates = () => {
     addToast({
       type: "success",
-      title: "Plantillas importadas",
-      description: "15 plantillas agregadas correctamente",
+      title: t("chats.templatesImported"),
+      description: t("chats.templatesImportedDesc"),
     })
   }
 
   const handleNewChat = () => {
     addToast({
       type: "success",
-      title: "Nuevo chat iniciado",
-      description: "Chat creado correctamente",
+      title: t("chats.newChatStarted"),
+      description: t("chats.newChatStartedDesc"),
     })
   }
 
   const handleFilterChange = (filter: FilterType) => {
+    tenantRefreshVersionRef.current++
     setActiveFilter(filter)
     setSelectedChannel(null)
     setSelectedConversationId(null)
@@ -356,8 +382,8 @@ export default function ChatsPage() {
     setMessage(suggestion)
     addToast({
       type: "info",
-      title: "Sugerencia IA aplicada",
-      description: `"${suggestion}" agregado al mensaje`,
+      title: t("chats.aiSuggestionApplied"),
+      description: t("chats.aiSuggestionAppliedDesc"),
     })
   }
 
@@ -372,13 +398,14 @@ export default function ChatsPage() {
   }, [router])
 
   const handleBackToChannels = useCallback(() => {
+    tenantRefreshVersionRef.current++
     setSelectedChannelId(null)
     setSelectedConversationId(null)
     router.replace("/chats")
   }, [router])
 
   const handleChannelSelect = useCallback((channelId: number) => {
-
+    tenantRefreshVersionRef.current++
     setSelectedChannelId(channelId)
 
     setSelectedConversationId(null)
@@ -386,17 +413,6 @@ export default function ChatsPage() {
     router.replace("/chats")
 
   }, [router])
-
-  const getFilteredChannels = () => {
-    if (activeFilter === "todos" || activeFilter === "no-leidos") {
-      return channels
-    }
-    return channels.filter((channel) => channel.type === filterTypeToChannelType(activeFilter))
-  }
-
-  const filteredAccounts = getFilteredChannels()
-
-  const disconnectedAccounts = filteredAccounts.filter((channel) => channel.status === "disconnected")
 
   const handleSendMessage = async () => {
     if (!message.trim() || !selectedConversationId) return;
@@ -421,12 +437,9 @@ export default function ChatsPage() {
     };
 
     // 🚀 PASO 3: Actualizar UI inmediatamente (chat activo)
-    setConversation((prev: any) => {
+    setCurrentConversation((prev) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        messages: [...(prev.messages || []), optimisticMessage]
-      };
+      return { ...prev, messages: [...(prev.messages || []), optimisticMessage] };
     });
 
     // 🚀 PASO 4: Actualizar UI inmediatamente (sidebar)
@@ -458,20 +471,17 @@ export default function ChatsPage() {
       // 🚨 PASO 6: Si falla, revertir cambios
       addToast({
         type: "error",
-        title: "Error al enviar mensaje",
-        description: error instanceof Error ? error.message : "No se pudo enviar el mensaje"
+        title: t("chats.sendMessageError"),
+        description: error instanceof Error ? error.message : t("chats.sendMessageErrorDesc")
       });
 
       // Restaurar el texto en el input
       setMessage(textToSend);
 
       // Remover el mensaje optimista
-      setConversation((prev: any) => {
+      setCurrentConversation((prev) => {
         if (!prev) return prev;
-        return {
-          ...prev,
-          messages: prev.messages.filter((m: any) => m.id !== tempId)
-        };
+        return { ...prev, messages: (prev.messages || []).filter((m: any) => m.id !== tempId) };
       });
 
       // Revertir actualización del sidebar
@@ -512,7 +522,7 @@ export default function ChatsPage() {
 
           <div className="flex-1 overflow-y-auto">
             <ChannelsList
-              channels={connectedChannels.concat(disconnectedAccounts)}
+              channels={connectedChannels.concat(disconnectedChannels)}
               selectedChannel={selectedChannel}
               activeFilter={activeFilter}
               isLoading={isLoading}
@@ -549,12 +559,10 @@ export default function ChatsPage() {
                 selectedConversationId={selectedConversationId}
                 onConversationClick={handleConversationClick}
                 emptyState={{
-                  title: selectedChannelId
-                    ? "No hay conversaciones en este canal"
-                    : `No hay conversaciones ${activeFilter === "no-leidos" ? "no leídas" : ""}`,
+                  title: t("chats.noConversations"),
                   description: selectedChannelId
-                    ? `El canal "${activeChannel?.name}" no tiene conversaciones activas`
-                    : `No se encontraron conversaciones de "${activeFilter}"`,
+                    ? `${activeChannel?.name}`
+                    : t("chats.noConversationsDesc"),
                 }}
               />
             </>
@@ -597,12 +605,12 @@ export default function ChatsPage() {
                 onToggleArchive={chatHandlers.handleToggleArchive(selectedConversationId)}
               />
               <AISuggestions
-                suggestions={aiSuggestions}
+                suggestions={localizedAiSuggestions}
                 onSuggestionClick={handleSuggestionClick}
               />
 
               <MessageList
-                messages={conversation?.messages || []}
+                messages={currentConversation?.messages || []}
                 onLoadMore={handleLoadMoreMessages}
                 hasMore={hasMore}
                 isLoadingMore={isLoadingMore}
@@ -632,6 +640,7 @@ export default function ChatsPage() {
 
       {/* Wizard de conexión */}
       <WizardConnectChannel open={wizardOpen} onOpenChange={setWizardOpen} />
+      <ToastContainer />
     </SidebarLayout>
   )
 }

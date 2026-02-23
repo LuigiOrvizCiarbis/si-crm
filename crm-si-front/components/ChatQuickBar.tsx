@@ -8,6 +8,7 @@ import { MailOpen, Archive, Settings, Loader2 } from "lucide-react"
 import { getPipelineStages, PipelineStage } from "@/lib/api/pipeline"
 import { getUsers } from "@/lib/api/users"
 import { updateConversationStage, assignConversationUser } from "@/lib/api/conversations"
+import { useTranslation } from "@/hooks/useTranslation"
 import {
   Select,
   SelectContent,
@@ -17,7 +18,6 @@ import {
 } from "@/components/ui/select"
 
 // Types
-type Stage = "nuevo" | "calificado" | "demo" | "cierre"
 type Priority = "baja" | "media" | "alta" | "hot"
 
 interface TeamUser {
@@ -58,6 +58,7 @@ export function ChatQuickBar({
   onToggleArchive,
 }: ChatQuickBarProps) {
   const { addToast } = useToast()
+  const { t } = useTranslation()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [tempValues, setTempValues] = useState({
     stageId: value.stageId, // Usar stageId
@@ -107,8 +108,8 @@ export function ChatQuickBar({
     if (!stage) {
       addToast({
         type: "error",
-        title: "Error",
-        description: "Etapa no encontrada",
+        title: t("chats.genericError"),
+        description: t("chats.stageNotFound"),
       });
       return;
     }
@@ -121,14 +122,14 @@ export function ChatQuickBar({
 
         addToast({
           type: "success",
-          title: "Etapa actualizada",
-          description: `Etapa cambiada a: ${stage.name}`,
+          title: t("chats.stageUpdated"),
+          description: `${t("chats.stageChangedTo")} ${stage.name}`,
         });
       })
       .catch((error) => {
         addToast({
           type: "error",
-          title: "Error al actualizar etapa",
+          title: t("chats.stageUpdateError"),
           description: error.message,
         });
       });
@@ -137,13 +138,17 @@ export function ChatQuickBar({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName
+      const isInput = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable
+      if (isInput) return
+
       if (e.key === "l" || e.key === "L") {
         e.preventDefault()
         onMarkRead()
         addToast({
           type: "success",
-          title: "Chat marcado como leído",
-          description: "El chat ha sido marcado como leído",
+          title: t("chats.chatMarkedRead"),
+          description: t("chats.chatMarkedReadDesc"),
         })
       }
       if (e.key === "e" || e.key === "E") {
@@ -151,8 +156,8 @@ export function ChatQuickBar({
         onToggleArchive()
         addToast({
           type: "success",
-          title: value.archived ? "Chat desarchivado" : "Chat archivado",
-          description: value.archived ? "El chat ha sido desarchivado" : "El chat ha sido archivado",
+          title: value.archived ? t("chats.chatUnarchived") : t("chats.chatArchived"),
+          description: value.archived ? t("chats.chatUnarchivedDesc") : t("chats.chatArchivedDesc"),
         })
       }
     }
@@ -174,8 +179,8 @@ export function ChatQuickBar({
     onChangePriority(priority)
     addToast({
       type: "success",
-      title: "Prioridad actualizada",
-      description: `Prioridad cambiada a: ${priority}`,
+      title: t("chats.priorityUpdated"),
+      description: `${t("chats.priorityChangedTo")} ${getPriorityLabel(priority)}`,
     })
   }
 
@@ -195,15 +200,15 @@ export function ChatQuickBar({
 
       addToast({
         type: "success",
-        title: "Chat derivado",
-        description: `Chat derivado a: ${assignee?.name}`,
+        title: t("chats.chatAssigned"),
+        description: `${t("chats.chatAssignedTo")} ${assignee?.name}`,
       })
     } catch (error) {
       console.error("Error asignando usuario:", error)
       addToast({
         type: "error",
-        title: "Error al derivar",
-        description: error instanceof Error ? error.message : "No se pudo derivar el chat",
+        title: t("chats.assignError"),
+        description: error instanceof Error ? error.message : t("chats.assignErrorDesc"),
       })
     }
   }
@@ -212,8 +217,8 @@ export function ChatQuickBar({
     onMarkRead()
     addToast({
       type: "success",
-      title: "Chat marcado como leído",
-      description: "El chat ha sido marcado como leído",
+      title: t("chats.chatMarkedRead"),
+      description: t("chats.chatMarkedReadDesc"),
     })
   }
 
@@ -221,8 +226,8 @@ export function ChatQuickBar({
     onToggleArchive()
     addToast({
       type: "success",
-      title: value.archived ? "Chat desarchivado" : "Chat archivado",
-      description: value.archived ? "El chat ha sido desarchivado" : "El chat ha sido archivado",
+      title: value.archived ? t("chats.chatUnarchived") : t("chats.chatArchived"),
+      description: value.archived ? t("chats.chatUnarchivedDesc") : t("chats.chatArchivedDesc"),
     })
   }
 
@@ -236,7 +241,7 @@ export function ChatQuickBar({
     if (String(tempValues.assigneeId) !== String(value.assigneeId)) {
       const parsed = toNumber(tempValues.assigneeId)
       if (parsed === undefined) {
-        addToast({ type: 'error', title: 'Usuario inválido', description: 'Seleccioná un usuario válido' })
+        addToast({ type: "error", title: t("chats.invalidUser"), description: t("chats.invalidUserDesc") })
       } else {
         handleAssigneeChange(parsed)
       }
@@ -262,15 +267,19 @@ export function ChatQuickBar({
     }
   }
 
-  const renderStageOptions = () => {
-    if (isLoadingStages) {
-      return <option>Cargando...</option>
+  const getPriorityLabel = (priority: Priority) => {
+    switch (priority) {
+      case "baja":
+        return t("chats.priorityLow")
+      case "media":
+        return t("chats.priorityMedium")
+      case "alta":
+        return t("chats.priorityHigh")
+      case "hot":
+        return t("chats.priorityHot")
+      default:
+        return t("chats.priorityLow")
     }
-    return pipelineStages.map((stage) => (
-      <option key={stage.id} value={stage.id}>
-        {stage.name}
-      </option>
-    ))
   }
 
   useEffect(() => {
@@ -285,7 +294,8 @@ export function ChatQuickBar({
       const effectiveTeam = team.length ? team : users
       const desktopFallbackId = effectiveTeam[0]?.id
       const selectedAssigneeId = toNumber(value.assigneeId) ?? desktopFallbackId ?? ''
-      const selectedAssigneeName = effectiveTeam.find((m) => String(m.id) === String(selectedAssigneeId))?.name || 'Seleccionar'
+      const selectedAssigneeName = effectiveTeam.find((m) => String(m.id) === String(selectedAssigneeId))?.name || t("chats.select")
+      const selectedStageName = pipelineStages.find((s) => s.id === value.stageId)?.name || t("chats.select")
 
       console.log("[ChatQuickBar render] value.assigneeId:", value.assigneeId, "selectedAssigneeId:", selectedAssigneeId, "users:", users.length);
 
@@ -299,7 +309,7 @@ export function ChatQuickBar({
       <div className="hidden md:flex items-center gap-2">
         {/* Stage Select */}
         <div className="inline-flex items-center gap-2 text-[12px] text-[#9AA4B2] bg-[#131722] border border-[#1e2533] rounded-xl px-3 py-1.5">
-          <span>Etapa:</span>
+          <span>{t("chats.stageLabel")}:</span>
           {isLoadingStages ? (
             <Loader2 className="h-3 w-3 animate-spin" />
           ) : (
@@ -309,9 +319,9 @@ export function ChatQuickBar({
               onValueChange={(val) => handleStageChange(Number(val))}
             >
               <SelectTrigger className="h-auto w-[140px] border-0 bg-transparent p-0 text-[#D8DEE9] text-sm focus:ring-0 focus:ring-offset-0 gap-2 hover:bg-transparent data-placeholder:text-[#D8DEE9]">
-                <SelectValue placeholder="Seleccionar" className="truncate">
+                <SelectValue placeholder={t("chats.select")} className="truncate">
                   <span className="truncate block w-full text-left">
-                    {pipelineStages.find((s) => s.id === value.stageId)?.name || "Seleccionar"}
+                    {selectedStageName}
                   </span>
                 </SelectValue>
               </SelectTrigger>
@@ -332,22 +342,22 @@ export function ChatQuickBar({
 
         {/* Priority Select */}
         <div className="inline-flex items-center gap-2 text-[12px] text-[#9AA4B2] bg-[#131722] border border-[#1e2533] rounded-xl px-3 py-1.5">
-          <span>Prioridad:</span>
+          <span>{t("chats.priorityLabel")}:</span>
           <select
             value={value.priority || "baja"}
             onChange={(e) => handlePriorityChange(e.target.value as Priority)}
             className={`bg-transparent text-sm focus:outline-none ${getPriorityColor(value.priority || "baja")}`}
           >
-            <option value="baja">Baja</option>
-            <option value="media">Media</option>
-            <option value="alta">Alta</option>
-            <option value="hot">Hot</option>
+            <option value="baja">{t("chats.priorityLow")}</option>
+            <option value="media">{t("chats.priorityMedium")}</option>
+            <option value="alta">{t("chats.priorityHigh")}</option>
+            <option value="hot">{t("chats.priorityHot")}</option>
           </select>
         </div>
 
         {/* Assignee Select (shadcn Select) */}
         <div className="inline-flex items-center gap-2 text-[12px] text-[#9AA4B2] bg-[#131722] border border-[#1e2533] rounded-xl px-3 py-1.5">
-          <span>Derivar a:</span>
+          <span>{t("chats.assignToLabel")}:</span>
           {isLoadingUsers ? (
             <Loader2 className="h-3 w-3 animate-spin" />
           ) : (
@@ -356,7 +366,7 @@ export function ChatQuickBar({
               onValueChange={(val) => handleAssigneeChange(Number(val))}
             >
               <SelectTrigger className="h-auto w-40 border-0 bg-transparent p-0 text-[#D8DEE9] text-sm focus:ring-0 focus:ring-offset-0 gap-2">
-                <SelectValue placeholder="Seleccionar" className="truncate">
+                <SelectValue placeholder={t("chats.select")} className="truncate">
                   <span className="truncate block w-full text-left">
                     {selectedAssigneeName}
                   </span>
@@ -380,7 +390,7 @@ export function ChatQuickBar({
             size="sm"
             className="p-2 rounded-lg border border-[#1e2533] hover:bg-[#1A1F2B] text-[#D8DEE9]"
             onClick={handleMarkRead}
-            title="Marcar como leído (L)"
+            title={t("chats.markReadShortcut")}
           >
             <MailOpen className="w-4 h-4" />
           </Button>
@@ -389,7 +399,7 @@ export function ChatQuickBar({
             size="sm"
             className="p-2 rounded-lg border border-[#1e2533] hover:bg-[#1A1F2B] text-[#D8DEE9]"
             onClick={handleToggleArchive}
-            title={value.archived ? "Desarchivar (E)" : "Archivar (E)"}
+            title={value.archived ? t("chats.unarchiveShortcut") : t("chats.archiveShortcut")}
           >
             <Archive className="w-4 h-4" />
           </Button>
@@ -399,9 +409,11 @@ export function ChatQuickBar({
       {/* Mobile Layout */}
       <div className="md:hidden flex items-center justify-between">
         <div className="text-sm text-[#D8DEE9]">
-          <span className="text-[#9AA4B2]">Etapa:</span> {value.stageId || "nuevo"} •
-          <span className="text-[#9AA4B2]"> Prioridad:</span>{" "}
-          <span className={getPriorityColor(value.priority || "baja")}>{value.priority || "baja"}</span>
+          <span className="text-[#9AA4B2]">{t("chats.stageLabel")}:</span> {selectedStageName} •
+          <span className="text-[#9AA4B2]"> {t("chats.priorityLabel")}:</span>{" "}
+          <span className={getPriorityColor(value.priority || "baja")}>
+            {getPriorityLabel(value.priority || "baja")}
+          </span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -410,7 +422,7 @@ export function ChatQuickBar({
             size="sm"
             className="p-2 rounded-lg border border-[#1e2533] hover:bg-[#1A1F2B] text-[#D8DEE9]"
             onClick={handleMarkRead}
-            title="Marcar como leído (L)"
+            title={t("chats.markReadShortcut")}
           >
             <MailOpen className="w-4 h-4" />
           </Button>
@@ -419,7 +431,7 @@ export function ChatQuickBar({
             size="sm"
             className="p-2 rounded-lg border border-[#1e2533] hover:bg-[#1A1F2B] text-[#D8DEE9]"
             onClick={handleToggleArchive}
-            title={value.archived ? "Desarchivar (E)" : "Archivar (E)"}
+            title={value.archived ? t("chats.unarchiveShortcut") : t("chats.archiveShortcut")}
           >
             <Archive className="w-4 h-4" />
           </Button>
@@ -432,56 +444,61 @@ export function ChatQuickBar({
                 className="px-3 py-1.5 rounded-xl border border-[#1e2533] bg-white/5 text-sm text-[#D8DEE9]"
               >
                 <Settings className="w-4 h-4 mr-1" />
-                Gestionar
+                {t("chats.manage")}
               </Button>
             </SheetTrigger>
             <SheetContent side="bottom" className="bg-[#0F1117] border-[#1e2533]">
               <SheetHeader>
-                <SheetTitle className="text-[#D8DEE9]">Gestionar Chat</SheetTitle>
+                <SheetTitle className="text-[#D8DEE9]">{t("chats.manageChat")}</SheetTitle>
               </SheetHeader>
               <div className="space-y-4 mt-4">
                 {/* Etapa */}
                 <div>
-                  <label className="block text-sm font-medium text-[#9AA4B2] mb-2">Etapa</label>
+                  <label className="block text-sm font-medium text-[#9AA4B2] mb-2">{t("chats.stageLabel")}</label>
                   <select
-                    value={tempValues.stageId}
+                    value={String(tempValues.stageId ?? "")}
                     onChange={(e) => setTempValues((prev) => ({ ...prev, stageId: Number(e.target.value) }))}
                     className="w-full bg-[#131722] border border-[#1e2533] rounded-xl px-3 py-2 text-[#D8DEE9] focus:outline-none focus:border-[#00F7FF]"
                   >
-                    <option value="nuevo">Nuevo</option>
-                    <option value="calificado">Calificado</option>
-                    <option value="demo">Demo</option>
-                    <option value="cierre">Cierre</option>
+                    {isLoadingStages ? (
+                      <option value="">{t("chats.loading")}</option>
+                    ) : (
+                      pipelineStages.map((stage) => (
+                        <option key={stage.id} value={String(stage.id)}>
+                          {stage.name}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 
                 {/* Prioridad */}
                 <div>
-                  <label className="block text-sm font-medium text-[#9AA4B2] mb-2">Prioridad</label>
+                  <label className="block text-sm font-medium text-[#9AA4B2] mb-2">{t("chats.priorityLabel")}</label>
                   <select
                     value={tempValues.priority}
                     onChange={(e) => setTempValues((prev) => ({ ...prev, priority: e.target.value as Priority }))}
                     className="w-full bg-[#131722] border border-[#1e2533] rounded-xl px-3 py-2 text-[#D8DEE9] focus:outline-none focus:border-[#00F7FF]"
                   >
-                    <option value="baja">Baja</option>
-                    <option value="media">Media</option>
-                    <option value="alta">Alta</option>
-                    <option value="hot">Hot</option>
+                    <option value="baja">{t("chats.priorityLow")}</option>
+                    <option value="media">{t("chats.priorityMedium")}</option>
+                    <option value="alta">{t("chats.priorityHigh")}</option>
+                    <option value="hot">{t("chats.priorityHot")}</option>
                   </select>
                 </div>
 
                 {/* Derivar a (shadcn Select) */}
                 <div>
-                  <label className="block text-sm font-medium text-[#9AA4B2] mb-2">Derivar a</label>
+                  <label className="block text-sm font-medium text-[#9AA4B2] mb-2">{t("chats.assignToLabel")}</label>
                   {isLoadingUsers ? (
-                    <div className="flex items-center gap-2 text-[#9AA4B2] text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Cargando usuarios...</div>
+                    <div className="flex items-center gap-2 text-[#9AA4B2] text-sm"><Loader2 className="h-4 w-4 animate-spin" /> {t("chats.loadingUsers")}</div>
                   ) : (
                     <Select
                       value={String(selectedTempAssigneeId)}
                       onValueChange={(val) => setTempValues((prev) => ({ ...prev, assigneeId: val }))}
                     >
                       <SelectTrigger className="w-full h-auto border-[#1e2533] bg-[#131722] text-[#D8DEE9] text-sm focus:ring-0 focus:ring-offset-0">
-                        <SelectValue placeholder="Seleccionar usuario" />
+                        <SelectValue placeholder={t("chats.selectUser")} />
                       </SelectTrigger>
                       <SelectContent className="bg-[#0F1117] border-[#1e2533] text-[#D8DEE9] max-h-64 overflow-y-auto">
                         {mobileEffectiveTeam.map((member) => (
@@ -497,7 +514,7 @@ export function ChatQuickBar({
                 {/* Buttons */}
                 <div className="flex gap-2 pt-4">
                   <Button onClick={handleSaveDrawer} className="flex-1 bg-[#00F7FF] text-black hover:bg-[#00F7FF]/90">
-                    Guardar
+                    {t("common.save")}
                   </Button>
                   <Button
                     variant="outline"
@@ -511,7 +528,7 @@ export function ChatQuickBar({
                     }}
                     className="flex-1 border-[#1e2533] text-[#D8DEE9] hover:bg-[#1A1F2B]"
                   >
-                    Cancelar
+                    {t("common.cancel")}
                   </Button>
                 </div>
               </div>

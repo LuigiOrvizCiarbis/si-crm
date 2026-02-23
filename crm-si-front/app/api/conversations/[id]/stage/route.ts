@@ -7,7 +7,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const token = process.env.NEXT_PUBLIC_TOKEN;
+  const auth = request.headers.get("authorization");
+  const token = auth?.replace("Bearer ", "");
 
   if (!token) {
     return NextResponse.json(

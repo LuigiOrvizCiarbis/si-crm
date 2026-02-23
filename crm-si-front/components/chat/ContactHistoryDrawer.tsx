@@ -15,8 +15,10 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Loader2, Search, MessageCircle, Calendar, User } from "lucide-react"
+import { getAuthToken } from "@/lib/api/auth-token"
 import { format } from "date-fns"
-import { es } from "date-fns/locale"
+import { es as esLocale, enUS } from "date-fns/locale"
+import { useTranslation } from "@/hooks/useTranslation"
 
 interface Message {
   id: number
@@ -61,10 +63,12 @@ export function ContactHistoryDrawer({
   contactId,
   contactName,
 }: ContactHistoryDrawerProps) {
+  const { t, language } = useTranslation()
   const [historyData, setHistoryData] = useState<ContactHistoryData | null>(null)
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const dateLocale = language === "en" ? enUS : esLocale
 
   useEffect(() => {
     if (open && contactId) {
@@ -77,16 +81,19 @@ export function ContactHistoryDrawer({
     setError(null)
     
     try {
-      const response = await fetch(`/api/contacts/${contactId}/history`)
+      const token = getAuthToken();
+      const response = await fetch(`/api/contacts/${contactId}/history`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       
       if (!response.ok) {
-        throw new Error("Error al cargar el historial")
+        throw new Error(t("chats.historyLoadError"))
       }
       
       const data = await response.json()
       setHistoryData(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido")
+      setError(err instanceof Error ? err.message : t("chats.unknownError"))
     } finally {
       setLoading(false)
     }
@@ -118,10 +125,10 @@ export function ContactHistoryDrawer({
         <DrawerHeader className="border-b shrink-0">
           <DrawerTitle className="flex items-center gap-2">
             <User className="w-5 h-5" />
-            Historial Completo de {contactName}
+            {t("chats.contactHistoryTitle")} {contactName}
           </DrawerTitle>
           <DrawerDescription>
-            Todos los mensajes en todos los canales y conversaciones
+            {t("chats.contactHistoryDesc")}
           </DrawerDescription>
         </DrawerHeader>
 
@@ -132,12 +139,12 @@ export function ContactHistoryDrawer({
               <div className="flex items-center gap-2">
                 <MessageCircle className="w-4 h-4 text-muted-foreground" />
                 <span className="font-medium">{historyData.total_messages}</span>
-                <span className="text-muted-foreground">mensajes</span>
+                <span className="text-muted-foreground">{t("chats.historyMessages")}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
                 <span className="font-medium">{historyData.total_conversations}</span>
-                <span className="text-muted-foreground">conversaciones</span>
+                <span className="text-muted-foreground">{t("chats.historyConversations")}</span>
               </div>
             </div>
           )}
@@ -145,7 +152,7 @@ export function ContactHistoryDrawer({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar en el historial..."
+              placeholder={t("chats.searchHistoryPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -167,7 +174,7 @@ export function ContactHistoryDrawer({
               <div className="text-center py-12">
                 <p className="text-destructive">{error}</p>
                 <Button onClick={fetchHistory} variant="outline" className="mt-4">
-                  Reintentar
+                  {t("chats.retry")}
                 </Button>
               </div>
             )}
@@ -182,7 +189,7 @@ export function ContactHistoryDrawer({
                       <div className="flex-1">
                         <h3 className="font-semibold">{channel.channel_name}</h3>
                         <p className="text-xs text-muted-foreground">
-                          {channel.message_count} mensajes
+                          {channel.message_count} {t("chats.historyMessages")}
                         </p>
                       </div>
                       <Badge variant="secondary">{channel.channel_type}</Badge>
@@ -206,7 +213,7 @@ export function ContactHistoryDrawer({
                           >
                             <p className="text-sm">{message.content}</p>
                             <p className="text-xs opacity-70 mt-1">
-                              {format(new Date(message.delivered_at), "PPp", { locale: es })}
+                              {format(new Date(message.delivered_at), "PPp", { locale: dateLocale })}
                             </p>
                           </div>
                         </div>
@@ -217,7 +224,7 @@ export function ContactHistoryDrawer({
 
                 {filteredHistory.every((ch) => ch.messages.length === 0) && (
                   <div className="text-center py-12 text-muted-foreground">
-                    No se encontraron mensajes que coincidan con tu búsqueda
+                    {t("chats.historyNoMatches")}
                   </div>
                 )}
               </div>
@@ -225,7 +232,7 @@ export function ContactHistoryDrawer({
 
             {!loading && !error && !historyData && (
               <div className="text-center py-12 text-muted-foreground">
-                No hay historial disponible
+                {t("chats.historyUnavailable")}
               </div>
             )}
             </div>
@@ -234,7 +241,7 @@ export function ContactHistoryDrawer({
 
         <DrawerFooter className="border-t shrink-0">
           <DrawerClose asChild>
-            <Button variant="outline">Cerrar</Button>
+            <Button variant="outline">{t("chats.close")}</Button>
           </DrawerClose>
         </DrawerFooter>
       </DrawerContent>
