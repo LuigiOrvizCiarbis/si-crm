@@ -1,17 +1,18 @@
-# Ignorar archivos de entorno
+# Environment and secrets
 .env
-.env.backup
-.env.production
+.env.*
+!.env.example
 
-# Ignorar archivos de Docker
-docker-compose.override.yml
+# Docker files
+docker-compose*.yml
+docker-compose*.yaml
+Dockerfile
 
-# Ignorar volúmenes locales
-/postgres-data/
+# Dependencies (installed inside container)
 /vendor/
 /node_modules/
 
-# Ignorar archivos de Laravel
+# Storage artifacts
 /storage/*.key
 /storage/logs/*
 /storage/framework/cache/*
@@ -19,6 +20,30 @@ docker-compose.override.yml
 /storage/framework/views/*
 /bootstrap/cache/*
 
-# Ignorar archivos del sistema
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# IDE/editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+/tests/
+phpunit.xml
+.phpunit.result.cache
+
+# Documentation
+README*
+*.md
+docs/
+
+# OS files
 .DS_Store
 Thumbs.db
+
+# Local volumes
+/postgres-data/
