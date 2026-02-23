@@ -25,6 +25,6 @@ jobs:
             docker compose exec -T app php artisan config:clear
             docker compose exec -T app php artisan cache:clear
 
-            # Frontend
+            # Frontend (production build)
             cd ../crm-si-front
-            docker compose up -d --build
+            docker compose -f docker-compose.prod.yaml up -d --build

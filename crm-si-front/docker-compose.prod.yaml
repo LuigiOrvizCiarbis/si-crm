@@ -1,0 +1,23 @@
+services:
+  app:
+    build:
+      context: .
+      target: runner
+      args:
+        NEXT_PUBLIC_FACEBOOK_APP_ID: ${NEXT_PUBLIC_FACEBOOK_APP_ID:-1135332922070411}
+        NEXT_PUBLIC_FACEBOOK_CONFIGURATION_ID: ${NEXT_PUBLIC_FACEBOOK_CONFIGURATION_ID:-827435583310243}
+        NEXT_PUBLIC_FACEBOOK_GRAPH_API_VERSION: ${NEXT_PUBLIC_FACEBOOK_GRAPH_API_VERSION:-v24.0}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - NODE_ENV=production
+      - FACEBOOK_APP_SECRET=${FACEBOOK_APP_SECRET:-c949a93e57224c735042187ff4400e07}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
