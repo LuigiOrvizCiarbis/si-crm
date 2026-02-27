@@ -30,14 +30,11 @@ services:
       CACHE_DRIVER: redis
       SESSION_DRIVER: redis
       QUEUE_CONNECTION: redis
-      MAIL_MAILER: ${MAIL_MAILER:-smtp}
-      MAIL_HOST: ${MAIL_HOST:-sandbox.smtp.mailtrap.io}
-      MAIL_PORT: ${MAIL_PORT:-2525}
-      MAIL_USERNAME: ${MAIL_USERNAME}
-      MAIL_PASSWORD: ${MAIL_PASSWORD}
-      MAIL_ENCRYPTION: ${MAIL_ENCRYPTION:-tls}
+      MAIL_MAILER: ${MAIL_MAILER:-resend}
+      RESEND_KEY: ${RESEND_KEY}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-noreply@socialimpulse.com}
       MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Social Impulse}
+      FRONTEND_URL: ${FRONTEND_URL:-https://sicrmapp.com}
     env_file:
       - .env
     mem_limit: 512m
