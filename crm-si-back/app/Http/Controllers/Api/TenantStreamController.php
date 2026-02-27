@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
@@ -21,6 +22,9 @@ class TenantStreamController extends Controller
             echo "data: " . json_encode(['status' => 'connected', 'tenant_id' => $tenantId]) . "\n\n";
             if (ob_get_level() > 0) ob_flush();
             flush();
+
+            // Liberar conexión DB antes del subscribe bloqueante
+            DB::disconnect('pgsql');
 
             try {
                 $redis = Redis::connection();
