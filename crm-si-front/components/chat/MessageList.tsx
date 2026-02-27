@@ -95,6 +95,7 @@ export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: Me
                     {new Date(msg.delivered_at).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
+                      hour12: true,
                     })}
                   </span>
                 )}
