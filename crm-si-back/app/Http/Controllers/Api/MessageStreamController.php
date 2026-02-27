@@ -53,11 +53,14 @@ class MessageStreamController extends Controller
                     }
                 }
 
+                // Liberar conexión DB entre polls para no agotar max_connections
+                DB::disconnect('pgsql');
+
                 // Enviar heartbeat cada 15 segundos para mantener conexión
                 $this->sendHeartbeat();
 
-                // Esperar 1 segundo antes de siguiente check
-                sleep(1);
+                // Esperar 2 segundos antes de siguiente check
+                sleep(2);
             }
         }, 200, [
             'Content-Type' => 'text/event-stream',

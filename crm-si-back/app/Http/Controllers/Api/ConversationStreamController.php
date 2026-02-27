@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\Message;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
@@ -40,6 +41,9 @@ class ConversationStreamController extends Controller
                 if (ob_get_level() > 0) ob_flush();
                 flush();
             }
+
+            // Liberar conexión DB antes del subscribe bloqueante
+            DB::disconnect('pgsql');
 
             // 3. Suscripción a Redis (Bloqueante pero eficiente)
             // El servidor se queda "dormido" aquí hasta que llega un evento
