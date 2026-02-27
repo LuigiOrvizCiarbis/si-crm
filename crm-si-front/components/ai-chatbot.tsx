@@ -207,7 +207,7 @@ export function AIChatbot() {
                   </div>
 
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-muted-foreground">{message.timestamp.toLocaleTimeString()}</span>
+                    <span className="text-xs text-muted-foreground">{message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}</span>
                     {message.leadScore && (
                       <Badge variant="outline" className="text-xs">
                         Score: {message.leadScore}%
