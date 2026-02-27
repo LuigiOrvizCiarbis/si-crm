@@ -74,6 +74,7 @@ const ConversationCard = memo(function ConversationCard({
                 ? new Date(conversation.last_message_at).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
+                    hour12: true,
                   })
                 : "--:--"}
             </span>
