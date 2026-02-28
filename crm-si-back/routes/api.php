@@ -5,11 +5,11 @@ use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ContactHistoryController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationStreamController;
-use App\Http\Controllers\Api\TenantStreamController;
 use App\Http\Controllers\Api\MessageController;
-use App\Http\Controllers\Api\MessageStreamController;
 use App\Http\Controllers\Api\PipelineStageController;
+use App\Http\Controllers\Api\TenantStreamController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\WhatsAppTemplateController;
 use App\Http\Controllers\WhatsAppController;
 use App\Models\Tenant;
 use App\Models\User;
@@ -18,13 +18,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rules\Password as PasswordRule;
-use Nette\Utils\Json;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
-Route::post('login', function (Request $request):JsonResponse {
+Route::post('login', function (Request $request): JsonResponse {
     $request->validate([
         'email' => 'required|email',
         'password' => 'required',
@@ -32,7 +30,7 @@ Route::post('login', function (Request $request):JsonResponse {
 
     $user = User::where('email', $request->email)->first();
 
-    if (!$user || !Hash::check($request->password, $user->password)) {
+    if (! $user || ! Hash::check($request->password, $user->password)) {
         return response()->json(['message' => 'Credenciales inválidas'], 401);
     }
 
@@ -45,7 +43,7 @@ Route::post('login', function (Request $request):JsonResponse {
     ]);
 });
 
-Route::post('register', function (Request $request):JsonResponse {
+Route::post('register', function (Request $request): JsonResponse {
     $request->validate([
         'name' => 'required|string|max:255',
         'email' => 'required|email|unique:users,email',
@@ -54,7 +52,7 @@ Route::post('register', function (Request $request):JsonResponse {
 
     // Crear tenant para el nuevo usuario
     $tenant = Tenant::create([
-        'name' => $request->name . "'s Workspace",
+        'name' => $request->name."'s Workspace",
     ]);
 
     $user = User::create([
@@ -73,21 +71,22 @@ Route::post('register', function (Request $request):JsonResponse {
         'token' => $token,
         'user' => $user,
         'email_verified' => false,
-        'message' => 'Cuenta creada. Por favor verifica tu email.'
+        'message' => 'Cuenta creada. Por favor verifica tu email.',
     ], 201);
 });
 
 // Verificar email con link firmado
-Route::get('email/verify/{id}/{hash}', function (Request $request, $id, $hash):JsonResponse | RedirectResponse {
+Route::get('email/verify/{id}/{hash}', function (Request $request, $id, $hash): JsonResponse|RedirectResponse {
     $user = User::findOrFail($id);
 
     // Verificar que el hash coincide
-    if (!hash_equals(sha1($user->getEmailForVerification()), $hash)) {
+    if (! hash_equals(sha1($user->getEmailForVerification()), $hash)) {
         if ($request->wantsJson() || $request->is('api/*')) {
             return response()->json(['message' => 'Link de verificación inválido'], 400);
         }
         $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
-        return redirect($frontendUrl . '/verify-email/confirm?error=invalid');
+
+        return redirect($frontendUrl.'/verify-email/confirm?error=invalid');
     }
 
     // Verificar la firma y expiración
@@ -97,12 +96,13 @@ Route::get('email/verify/{id}/{hash}', function (Request $request, $id, $hash):J
 
     $expectedSignature = hash_hmac('sha256', "{$id}/{$hash}?expires={$expires}", $appKey);
 
-    if (!hash_equals($expectedSignature, $signature) || now()->timestamp > (int)$expires) {
+    if (! hash_equals($expectedSignature, $signature) || now()->timestamp > (int) $expires) {
         if ($request->wantsJson() || $request->is('api/*')) {
             return response()->json(['message' => 'El link de verificación ha expirado o es inválido'], 400);
         }
         $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
-        return redirect($frontendUrl . '/verify-email/confirm?error=expired');
+
+        return redirect($frontendUrl.'/verify-email/confirm?error=expired');
     }
 
     if ($user->hasVerifiedEmail()) {
@@ -110,7 +110,8 @@ Route::get('email/verify/{id}/{hash}', function (Request $request, $id, $hash):J
             return response()->json(['message' => 'Email ya verificado', 'already' => true]);
         }
         $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
-        return redirect($frontendUrl . '/verify-email/confirm?already=true');
+
+        return redirect($frontendUrl.'/verify-email/confirm?already=true');
     }
 
     $user->markEmailAsVerified();
@@ -121,7 +122,8 @@ Route::get('email/verify/{id}/{hash}', function (Request $request, $id, $hash):J
     }
 
     $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
-    return redirect($frontendUrl . '/verify-email/confirm?success=true');
+
+    return redirect($frontendUrl.'/verify-email/confirm?success=true');
 })->name('verification.verify');
 
 // Reenviar email de verificación
@@ -139,12 +141,12 @@ Route::post('email/resend', function (Request $request) {
     $user->sendEmailVerificationNotification();
 
     return response()->json([
-        'message' => 'Email de verificación reenviado'
+        'message' => 'Email de verificación reenviado',
     ]);
 });
 
 // Cambiar email (si se equivocó al registrarse)
-Route::middleware('auth:sanctum')->post('email/change', function (Request $request):JsonResponse  {
+Route::middleware('auth:sanctum')->post('email/change', function (Request $request): JsonResponse {
     $request->validate([
         'email' => 'required|email|unique:users,email',
         'password' => 'required',
@@ -153,7 +155,7 @@ Route::middleware('auth:sanctum')->post('email/change', function (Request $reque
     $user = $request->user();
 
     // Verificar contraseña
-    if (!Hash::check($request->password, $user->password)) {
+    if (! Hash::check($request->password, $user->password)) {
         return response()->json(['message' => 'Contraseña incorrecta'], 401);
     }
 
@@ -167,11 +169,11 @@ Route::middleware('auth:sanctum')->post('email/change', function (Request $reque
 
     return response()->json([
         'user' => $user,
-        'message' => 'Email actualizado. Por favor verifica el nuevo email.'
+        'message' => 'Email actualizado. Por favor verifica el nuevo email.',
     ]);
 });
 
-Route::post('forgot-password', function (Request $request):JsonResponse  {
+Route::post('forgot-password', function (Request $request): JsonResponse {
     $request->validate([
         'email' => 'required|email|exists:users,email',
     ]);
@@ -182,12 +184,12 @@ Route::post('forgot-password', function (Request $request):JsonResponse  {
 
     if ($status === Password::RESET_LINK_SENT) {
         return response()->json([
-            'message' => 'Te hemos enviado un correo con instrucciones para restablecer tu contraseña'
+            'message' => 'Te hemos enviado un correo con instrucciones para restablecer tu contraseña',
         ]);
     }
 
     return response()->json([
-        'message' => 'No pudimos enviar el correo. Intenta de nuevo.'
+        'message' => 'No pudimos enviar el correo. Intenta de nuevo.',
     ], 400);
 });
 
@@ -202,30 +204,31 @@ Route::post('reset-password', function (Request $request) {
         $request->only('email', 'password', 'password_confirmation', 'token'),
         function ($user, $password) {
             $user->forceFill([
-                'password' => Hash::make($password)
+                'password' => Hash::make($password),
             ])->save();
         }
     );
 
     if ($status === Password::PASSWORD_RESET) {
         return response()->json([
-            'message' => 'Contraseña restablecida exitosamente'
+            'message' => 'Contraseña restablecida exitosamente',
         ]);
     }
 
     return response()->json([
-        'message' => 'No se pudo restablecer la contraseña. El enlace puede haber expirado.'
+        'message' => 'No se pudo restablecer la contraseña. El enlace puede haber expirado.',
     ], 400);
 });
 
 Route::middleware('auth:sanctum')->group(function () {
 
-    Route::get('user', function (Request $request):JsonResponse  {
+    Route::get('user', function (Request $request): JsonResponse {
         return response()->json($request->user());
     });
 
-    Route::post('logout', function (Request $request):JsonResponse  {
+    Route::post('logout', function (Request $request): JsonResponse {
         $request->user()->currentAccessToken()->delete();
+
         return response()->json(['message' => 'Sesión cerrada']);
     });
 
@@ -265,6 +268,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('conversations/{id}/users', [ConversationController::class, 'assignUsers']);
     Route::post('conversations/{id}/users/add', [ConversationController::class, 'addUser']);
     Route::delete('conversations/{id}/users/{userId}', [ConversationController::class, 'removeUser']);
+
+    Route::get('channels/{channel}/templates', [WhatsAppTemplateController::class, 'index']);
+    Route::post('channels/{channel}/templates/sync', [WhatsAppTemplateController::class, 'sync']);
+    Route::post('conversations/{conversation}/send-template', [WhatsAppTemplateController::class, 'send']);
 });
 
 Route::match(['get', 'post'], 'whatsapp-webhook', [WhatsAppController::class, 'webhook']);

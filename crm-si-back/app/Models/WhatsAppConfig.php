@@ -3,15 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 
 class WhatsAppConfig extends Model
 {
-
     protected $table = 'whatsapp_configs';
+
     protected $fillable = [
         'phone_number_id',
         'phone_number',
@@ -27,7 +26,6 @@ class WhatsAppConfig extends Model
         'bussines_token',
     ];
 
-
     /**
      * Relación con Channels (una config puede pertenecer a varios canales)
      */
@@ -36,18 +34,27 @@ class WhatsAppConfig extends Model
         return $this->hasMany(Channel::class, 'whatsapp_config_id');
     }
 
-     public function getDecryptedToken(): ?string
+    /**
+     * Relación con WhatsApp Templates
+     */
+    public function templates(): HasMany
     {
-        if (!$this->bussines_token) {
+        return $this->hasMany(WhatsAppTemplate::class);
+    }
+
+    public function getDecryptedToken(): ?string
+    {
+        if (! $this->bussines_token) {
             return null;
         }
 
         try {
             return Crypt::decryptString($this->bussines_token);
         } catch (\Exception $e) {
-            Log::error('Error decrypting token for channel ' . $this->id, [
-                'error' => $e->getMessage()
+            Log::error('Error decrypting token for channel '.$this->id, [
+                'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
