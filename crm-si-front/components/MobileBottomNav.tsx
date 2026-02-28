@@ -98,7 +98,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
               variant="ghost"
               size="sm"
               className={cn(
-                "flex flex-col items-center gap-1 h-auto py-2 px-1 relative min-h-[44px]",
+                "flex flex-col items-center gap-1 h-auto py-2 px-1 relative min-h-11",
                 item.isActive ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -121,7 +121,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="flex flex-col items-center gap-1 h-auto py-2 px-1 text-muted-foreground hover:text-foreground min-h-[44px]"
+              className="flex flex-col items-center gap-1 h-auto py-2 px-1 text-muted-foreground hover:text-foreground min-h-11"
             >
               <Menu className="w-5 h-5" />
               <span className="text-xs font-medium">Menú</span>
