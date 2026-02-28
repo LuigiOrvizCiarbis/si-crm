@@ -93,11 +93,16 @@ export default function ChatsPage() {
         }
 
         // Reemplazar mensaje optimista si existe
-        const optimisticIndex = messages.findIndex((m: any) =>
-          m.status === 'sending' &&
-          m.content === newMessage.content &&
-          Math.abs(new Date(m.created_at).getTime() - new Date(newMessage.created_at).getTime()) < 5000
-        );
+        const optimisticIndex = messages.findIndex((m: any) => {
+          if (m.status !== 'sending') return false;
+          const timeDiff = Math.abs(new Date(m.created_at).getTime() - new Date(newMessage.created_at).getTime());
+          if (timeDiff > 10000) return false;
+          // Exact match
+          if (m.content === newMessage.content) return true;
+          // Template match: both start with 📋
+          if (m.content?.startsWith('📋') && newMessage.content?.startsWith('📋')) return true;
+          return false;
+        });
 
         if (optimisticIndex !== -1) {
           const updatedMessages = [...messages];
