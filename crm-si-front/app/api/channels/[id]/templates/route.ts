@@ -1,0 +1,26 @@
+import { NextRequest, NextResponse } from "next/server";
+import { proxyToLaravel } from "@/lib/api/proxy-helper";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const authHeader = request.headers.get("authorization") || "";
+
+  if (!authHeader) {
+    return NextResponse.json({ error: "Authorization header required" }, { status: 401 });
+  }
+
+  try {
+    const { data, status } = await proxyToLaravel(
+      `/api/channels/${id}/templates`,
+      authHeader
+    );
+    return NextResponse.json(data, { status });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 502 });
+  }
+}

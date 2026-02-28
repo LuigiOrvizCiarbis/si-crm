@@ -5,6 +5,12 @@ import { Input } from "@/components/ui/input"
 import { useTranslation } from "@/hooks/useTranslation"
 import { Paperclip, Smile, Send } from "lucide-react"
 import { KeyboardEvent, SyntheticEvent } from "react"
+import dynamic from "next/dynamic"
+
+const TemplatePicker = dynamic(
+  () => import("./TemplatePicker").then(m => m.TemplatePicker),
+  { ssr: false }
+)
 
 interface MessageInputProps {
   value: string
@@ -12,6 +18,9 @@ interface MessageInputProps {
   onSend: () => void
   disabled?: boolean
   placeholder?: string
+  channelId?: number | null
+  conversationId?: number | null
+  onSendTemplate?: (content: string) => void
 }
 
 export function MessageInput({
@@ -20,6 +29,9 @@ export function MessageInput({
   onSend,
   disabled = false,
   placeholder,
+  channelId,
+  conversationId,
+  onSendTemplate,
 }: MessageInputProps) {
   const { t } = useTranslation()
   const resolvedPlaceholder = placeholder ?? t("chats.messagePlaceholder")
@@ -45,6 +57,14 @@ export function MessageInput({
         <Button variant="ghost" size="sm" disabled={disabled}>
           <Paperclip className="w-4 h-4" />
         </Button>
+        {channelId && conversationId && onSendTemplate && (
+          <TemplatePicker
+            channelId={channelId}
+            conversationId={conversationId}
+            onSend={onSendTemplate}
+            disabled={disabled}
+          />
+        )}
         <Input
           placeholder={resolvedPlaceholder}
           className="flex-1"
