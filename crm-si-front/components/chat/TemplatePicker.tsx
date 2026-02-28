@@ -103,7 +103,7 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
 
       const preview = buildPreview(selected.components, paramValues)
       const summary = preview
-        ? `📋 Template: ${selected.name} (${preview.substring(0, 50)}${preview.length > 50 ? "..." : ""})`
+        ? `📋 ${selected.name}\n${preview}`
         : `📋 Template: ${selected.name}`
       onSend(summary)
       setOpen(false)

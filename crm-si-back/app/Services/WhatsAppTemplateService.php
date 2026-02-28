@@ -155,19 +155,47 @@ class WhatsAppTemplateService
 
     /**
      * Construir resumen legible del contenido del template.
+     *
+     * Intenta resolver el body text real del template reemplazando los
+     * placeholders {{1}}, {{2}}, etc. con los parámetros enviados.
+     * Si no hay body, cae al nombre del template como fallback.
      */
     private function buildContentSummary(WhatsAppTemplate $template, array $components): string
     {
-        $params = [];
+        // Extraer parámetros del body desde los components enviados
+        $bodyParams = [];
         foreach ($components as $component) {
-            foreach ($component['parameters'] ?? [] as $param) {
-                $params[] = $param['text'] ?? $param['image']['link'] ?? $param['document']['link'] ?? '...';
+            $type = strtolower($component['type'] ?? '');
+            if ($type === 'body') {
+                foreach ($component['parameters'] ?? [] as $param) {
+                    $bodyParams[] = $param['text'] ?? $param['image']['link'] ?? $param['document']['link'] ?? '...';
+                }
             }
         }
 
+        // Buscar el body text del template guardado
+        $bodyText = null;
+        foreach ($template->components ?? [] as $comp) {
+            $type = strtoupper($comp['type'] ?? '');
+            if ($type === 'BODY' && ! empty($comp['text'])) {
+                $bodyText = $comp['text'];
+                break;
+            }
+        }
+
+        // Si tenemos body text, reemplazar placeholders con los parámetros
+        if ($bodyText) {
+            foreach ($bodyParams as $i => $value) {
+                $bodyText = str_replace('{{'.($i + 1).'}}', $value, $bodyText);
+            }
+
+            return "📋 {$template->name}\n{$bodyText}";
+        }
+
+        // Fallback: solo el nombre del template
         $summary = "📋 Template: {$template->name}";
-        if (! empty($params)) {
-            $summary .= ' ('.implode(', ', $params).')';
+        if (! empty($bodyParams)) {
+            $summary .= ' ('.implode(', ', $bodyParams).')';
         }
 
         return $summary;
