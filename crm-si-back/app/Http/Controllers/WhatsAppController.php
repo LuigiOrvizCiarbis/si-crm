@@ -352,6 +352,10 @@ class WhatsAppController extends Controller
                     $field = $change['field'] ?? '';
                     $value = $change['value'] ?? [];
 
+                    if ($field === 'messages' && isset($value['statuses'])) {
+                        Log::info('WhatsApp status update', ['statuses' => $value['statuses']]);
+                    }
+
                     if ($field === 'messages' && isset($value['messages'])) {
                         $this->messageService->processIncomingMessage($change);
 
