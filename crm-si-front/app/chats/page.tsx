@@ -414,6 +414,36 @@ export default function ChatsPage() {
 
   }, [router])
 
+  const handleSendTemplate = (content: string) => {
+    if (!selectedConversationId) return;
+
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
+    const optimisticMessage: any = {
+      id: tempId,
+      content,
+      type: "text",
+      created_at: new Date().toISOString(),
+      status: "sending",
+      conversation_id: selectedConversationId,
+      direction: "outbound",
+      sender_type: "user",
+    };
+
+    setCurrentConversation((prev) => {
+      if (!prev) return prev;
+      return { ...prev, messages: [...(prev.messages || []), optimisticMessage] };
+    });
+
+    setConversations((prevConversations) => {
+      const index = prevConversations.findIndex((c) => c.id === selectedConversationId);
+      if (index === -1) return prevConversations;
+      const updated = { ...prevConversations[index], last_message: content, updated_at: new Date().toISOString() };
+      const next = [...prevConversations];
+      next.splice(index, 1);
+      return [updated, ...next];
+    });
+  };
+
   const handleSendMessage = async () => {
     if (!message.trim() || !selectedConversationId) return;
 
@@ -620,6 +650,9 @@ export default function ChatsPage() {
                 onChange={setMessage}
                 onSend={handleSendMessage}
                 disabled={isLoading}
+                channelId={activeConversation?.channel?.id ?? activeConversation?.channelId}
+                conversationId={selectedConversationId}
+                onSendTemplate={handleSendTemplate}
               />
             </>
 

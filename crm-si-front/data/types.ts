@@ -95,6 +95,29 @@ export interface FilterButton {
   icon: React.ReactNode
 }
 
+export interface TemplateComponent {
+  type: string
+  text?: string
+  format?: string
+  parameters?: { type: string; text?: string }[]
+  buttons?: { type: string; text: string; url?: string; phone_number?: string }[]
+}
+
+export interface WhatsAppTemplate {
+  id: number
+  tenant_id: number
+  whatsapp_config_id: number
+  external_id: string
+  name: string
+  language: string
+  category: "MARKETING" | "UTILITY" | "AUTHENTICATION"
+  status: "APPROVED" | "PENDING" | "REJECTED" | "DISABLED"
+  components: TemplateComponent[]
+  synced_at: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Message {
   id: number
   conversation_id: number
