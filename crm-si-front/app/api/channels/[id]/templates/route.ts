@@ -21,6 +21,7 @@ export async function GET(
     );
     return NextResponse.json(data, { status });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 502 });
+    console.error("[Proxy] GET /channels/templates failed:", error.message);
+    return NextResponse.json({ error: "Backend connection failed" }, { status: 502 });
   }
 }

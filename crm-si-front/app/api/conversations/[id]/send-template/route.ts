@@ -23,6 +23,7 @@ export async function POST(
     );
     return NextResponse.json(data, { status });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 502 });
+    console.error("[Proxy] POST /conversations/send-template failed:", error.message);
+    return NextResponse.json({ error: "Backend connection failed" }, { status: 502 });
   }
 }
