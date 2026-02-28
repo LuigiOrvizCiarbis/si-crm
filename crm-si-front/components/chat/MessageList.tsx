@@ -78,6 +78,7 @@ export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: Me
       <div className="space-y-4">
         {messages.map((msg) => {
           const isUser = msg.sender_type === "user"
+          const isTemplate = msg.content?.startsWith("📋")
           return (
             <div
               key={msg.id}
@@ -89,7 +90,20 @@ export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: Me
                     : "bg-muted"
                   }`}
               >
-                <p className="text-sm">{msg.content}</p>
+                {isTemplate ? (
+                  <div className="space-y-1">
+                    <span className="text-xs font-medium opacity-75">
+                      {msg.content.split("\n")[0]}
+                    </span>
+                    {msg.content.includes("\n") && (
+                      <p className="text-sm whitespace-pre-wrap">
+                        {msg.content.substring(msg.content.indexOf("\n") + 1)}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm">{msg.content}</p>
+                )}
                 {msg.delivered_at && (
                   <span className="text-xs text-muted-foreground">
                     {new Date(msg.delivered_at).toLocaleTimeString([], {
