@@ -80,8 +80,11 @@ export default function ChatsPage() {
 
   const isTemplateFallbackContent = useCallback((content?: string) => {
     if (!content) return false;
-    const normalized = content.trim();
-    return normalized.startsWith("📋 Template:");
+    const raw = content.trim();
+    const normalized = raw.replace(/^[^A-Za-z0-9]+/, "").trim();
+    const isLegacyTemplatePrefix = normalized.startsWith("Template:");
+    const isSingleLineTemplateWithoutBody = raw.startsWith("📋") && !raw.includes("\n");
+    return isLegacyTemplatePrefix || isSingleLineTemplateWithoutBody;
   }, []);
 
   const normalizeIncomingTemplateContent = useCallback(

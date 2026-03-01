@@ -12,6 +12,7 @@ interface MessageListProps {
 function parseTemplateContent(content: string): { isTemplate: boolean; title: string; body: string } {
   const trimmed = (content || "").trim()
   if (!trimmed) return { isTemplate: false, title: "", body: "" }
+  const withoutLeadingIcons = trimmed.replace(/^[^A-Za-z0-9]+/, "").trim()
 
   if (trimmed.startsWith("📋")) {
     const withoutIcon = trimmed.replace(/^📋\s*/, "")
@@ -33,6 +34,15 @@ function parseTemplateContent(content: string): { isTemplate: boolean; title: st
       }
     }
 
+    const legacyWithBodyNoClose = withoutIcon.match(/^Template:\s*([^(]+)\s*\(([\s\S]+)$/i)
+    if (legacyWithBodyNoClose) {
+      return {
+        isTemplate: true,
+        title: `📋 ${legacyWithBodyNoClose[1].trim()}`,
+        body: legacyWithBodyNoClose[2].trim(),
+      }
+    }
+
     const legacyNameOnly = withoutIcon.match(/^Template:\s*([\s\S]+)$/i)
     if (legacyNameOnly) {
       return {
@@ -49,12 +59,30 @@ function parseTemplateContent(content: string): { isTemplate: boolean; title: st
     }
   }
 
-  const plainLegacy = trimmed.match(/^Template:\s*([^(]+)\s*\(([\s\S]+)\)$/i)
+  const plainLegacy = withoutLeadingIcons.match(/^Template:\s*([^(]+)\s*\(([\s\S]+)\)$/i)
   if (plainLegacy) {
     return {
       isTemplate: true,
       title: `📋 ${plainLegacy[1].trim()}`,
       body: plainLegacy[2].trim(),
+    }
+  }
+
+  const plainLegacyNoClose = withoutLeadingIcons.match(/^Template:\s*([^(]+)\s*\(([\s\S]+)$/i)
+  if (plainLegacyNoClose) {
+    return {
+      isTemplate: true,
+      title: `📋 ${plainLegacyNoClose[1].trim()}`,
+      body: plainLegacyNoClose[2].trim(),
+    }
+  }
+
+  const plainNameOnly = withoutLeadingIcons.match(/^Template:\s*([\s\S]+)$/i)
+  if (plainNameOnly) {
+    return {
+      isTemplate: true,
+      title: `📋 ${plainNameOnly[1].trim()}`,
+      body: "",
     }
   }
 
