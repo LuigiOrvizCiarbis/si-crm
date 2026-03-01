@@ -192,12 +192,12 @@ class WhatsAppTemplateService
             return "📋 {$template->name}\n{$bodyText}";
         }
 
-        // Fallback: solo el nombre del template
-        $summary = "📋 Template: {$template->name}";
+        // Fallback: si hay parámetros de body, mostrarlos en segunda línea para UI legible.
         if (! empty($bodyParams)) {
-            $summary .= ' ('.implode(', ', $bodyParams).')';
+            return "📋 {$template->name}\n".implode(', ', $bodyParams);
         }
 
-        return $summary;
+        // Último fallback: solo nombre.
+        return "📋 {$template->name}";
     }
 }

@@ -9,6 +9,58 @@ interface MessageListProps {
   isLoadingMore: boolean
 }
 
+function parseTemplateContent(content: string): { isTemplate: boolean; title: string; body: string } {
+  const trimmed = (content || "").trim()
+  if (!trimmed) return { isTemplate: false, title: "", body: "" }
+
+  if (trimmed.startsWith("📋")) {
+    const withoutIcon = trimmed.replace(/^📋\s*/, "")
+    if (withoutIcon.includes("\n")) {
+      const [firstLine, ...rest] = withoutIcon.split("\n")
+      return {
+        isTemplate: true,
+        title: `📋 ${firstLine.trim()}`,
+        body: rest.join("\n").trim(),
+      }
+    }
+
+    const legacyWithBody = withoutIcon.match(/^Template:\s*([^(]+)\s*\(([\s\S]+)\)$/i)
+    if (legacyWithBody) {
+      return {
+        isTemplate: true,
+        title: `📋 ${legacyWithBody[1].trim()}`,
+        body: legacyWithBody[2].trim(),
+      }
+    }
+
+    const legacyNameOnly = withoutIcon.match(/^Template:\s*([\s\S]+)$/i)
+    if (legacyNameOnly) {
+      return {
+        isTemplate: true,
+        title: `📋 ${legacyNameOnly[1].trim()}`,
+        body: "",
+      }
+    }
+
+    return {
+      isTemplate: true,
+      title: `📋 ${withoutIcon.trim()}`,
+      body: "",
+    }
+  }
+
+  const plainLegacy = trimmed.match(/^Template:\s*([^(]+)\s*\(([\s\S]+)\)$/i)
+  if (plainLegacy) {
+    return {
+      isTemplate: true,
+      title: `📋 ${plainLegacy[1].trim()}`,
+      body: plainLegacy[2].trim(),
+    }
+  }
+
+  return { isTemplate: false, title: "", body: "" }
+}
+
 export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   // Usamos Refs para guardar estado sin provocar re-renders visuales
@@ -78,7 +130,7 @@ export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: Me
       <div className="space-y-4">
         {messages.map((msg) => {
           const isUser = msg.sender_type === "user"
-          const isTemplate = msg.content?.startsWith("📋")
+          const parsed = parseTemplateContent(msg.content || "")
           return (
             <div
               key={msg.id}
@@ -90,14 +142,14 @@ export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: Me
                     : "bg-muted"
                   }`}
               >
-                {isTemplate ? (
+                {parsed.isTemplate ? (
                   <div className="space-y-1">
                     <span className="text-xs font-medium opacity-75">
-                      {msg.content.split("\n")[0]}
+                      {parsed.title}
                     </span>
-                    {msg.content.includes("\n") && (
+                    {parsed.body && (
                       <p className="text-sm whitespace-pre-wrap">
-                        {msg.content.substring(msg.content.indexOf("\n") + 1)}
+                        {parsed.body}
                       </p>
                     )}
                   </div>
