@@ -14,4 +14,4 @@ services:
       - .env.local
     environment:
       - NODE_ENV=development
-    command: pnpm run dev
+    command: pnpm run dev:https
