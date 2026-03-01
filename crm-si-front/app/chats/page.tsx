@@ -78,6 +78,31 @@ export default function ChatsPage() {
     conversationsRef.current = conversations;
   }, [conversations]);
 
+  const isTemplateFallbackContent = useCallback((content?: string) => {
+    if (!content) return false;
+    const normalized = content.trim();
+    return normalized.startsWith("📋 Template:");
+  }, []);
+
+  const normalizeIncomingTemplateContent = useCallback(
+    (incomingContent?: string, optimisticContent?: string) => {
+      if (!incomingContent) return incomingContent ?? "";
+      if (!optimisticContent) return incomingContent;
+
+      const incomingIsFallback = isTemplateFallbackContent(incomingContent);
+      const optimisticHasPreview =
+        optimisticContent.startsWith("📋") && optimisticContent.includes("\n");
+
+      // Si el backend devolvió fallback corto del template, conservamos el preview optimista.
+      if (incomingIsFallback && optimisticHasPreview) {
+        return optimisticContent;
+      }
+
+      return incomingContent;
+    },
+    [isTemplateFallbackContent]
+  );
+
 
   const handleRealTimeMessage = useCallback((newMessage: Message) => {
     // 1. Actualizar el chat abierto (si coincide el ID)
@@ -106,7 +131,14 @@ export default function ChatsPage() {
 
         if (optimisticIndex !== -1) {
           const updatedMessages = [...messages];
-          updatedMessages[optimisticIndex] = newMessage;
+          const optimisticMessage = messages[optimisticIndex] as any;
+          updatedMessages[optimisticIndex] = {
+            ...newMessage,
+            content: normalizeIncomingTemplateContent(
+              newMessage.content,
+              optimisticMessage?.content
+            ),
+          };
           return { ...prev, messages: updatedMessages };
         }
 
@@ -121,7 +153,10 @@ export default function ChatsPage() {
 
       const updatedConversation = {
         ...prevConversations[index],
-        last_message: newMessage.content,
+        last_message: normalizeIncomingTemplateContent(
+          newMessage.content,
+          prevConversations[index].last_message
+        ),
         updated_at: newMessage.created_at,
       };
 
@@ -129,7 +164,7 @@ export default function ChatsPage() {
       newConversations.splice(index, 1);
       return [updatedConversation, ...newConversations];
     });
-  }, [selectedConversationId]);
+  }, [normalizeIncomingTemplateContent, selectedConversationId]);
 
 
 
@@ -152,7 +187,10 @@ export default function ChatsPage() {
       if (idx !== -1) {
         const updated = {
           ...prev[idx],
-          last_message: message.content,
+          last_message: normalizeIncomingTemplateContent(
+            message.content,
+            prev[idx].last_message
+          ),
           updated_at: message.created_at,
         };
         const next = [...prev];
@@ -170,7 +208,7 @@ export default function ChatsPage() {
       }).catch(() => {});
       return prev;
     });
-  }, []);
+  }, [normalizeIncomingTemplateContent]);
 
   useTenantSSE({
     token: authToken,

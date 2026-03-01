@@ -9,13 +9,10 @@ export async function proxyToLaravel(
 ) {
   const stripSlash = (url?: string) => (url || "").replace(/\/$/, "");
   
-  // ✅ Solo URLs del backend Laravel (siguiendo instrucciones del proyecto)
   const bases = [
-   /*  stripSlash(process.env.API_INTERNAL_URL),      // Docker: http://host.docker.internal:8000
-    stripSlash(process.env.LARAVEL_API_URL),       // Local: https://localhost:8443
-    "http://localhost:8000",                        // Fallback HTTP
-    "https://localhost:8443",   */                     // Fallback HTTPS
+    stripSlash(process.env.API_INTERNAL_URL),       // Env: producción o local
     "http://host.docker.internal:8000",             // Docker fallback
+    "http://localhost:8000",                        // Local fallback
   ].filter(Boolean);
 
   const tried: string[] = [];
