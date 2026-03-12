@@ -184,9 +184,9 @@ export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: Me
                 ) : (
                   <p className="text-sm">{msg.content}</p>
                 )}
-                {msg.delivered_at && (
+                {(msg.delivered_at || msg.created_at) && (
                   <span className="text-xs text-muted-foreground">
-                    {new Date(msg.delivered_at).toLocaleTimeString([], {
+                    {new Date(msg.delivered_at || msg.created_at).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
                       hour12: true,
