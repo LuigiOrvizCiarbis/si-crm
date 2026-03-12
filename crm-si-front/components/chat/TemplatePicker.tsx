@@ -99,14 +99,15 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
         ? [{ type: "body", parameters: paramValues.map((text) => ({ type: "text", text })) }]
         : []
 
-      await sendTemplate(conversationId, selected.id, components)
-
+      // Crear mensaje optimista ANTES de enviar al backend
       const preview = buildPreview(selected.components, paramValues)
       const summary = preview
         ? `📋 ${selected.name}\n${preview}`
         : `📋 ${selected.name}`
       onSend(summary)
       setOpen(false)
+
+      await sendTemplate(conversationId, selected.id, components)
     } catch (e: any) {
       setError(e.message)
     } finally {
