@@ -10,7 +10,7 @@ const API_URLS = [
 async function tryFetch(path: string): Promise<Response | null> {
   for (const baseUrl of API_URLS) {
     try {
-      const url = `${baseUrl}${path}`
+      const url = `${baseUrl.replace(/\/+$/, '')}${path}`
       const response = await fetch(url, {
         method: 'GET',
         headers: {
