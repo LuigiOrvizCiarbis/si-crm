@@ -32,7 +32,6 @@ services:
       - .env
     ports:
       - "8000:80"
-      - "8443:443"
     volumes:
       - app-storage:/var/www/html/storage
     deploy:

@@ -55,8 +55,7 @@ RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# SSL enabled only if certs are mounted; Apache gracefully skips if site is disabled
-RUN a2ensite default-ssl || true
+# SSL not needed in production — Nginx handles TLS termination
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:80/ || exit 1
