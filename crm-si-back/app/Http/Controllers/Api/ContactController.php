@@ -38,12 +38,54 @@ class ContactController extends Controller
         ]);
     }
 
+    public function store(Request $request)
+    {
+        $validated = $request->validate($this->contactRules());
+
+        $contact = Contact::create([
+            'tenant_id' => $request->user()->tenant_id,
+            ...$validated,
+            'source' => $validated['source'] ?? 'manual',
+        ]);
+
+        return response()->json(['data' => $contact], 201);
+    }
+
     public function show(Request $request, Contact $contact)
     {
         $this->authorizeTenant($request, $contact->tenant_id);
 
         $contact->load(['conversations' => fn($c) => $c->latest('last_message_at')->limit(5)]);
         return response()->json(['data' => $contact]);
+    }
+
+    public function update(Request $request, Contact $contact)
+    {
+        $this->authorizeTenant($request, $contact->tenant_id);
+
+        $validated = $request->validate($this->contactRules());
+        $contact->update($validated);
+
+        return response()->json(['data' => $contact]);
+    }
+
+    public function destroy(Request $request, Contact $contact)
+    {
+        $this->authorizeTenant($request, $contact->tenant_id);
+
+        $contact->delete();
+
+        return response()->json(['message' => 'Contacto eliminado']);
+    }
+
+    private function contactRules(): array
+    {
+        return [
+            'name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:255',
+            'source' => 'nullable|string|in:whatsapp,instagram,facebook,manual',
+        ];
     }
 
     private function authorizeTenant(Request $request, int $tenantId): void

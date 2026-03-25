@@ -18,7 +18,7 @@ trait BelongsToTenant
 
         // Auto-assign tenant_id on creation
         static::creating(function ($model) {
-            if (! $model->tenant_id && Auth::user()->check()) {
+            if (! $model->tenant_id && Auth::check()) {
                 $model->tenant_id = Auth::user()->tenant_id;
             }
         });

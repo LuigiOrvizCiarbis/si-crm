@@ -1,9 +1,18 @@
-# Dockerfile para desarrollo Laravel con PHP 8.3
-FROM php:8.4-apache
+# ── Composer dependencies ──
+FROM composer:latest AS deps
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 
-# Instalar dependencias del sistema
+# ── Build (autoload with full source) ──
+FROM deps AS build
+COPY . .
+RUN composer dump-autoload --optimize --no-dev
+
+# ── Base: system deps, PHP extensions, Apache config ──
+FROM php:8.4-apache AS base
+
 RUN apt-get update && apt-get install -y \
-    git \
     curl \
     libpng-dev \
     libonig-dev \
@@ -18,50 +27,45 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Configurar GD con soporte para JPEG, PNG, WebP y FreeType
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install pdo_pgsql pgsql mbstring xml zip bcmath gd pcntl \
+    && pecl install redis && docker-php-ext-enable redis
 
-# Instalar extensiones de PHP requeridas
-RUN docker-php-ext-install \
-    pdo_pgsql \
-    pgsql \
-    mbstring \
-    xml \
-    zip \
-    bcmath \
-    gd \
-    pcntl
+COPY --from=deps /usr/bin/composer /usr/bin/composer
 
-RUN pecl install redis && docker-php-ext-enable redis
-
-
-# Instalar Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Habilitar mod_rewrite, mod_ssl y mod_headers de Apache
 RUN a2enmod rewrite ssl headers
 
-# Configurar DocumentRoot para apuntar a public de Laravel
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
-RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
+    && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# Copiar configuración personalizada de Apache
+COPY ./docker/apache/common.conf /etc/apache2/conf-available/common.conf
 COPY ./docker/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
 COPY ./docker/apache/default-ssl.conf /etc/apache2/sites-available/default-ssl.conf
 
-# Habilitar sitio SSL
-RUN a2ensite default-ssl
-
-# Establecer directorio de trabajo
 WORKDIR /var/www/html
-
-# Configurar permisos para desarrollo
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html
-
-# Exponer puertos 80 (HTTP) y 443 (HTTPS)
 EXPOSE 80 443
 
-# Comando por defecto
+# ── Production ──
+FROM base AS production
+
+COPY --from=build /app /var/www/html
+
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+
+# SSL enabled only if certs are mounted; Apache gracefully skips if site is disabled
+RUN a2ensite default-ssl || true
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:80/ || exit 1
+
+CMD ["apache2-foreground"]
+
+# ── Development (code via bind mount, no build stages needed) ──
+FROM base AS dev
+
+RUN a2ensite default-ssl || true
+
 CMD ["apache2-foreground"]

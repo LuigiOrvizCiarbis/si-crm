@@ -18,11 +18,14 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useAuthStore } from "@/store/useAuthStore"
+import { useTranslation } from "@/hooks/useTranslation"
+import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 
 export default function RegisterPage() {
   const router = useRouter()
   const { setAuth, setLoading, isLoading } = useAuthStore()
-  
+  const { t } = useTranslation()
+
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -37,17 +40,17 @@ export default function RegisterPage() {
     setError("")
 
     if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden")
+      setError(t("auth.passwordsDoNotMatch"))
       return
     }
 
     if (password.length < 8) {
-      setError("La contraseña debe tener al menos 8 caracteres")
+      setError(t("auth.passwordTooShort"))
       return
     }
 
     if (!acceptTerms) {
-      setError("Debes aceptar los términos y condiciones")
+      setError(t("auth.mustAcceptTerms"))
       return
     }
 
@@ -63,14 +66,14 @@ export default function RegisterPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.message || "Error al registrarse")
+        throw new Error(data.message || t("auth.registerError"))
       }
 
       // Email no verificado al registrar
       setAuth(data.user, data.token, false, false)
       router.push("/verify-email?registered=true")
     } catch (err: any) {
-      setError(err.message || "Error al conectar con el servidor")
+      setError(err.message || t("auth.error"))
     } finally {
       setLoading(false)
     }
@@ -83,13 +86,16 @@ export default function RegisterPage() {
           <MessageSquare className="w-6 h-6 text-primary" />
         </div>
         <div>
-          <CardTitle className="text-2xl font-bold">Crear cuenta</CardTitle>
+          <CardTitle className="text-2xl font-bold">{t("auth.registerTitle")}</CardTitle>
           <CardDescription className="mt-2">
-            Regístrate en Social Impulse CRM
+            {t("auth.registerSubtitle")}
           </CardDescription>
         </div>
+        <div className="flex justify-center">
+          <LanguageSwitcher />
+        </div>
       </CardHeader>
-      
+
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
           {error && (
@@ -97,13 +103,13 @@ export default function RegisterPage() {
               {error}
             </div>
           )}
-          
+
           <div className="space-y-2">
-            <Label htmlFor="name">Nombre completo</Label>
+            <Label htmlFor="name">{t("auth.fullName")}</Label>
             <Input
               id="name"
               type="text"
-              placeholder="Tu nombre"
+              placeholder={t("auth.fullNamePlaceholder")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -111,9 +117,9 @@ export default function RegisterPage() {
               disabled={isLoading}
             />
           </div>
-          
+
           <div className="space-y-2">
-            <Label htmlFor="email">Correo electrónico</Label>
+            <Label htmlFor="email">{t("auth.email")}</Label>
             <Input
               id="email"
               type="email"
@@ -125,14 +131,14 @@ export default function RegisterPage() {
               disabled={isLoading}
             />
           </div>
-          
+
           <div className="space-y-2">
-            <Label htmlFor="password">Contraseña</Label>
+            <Label htmlFor="password">{t("auth.password")}</Label>
             <div className="relative">
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="Mínimo 8 caracteres"
+                placeholder={t("auth.passwordMinLength")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -154,14 +160,14 @@ export default function RegisterPage() {
               </button>
             </div>
           </div>
-          
+
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+            <Label htmlFor="confirmPassword">{t("auth.confirmPassword")}</Label>
             <div className="relative">
               <Input
                 id="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
-                placeholder="Repite tu contraseña"
+                placeholder={t("auth.confirmPasswordPlaceholder")}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
@@ -183,7 +189,7 @@ export default function RegisterPage() {
               </button>
             </div>
           </div>
-          
+
           <div className="flex items-start space-x-2">
             <Checkbox
               id="terms"
@@ -193,37 +199,37 @@ export default function RegisterPage() {
               className="mt-0.5"
             />
             <Label htmlFor="terms" className="text-sm font-normal cursor-pointer leading-relaxed">
-              Acepto los{" "}
+              {t("auth.acceptTermsLabel")}{" "}
               <Link href="/terms" className="text-primary hover:text-primary/80">
-                términos y condiciones
+                {t("auth.termsAndConditions")}
               </Link>{" "}
-              y la{" "}
-              <Link href="/privacy" className="text-primary hover:text-primary/80">
-                política de privacidad
+              {t("auth.andThe")}{" "}
+              <Link href="/privacy-policy" className="text-primary hover:text-primary/80">
+                {t("auth.privacyPolicy")}
               </Link>
             </Label>
           </div>
         </CardContent>
-        
+
         <CardFooter className="flex flex-col gap-4">
           <Button type="submit" className="w-full" disabled={isLoading || !acceptTerms}>
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Creando cuenta...
+                {t("auth.registerSubmitting")}
               </>
             ) : (
-              "Crear cuenta"
+              t("auth.registerSubmit")
             )}
           </Button>
-          
+
           <p className="text-sm text-center text-muted-foreground">
-            ¿Ya tienes cuenta?{" "}
+            {t("auth.hasAccount")}{" "}
             <Link
               href="/login"
               className="text-primary hover:text-primary/80 font-medium transition-colors"
             >
-              Inicia sesión
+              {t("auth.loginLink")}
             </Link>
           </p>
         </CardFooter>
