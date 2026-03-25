@@ -11,7 +11,7 @@ FROM base AS deps
 COPY package.json pnpm-lock.yaml* ./
 RUN --mount=type=cache,target=/pnpm/store \
     pnpm config set store-dir /pnpm/store && \
-    pnpm install --no-frozen-lockfile
+    pnpm install --frozen-lockfile
 
 # ── Production build ──
 FROM base AS builder

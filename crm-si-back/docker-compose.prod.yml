@@ -1,35 +1,24 @@
-# Docker Compose - DESARROLLO
-# Las variables en "environment:" sobreescriben las del .env (env_file).
-# Esto es intencional para forzar hosts de Docker (db, redis) en lugar de localhost.
+# Docker Compose - PRODUCCION
+# No usar bind mounts. DB y Redis no exponen puertos al host.
 
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
-      target: dev
-    restart: unless-stopped
-    working_dir: /var/www/html
-    volumes:
-      # Desarrollo: bind mount para live reload del código
-      - ./:/var/www/html
-      - vendor:/var/www/html/vendor
-      - node_modules:/var/www/html/node_modules
-      - ../crm-si-front/certificates:/etc/ssl/certs/local
-    ports:
-      - "8000:80"
-      - "8443:443"
+      target: production
+    restart: always
     environment:
-      APP_ENV: ${APP_ENV:-local}
-      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_ENV: production
+      APP_DEBUG: "false"
       DB_CONNECTION: pgsql
       DB_HOST: db
       DB_PORT: "5432"
-      DB_DATABASE: ${DB_DATABASE:-laravel}
-      DB_USERNAME: ${DB_USERNAME:-laravel}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       REDIS_HOST: redis
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_PORT: "6379"
       BROADCAST_CONNECTION: redis
       CACHE_DRIVER: redis
@@ -38,11 +27,19 @@ services:
       MAIL_MAILER: ${MAIL_MAILER:-resend}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-noreply@socialimpulse.com}
       MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Social Impulse}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      FRONTEND_URL: ${FRONTEND_URL}
     env_file:
       - .env
-    mem_limit: 512m
-    cpus: 1.0
+    ports:
+      - "8000:80"
+      - "8443:443"
+    volumes:
+      - app-storage:/var/www/html/storage
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80"]
       interval: 30s
@@ -59,40 +56,42 @@ services:
 
   db:
     image: postgres:16-alpine
-    restart: unless-stopped
+    restart: always
     command: postgres -c max_connections=200
     environment:
-      POSTGRES_DB: ${DB_DATABASE:-laravel}
-      POSTGRES_USER: ${DB_USERNAME:-laravel}
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-    mem_limit: 256m
-    cpus: 0.5
-    ports:
-      - "127.0.0.1:5432:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - laravel-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-laravel}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:alpine
-    restart: unless-stopped
-    command: redis-server ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
-    mem_limit: 128m
-    cpus: 0.25
-    ports:
-      - "127.0.0.1:6379:6379"
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
     volumes:
       - redis-data:/data
     networks:
       - laravel-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -102,9 +101,7 @@ volumes:
     driver: local
   redis-data:
     driver: local
-  vendor:
-    driver: local
-  node_modules:
+  app-storage:
     driver: local
 
 networks:

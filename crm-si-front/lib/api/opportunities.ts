@@ -1,0 +1,94 @@
+import { getAuthToken } from "./auth-token";
+
+export interface OpportunityPayload {
+  contact_id: number
+  conversation_id?: number | null
+  pipeline_stage_id?: number | null
+  assigned_to?: number | null
+  title?: string
+  status?: "open" | "won" | "lost" | "archived"
+  source_type?: "manual" | "conversation"
+  value?: number | null
+  notes?: string | null
+}
+
+interface GetOpportunitiesOptions {
+  contactId?: number
+  status?: "open" | "won" | "lost" | "archived"
+}
+
+function requireToken() {
+  const token = getAuthToken();
+  if (!token) throw new Error("No authentication token found");
+  return token;
+}
+
+export async function getOpportunities(options: GetOpportunitiesOptions = {}) {
+  const token = requireToken();
+  const params = new URLSearchParams({ per_page: "100" });
+
+  if (options.contactId) {
+    params.set("contact_id", String(options.contactId));
+  }
+
+  if (options.status) {
+    params.set("status", options.status);
+  }
+
+  const response = await fetch(`/api/opportunities?${params.toString()}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.message || "Error al cargar oportunidades");
+  }
+
+  return payload.data || [];
+}
+
+export async function createOpportunity(body: OpportunityPayload) {
+  const token = requireToken();
+
+  const response = await fetch("/api/opportunities", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.message || "Error al crear oportunidad");
+  }
+
+  return payload.data;
+}
+
+export async function updateOpportunityStage(opportunityId: number, stageId: number | null) {
+  const token = requireToken();
+
+  const response = await fetch(`/api/opportunities/${opportunityId}/stage`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ pipeline_stage_id: stageId }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.message || "Error al actualizar etapa");
+  }
+
+  return payload.data;
+}

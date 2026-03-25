@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ContactHistoryController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationStreamController;
 use App\Http\Controllers\Api\MessageController;
+use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\PipelineStageController;
 use App\Http\Controllers\Api\TenantStreamController;
 use App\Http\Controllers\Api\UserController;
@@ -236,7 +237,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('users/{user}', [ContactController::class, 'show']);
 
     Route::get('contacts', [ContactController::class, 'index']);
+    Route::post('contacts', [ContactController::class, 'store']);
     Route::get('contacts/{contact}', [ContactController::class, 'show']);
+    Route::put('contacts/{contact}', [ContactController::class, 'update']);
+    Route::delete('contacts/{contact}', [ContactController::class, 'destroy']);
     Route::get('contacts/{contact}/history', [ContactHistoryController::class, 'show']);
 
     Route::get('conversations', [ConversationController::class, 'index']);
@@ -263,6 +267,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('pipeline-stages', PipelineStageController::class);
     Route::post('pipeline-stages/reorder', [PipelineStageController::class, 'reorder']);
+    Route::apiResource('opportunities', OpportunityController::class);
+    Route::patch('opportunities/{id}/stage', [OpportunityController::class, 'updateStage']);
     Route::patch('conversations/{id}/stage', [ConversationController::class, 'updateStage']);
 
     Route::post('conversations/{id}/users', [ConversationController::class, 'assignUsers']);
@@ -275,3 +281,5 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::match(['get', 'post'], 'whatsapp-webhook', [WhatsAppController::class, 'webhook']);
+
+Route::post('facebook/data-deletion', [\App\Http\Controllers\FacebookDataDeletionController::class, 'handle']);

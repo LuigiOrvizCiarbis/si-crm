@@ -68,18 +68,39 @@ function ToastComponent({ toast, onRemove }: ToastProps) {
 }
 
 let toastCounter = 0
+let toastStore: Toast[] = []
+const toastListeners = new Set<(toasts: Toast[]) => void>()
+
+function emitToastChange() {
+  toastListeners.forEach((listener) => listener(toastStore))
+}
 
 export function useToast() {
-  const [toasts, setToasts] = useState<Toast[]>([])
+  const [toasts, setToasts] = useState<Toast[]>(toastStore)
+
+  useEffect(() => {
+    const listener = (nextToasts: Toast[]) => {
+      setToasts(nextToasts)
+    }
+
+    toastListeners.add(listener)
+    setToasts(toastStore)
+
+    return () => {
+      toastListeners.delete(listener)
+    }
+  }, [])
 
   const addToast = useCallback((toast: Omit<Toast, "id"> & { id?: string }) => {
     const id = toast.id || `toast-${++toastCounter}`
-    setToasts((prev) => [...prev, { ...toast, id }])
+    toastStore = [...toastStore, { ...toast, id }]
+    emitToastChange()
     return id
   }, [])
 
   const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id))
+    toastStore = toastStore.filter((toast) => toast.id !== id)
+    emitToastChange()
   }, [])
 
   const ToastContainer = () => (

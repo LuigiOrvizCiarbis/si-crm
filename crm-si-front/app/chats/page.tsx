@@ -39,7 +39,7 @@ import { useTenantSSE } from "@/hooks/useTenantSSE"
 import { useTranslation } from "@/hooks/useTranslation"
 
 export default function ChatsPage() {
-  const { addToast, removeToast, ToastContainer } = useToast()
+  const { addToast, removeToast } = useToast()
   const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -719,7 +719,6 @@ export default function ChatsPage() {
 
       {/* Wizard de conexión */}
       <WizardConnectChannel open={wizardOpen} onOpenChange={setWizardOpen} />
-      <ToastContainer />
     </SidebarLayout>
   )
 }

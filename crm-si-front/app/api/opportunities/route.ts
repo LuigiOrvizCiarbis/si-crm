@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const qs = req.nextUrl.search || "";
 
   try {
-    const { data, status } = await proxyToLaravel(`/api/contacts${qs}`, authHeader);
+    const { data, status } = await proxyToLaravel(`/api/opportunities${qs}`, authHeader);
     return NextResponse.json(data, { status });
   } catch {
     return NextResponse.json({ message: "No reachable backend" }, { status: 503 });
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
 
   try {
-    const { data, status } = await proxyToLaravel("/api/contacts", authHeader, {
+    const { data, status } = await proxyToLaravel("/api/opportunities", authHeader, {
       method: "POST",
       body: JSON.stringify(body),
     });

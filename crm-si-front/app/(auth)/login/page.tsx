@@ -177,6 +177,12 @@ export default function LoginPage() {
           </p>
         </CardFooter>
       </form>
+
+      <p className="text-xs text-center text-muted-foreground mt-4">
+        <Link href="/privacy-policy" className="hover:text-foreground transition-colors underline">
+          {t("auth.privacyPolicy")}
+        </Link>
+      </p>
     </Card>
   )
 }

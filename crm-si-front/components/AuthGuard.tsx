@@ -6,7 +6,7 @@ import { useAuthStore } from "@/store/useAuthStore"
 import { Loader2 } from "lucide-react"
 
 // Rutas que no requieren autenticación
-const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/pricing", "/email-verified", "/verify-email/confirm"]
+const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/pricing", "/email-verified", "/verify-email/confirm", "/privacy-policy", "/terms", "/data-deletion"]
 
 // Rutas que solo deben accederse sin autenticación
 const authOnlyRoutes = ["/login", "/register", "/forgot-password", "/reset-password"]

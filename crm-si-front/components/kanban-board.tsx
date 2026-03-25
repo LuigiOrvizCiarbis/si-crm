@@ -1,45 +1,58 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Badge, LeadScoreBadge } from "@/components/Badges"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/Badges"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/Toast"
-import { getAuthToken } from "@/lib/api/auth-token"
-import { Phone, Mail, Calendar, GripVertical, TrendingUp, Clock, Loader2 } from "lucide-react"
+import { getPipelineStages } from "@/lib/api/pipeline"
+import { getOpportunities, updateOpportunityStage } from "@/lib/api/opportunities"
+import { Phone, Mail, Calendar, GripVertical, Clock, Loader2 } from "lucide-react"
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
+  pointerWithin,
   KeyboardSensor,
   PointerSensor,
+  useDroppable,
   useSensor,
   useSensors,
+  type DragStartEvent,
   type DragEndEvent,
+  type DragCancelEvent,
 } from "@dnd-kit/core"
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { useSortable } from "@dnd-kit/sortable"
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { formatDistanceToNow } from "date-fns"
 import { es } from "date-fns/locale"
 
-interface Conversation {
+interface Opportunity {
   id: number
-  contact: {
-    id: string
-    name: string
-    phone: string
-  }
-  channel: {
-    id: number
-    name: string
-    type: number
-  }
-  last_message: string
-  last_message_at: string
-  lead_score: number | null
+  title: string
+  status: "open" | "won" | "lost" | "archived"
+  source_type: "manual" | "conversation"
+  value?: string | number | null
+  notes?: string | null
+  last_activity_at: string | null
   pipeline_stage_id: number | null
-  unread_count: number
+  contact: {
+    id: number | string
+    name: string
+    phone: string | null
+    email?: string | null
+  }
+  conversation?: {
+    id: number
+    last_message_content?: string | null
+    last_message_at?: string | null
+    channel?: {
+      id: number
+      name: string
+      type: number
+    } | null
+  } | null
 }
 
 interface PipelineStage {
@@ -51,51 +64,77 @@ interface PipelineStage {
 interface Column {
   id: number
   title: string
-  conversations: Conversation[]
+  opportunities: Opportunity[]
   color: string
 }
 
+function toStageId(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") return null
+
+  const numericValue = Number(value)
+  return Number.isNaN(numericValue) ? null : numericValue
+}
+
+const getColumnDropId = (columnId: number) => `column-${columnId}`
+
 const getChannelIcon = (channelType: number) => {
   switch (channelType) {
-    case 1: return "📱" // WhatsApp
-    case 2: return "📸" // Instagram
-    case 3: return "👍" // Facebook
-    default: return "💬"
+    case 1:
+      return "📱"
+    case 2:
+      return "📸"
+    case 3:
+      return "👍"
+    default:
+      return "💬"
   }
 }
 
 const getChannelColor = (channelType: number) => {
   switch (channelType) {
-    case 1: return "bg-green-500/10 text-green-600"
-    case 2: return "bg-pink-500/10 text-pink-600"
-    case 3: return "bg-blue-500/10 text-blue-600"
-    default: return "bg-gray-500/10 text-gray-600"
+    case 1:
+      return "bg-green-500/10 text-green-600"
+    case 2:
+      return "bg-pink-500/10 text-pink-600"
+    case 3:
+      return "bg-blue-500/10 text-blue-600"
+    default:
+      return "bg-slate-500/10 text-slate-600"
   }
 }
 
-function SortableConversationCard({ conversation }: { conversation: Conversation }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: conversation.id.toString(),
-  })
+function OpportunityCard({
+  opportunity,
+  dragHandleProps,
+  isDragging = false,
+  isOverlay = false,
+}: {
+  opportunity: Opportunity
+  dragHandleProps?: Record<string, unknown>
+  isDragging?: boolean
+  isOverlay?: boolean
+}) {
+  const lastActivityText = opportunity.last_activity_at
+    ? formatDistanceToNow(new Date(opportunity.last_activity_at), { locale: es, addSuffix: true })
+    : "Sin actividad"
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  }
-
-  const lastContactText = conversation.last_message_at 
-    ? formatDistanceToNow(new Date(conversation.last_message_at), { locale: es, addSuffix: true })
-    : "Sin mensajes"
-
-  const initials = conversation.contact.name
+  const initials = opportunity.contact.name
     .split(" ")
     .map((n) => n[0])
     .join("")
     .slice(0, 2)
 
+  const channel = opportunity.conversation?.channel
+  const preview = opportunity.conversation?.last_message_content || opportunity.notes || opportunity.title
+  const sourceLabel = channel ? `${getChannelIcon(channel.type)} ${channel.name}` : "Manual"
+  const sourceClassName = channel ? getChannelColor(channel.type) : "bg-slate-500/10 text-slate-600"
+
   return (
-    <Card ref={setNodeRef} style={style} className="cursor-pointer hover:shadow-md transition-shadow">
+    <Card
+      className={`cursor-pointer transition-[box-shadow,transform,opacity] ${
+        isOverlay ? "rotate-1 shadow-2xl ring-1 ring-primary/20" : "hover:shadow-md"
+      } ${isDragging ? "opacity-40 scale-[0.98]" : "opacity-100"}`}
+    >
       <CardContent className="p-3">
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -103,43 +142,39 @@ function SortableConversationCard({ conversation }: { conversation: Conversation
               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <h4 className="font-medium text-sm truncate">{conversation.contact.name}</h4>
-              <p className="text-xs text-muted-foreground truncate">{conversation.contact.phone}</p>
+              <h4 className="font-medium text-sm truncate">{opportunity.contact.name}</h4>
+              <p className="text-xs text-muted-foreground truncate">
+                {opportunity.contact.phone || opportunity.contact.email || "Sin dato de contacto"}
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {conversation.lead_score && <LeadScoreBadge score={conversation.lead_score} />}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 cursor-grab active:cursor-grabbing"
-              {...attributes}
-              {...listeners}
-            >
-              <GripVertical className="w-3 h-3" />
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-6 w-6 p-0 shrink-0 ${isOverlay ? "cursor-grabbing" : "cursor-grab active:cursor-grabbing"}`}
+            {...dragHandleProps}
+          >
+            <GripVertical className="w-3 h-3" />
+          </Button>
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className={`text-xs px-2 py-1 rounded ${getChannelColor(conversation.channel.type)}`}>
-              {getChannelIcon(conversation.channel.type)} {conversation.channel.name}
+          <div className="flex items-center justify-between gap-2">
+            <span className={`text-xs px-2 py-1 rounded ${sourceClassName}`}>
+              {sourceLabel}
             </span>
-            {conversation.unread_count > 0 && (
-              <Badge variant="error" className="text-xs h-5">
-                {conversation.unread_count}
-              </Badge>
-            )}
+            <Badge variant="default" className="text-xs h-5">
+              {opportunity.status}
+            </Badge>
           </div>
 
           <p className="text-xs text-muted-foreground line-clamp-2">
-            {conversation.last_message || "Sin mensajes"}
+            {preview || "Sin detalle"}
           </p>
 
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="w-3 h-3" />
-            <span>{lastContactText}</span>
+            <span>{lastActivityText}</span>
           </div>
 
           <div className="flex gap-1">
@@ -159,39 +194,70 @@ function SortableConversationCard({ conversation }: { conversation: Conversation
   )
 }
 
-function KanbanColumn({ column, conversations }: { column: Column; conversations: Conversation[] }) {
-  const avgLeadScore =
-    conversations.length > 0
-      ? Math.round(
-          conversations.reduce((sum, conv) => sum + (conv.lead_score || 0), 0) / conversations.length
-        )
+function SortableOpportunityCard({ opportunity }: { opportunity: Opportunity }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: opportunity.id.toString(),
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <OpportunityCard
+        opportunity={opportunity}
+        isDragging={isDragging}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
+    </div>
+  )
+}
+
+function KanbanColumn({ column, opportunities }: { column: Column; opportunities: Opportunity[] }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: getColumnDropId(column.id),
+  })
+
+  const avgValue =
+    opportunities.length > 0
+      ? Math.round(opportunities.reduce((sum, item) => sum + Number(item.value || 0), 0) / opportunities.length)
       : 0
 
   return (
     <div className="flex-1 min-w-80">
-      <Card className="bg-muted/20">
+      <Card className={`bg-muted/20 transition-colors ${isOver ? "ring-2 ring-primary/30 bg-primary/5" : ""}`}>
         <CardContent className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <div className={`w-3 h-3 rounded-full ${column.color}`} />
             <h3 className="font-semibold">{column.title}</h3>
             <Badge variant="default" className="ml-auto">
-              {conversations.length}
+              {opportunities.length}
             </Badge>
           </div>
 
           <div className="space-y-1 mb-4">
-            <p className="text-xs text-muted-foreground">Lead Score promedio: {avgLeadScore}</p>
+            <p className="text-xs text-muted-foreground">Valor promedio: {avgValue}</p>
           </div>
 
-          <SortableContext items={conversations.map((conv) => conv.id.toString())} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2 min-h-96">
-              {conversations.map((conversation) => (
-                <SortableConversationCard key={conversation.id} conversation={conversation} />
+          <SortableContext items={opportunities.map((item) => item.id.toString())} strategy={verticalListSortingStrategy}>
+            <div
+              ref={setNodeRef}
+              className={`space-y-2 min-h-96 rounded-md border border-transparent transition-colors ${
+                isOver ? "bg-primary/5 border-primary/30" : ""
+              }`}
+            >
+              {opportunities.map((opportunity) => (
+                <SortableOpportunityCard key={opportunity.id} opportunity={opportunity} />
               ))}
 
-              {conversations.length === 0 && (
-                <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                  No hay conversaciones en esta etapa
+              {opportunities.length === 0 && (
+                <div className={`flex items-center justify-center h-32 text-sm rounded-md border border-dashed ${
+                  isOver ? "border-primary/40 text-primary" : "border-border text-muted-foreground"
+                }`}>
+                  No hay oportunidades en esta etapa
                 </div>
               )}
             </div>
@@ -206,10 +272,15 @@ export function KanbanBoard() {
   const [columns, setColumns] = useState<Column[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [activeOpportunityId, setActiveOpportunityId] = useState<number | null>(null)
   const { addToast } = useToast()
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
@@ -224,47 +295,43 @@ export function KanbanBoard() {
     setError(null)
 
     try {
-      // Fetch stages and conversations in parallel
-      const token = getAuthToken();
-      const headers = { Authorization: `Bearer ${token}` };
-      const [stagesResponse, conversationsResponse] = await Promise.all([
-        fetch("/api/pipeline-stages", { headers }),
-        fetch("/api/conversations?per_page=100", { headers }),
+      const [stages, opportunities] = await Promise.all([
+        getPipelineStages(),
+        getOpportunities(),
       ])
 
-      if (!stagesResponse.ok || !conversationsResponse.ok) {
-        throw new Error("Error al cargar datos del pipeline")
-      }
+      const normalizedStageIds = new Set(stages.map((stage: PipelineStage) => Number(stage.id)))
+      const normalizedOpportunities = opportunities.map((opportunity: Opportunity) => ({
+        ...opportunity,
+        pipeline_stage_id: toStageId(opportunity.pipeline_stage_id),
+      }))
 
-      const stages: PipelineStage[] = await stagesResponse.json()
-      const conversationsData = await conversationsResponse.json()
-      const conversations: Conversation[] = conversationsData.data || []
-
-      // Group conversations by stage
-      const columnsData: Column[] = stages.map((stage, index) => {
-        const stageConversations = conversations.filter(
-          (conv) => conv.pipeline_stage_id === stage.id
+      const columnsData: Column[] = stages.map((stage: PipelineStage, index: number) => {
+        const stageId = Number(stage.id)
+        const stageOpportunities = normalizedOpportunities.filter(
+          (opportunity: Opportunity) => opportunity.pipeline_stage_id === stageId
         )
 
-        // Assign colors based on order
         const colors = ["bg-blue-500", "bg-yellow-500", "bg-orange-500", "bg-green-500", "bg-purple-500"]
-        const color = colors[index % colors.length]
 
         return {
           id: stage.id,
           title: stage.name,
-          conversations: stageConversations,
-          color,
+          opportunities: stageOpportunities,
+          color: colors[index % colors.length],
         }
       })
 
-      // Add column for conversations without stage
-      const unassignedConversations = conversations.filter((conv) => !conv.pipeline_stage_id)
-      if (unassignedConversations.length > 0 || columnsData.length === 0) {
+      const unassignedOpportunities = normalizedOpportunities.filter(
+        (opportunity: Opportunity) =>
+          opportunity.pipeline_stage_id === null || !normalizedStageIds.has(opportunity.pipeline_stage_id)
+      )
+
+      if (unassignedOpportunities.length > 0 || columnsData.length === 0) {
         columnsData.unshift({
           id: 0,
           title: "Sin asignar",
-          conversations: unassignedConversations,
+          opportunities: unassignedOpportunities,
           color: "bg-gray-500",
         })
       }
@@ -277,99 +344,110 @@ export function KanbanBoard() {
     }
   }
 
-  const totalConversations = columns.reduce((sum, col) => sum + col.conversations.length, 0)
-  const avgLeadScore =
-    totalConversations > 0
+  const totalOpportunities = columns.reduce((sum, col) => sum + col.opportunities.length, 0)
+  const avgValue =
+    totalOpportunities > 0
       ? Math.round(
           columns.reduce(
-            (sum, col) =>
-              sum + col.conversations.reduce((colSum, conv) => colSum + (conv.lead_score || 0), 0),
+            (sum, col) => sum + col.opportunities.reduce((colSum, item) => colSum + Number(item.value || 0), 0),
             0
-          ) / totalConversations
+          ) / totalOpportunities
         )
       : 0
 
+  const activeOpportunity =
+    activeOpportunityId === null
+      ? null
+      : columns.flatMap((column) => column.opportunities).find((item) => item.id === activeOpportunityId) ?? null
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveOpportunityId(parseInt(String(event.active.id), 10))
+  }
+
+  function handleDragCancel(_event: DragCancelEvent) {
+    setActiveOpportunityId(null)
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
+    setActiveOpportunityId(null)
 
     if (!over) return
 
     const activeId = parseInt(active.id as string)
-    const overId = over.id
+    const overId = String(over.id)
+    const destinationColumnId = overId.startsWith("column-")
+      ? parseInt(overId.replace("column-", ""))
+      : undefined
 
-    // Find source and destination columns
-    const sourceColumn = columns.find((col) => col.conversations.some((conv) => conv.id === activeId))
+    const sourceColumn = columns.find((col) => col.opportunities.some((item) => item.id === activeId))
     const destColumn = columns.find(
-      (col) => col.id === overId || col.conversations.some((conv) => conv.id === parseInt(overId as string))
+      (col) =>
+        col.id === destinationColumnId ||
+        col.opportunities.some((item) => item.id === parseInt(overId))
     )
 
     if (!sourceColumn || !destColumn) return
 
-    const sourceConversation = sourceColumn.conversations.find((conv) => conv.id === activeId)
-    if (!sourceConversation) return
+    const sourceOpportunity = sourceColumn.opportunities.find((item) => item.id === activeId)
+    if (!sourceOpportunity) return
 
     if (sourceColumn.id !== destColumn.id) {
-      // Moving between columns - update backend
       try {
-        const response = await fetch(`/api/conversations/${activeId}/stage`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
-          body: JSON.stringify({ pipeline_stage_id: destColumn.id === 0 ? null : destColumn.id }),
-        })
+        await updateOpportunityStage(activeId, destColumn.id === 0 ? null : destColumn.id)
 
-        if (!response.ok) throw new Error("Error al actualizar etapa")
-
-        // Update local state
-        setColumns((prevColumns) => {
-          return prevColumns.map((col) => {
+        setColumns((prevColumns) =>
+          prevColumns.map((col) => {
             if (col.id === sourceColumn.id) {
               return {
                 ...col,
-                conversations: col.conversations.filter((conv) => conv.id !== activeId),
+                opportunities: col.opportunities.filter((item) => item.id !== activeId),
               }
             }
+
             if (col.id === destColumn.id) {
-              const updatedConversation = {
-                ...sourceConversation,
-                pipeline_stage_id: destColumn.id === 0 ? null : destColumn.id,
-              }
               return {
                 ...col,
-                conversations: [...col.conversations, updatedConversation],
+                opportunities: [
+                  ...col.opportunities,
+                  { ...sourceOpportunity, pipeline_stage_id: destColumn.id === 0 ? null : destColumn.id },
+                ],
               }
             }
+
             return col
           })
-        })
+        )
 
         addToast({
           type: "success",
-          title: "Conversación movida",
-          description: `${sourceConversation.contact.name} movido a ${destColumn.title}`,
+          title: "Oportunidad movida",
+          description: `${sourceOpportunity.contact.name} movido a ${destColumn.title}`,
         })
-      } catch (error) {
+      } catch {
         addToast({
           type: "error",
           title: "Error",
           description: "No se pudo actualizar la etapa",
         })
       }
-    } else {
-      // Reordering within same column
-      const sourceIndex = sourceColumn.conversations.findIndex((conv) => conv.id === activeId)
-      const destIndex = sourceColumn.conversations.findIndex((conv) => conv.id === parseInt(overId as string))
 
-      if (sourceIndex !== destIndex) {
-        setColumns((prevColumns) => {
-          return prevColumns.map((col) => {
-            if (col.id === sourceColumn.id) {
-              const newConversations = arrayMove(col.conversations, sourceIndex, destIndex)
-              return { ...col, conversations: newConversations }
-            }
-            return col
-          })
+      return
+    }
+
+    const sourceIndex = sourceColumn.opportunities.findIndex((item) => item.id === activeId)
+    const destIndex = sourceColumn.opportunities.findIndex((item) => item.id === parseInt(overId))
+
+    if (destIndex >= 0 && sourceIndex !== destIndex) {
+      setColumns((prevColumns) =>
+        prevColumns.map((col) => {
+          if (col.id !== sourceColumn.id) return col
+          return {
+            ...col,
+            opportunities: arrayMove(col.opportunities, sourceIndex, destIndex),
+          }
         })
-      }
+      )
     }
   }
 
@@ -397,14 +475,14 @@ export function KanbanBoard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold">{totalConversations}</div>
-            <p className="text-sm text-muted-foreground">Total conversaciones</p>
+            <div className="text-2xl font-bold">{totalOpportunities}</div>
+            <p className="text-sm text-muted-foreground">Total oportunidades</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold">{avgLeadScore}</div>
-            <p className="text-sm text-muted-foreground">Lead Score promedio</p>
+            <div className="text-2xl font-bold">{avgValue}</div>
+            <p className="text-sm text-muted-foreground">Valor promedio</p>
           </CardContent>
         </Card>
         <Card>
@@ -415,12 +493,28 @@ export function KanbanBoard() {
         </Card>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={(args) => {
+          const pointerIntersections = pointerWithin(args)
+          if (pointerIntersections.length > 0) {
+            return pointerIntersections
+          }
+
+          return closestCenter(args)
+        }}
+        onDragStart={handleDragStart}
+        onDragCancel={handleDragCancel}
+        onDragEnd={handleDragEnd}
+      >
         <div className="flex gap-6 overflow-x-auto pb-4">
           {columns.map((column) => (
-            <KanbanColumn key={column.id} column={column} conversations={column.conversations} />
+            <KanbanColumn key={column.id} column={column} opportunities={column.opportunities} />
           ))}
         </div>
+        <DragOverlay dropAnimation={null}>
+          {activeOpportunity ? <OpportunityCard opportunity={activeOpportunity} isOverlay /> : null}
+        </DragOverlay>
       </DndContext>
     </div>
   )

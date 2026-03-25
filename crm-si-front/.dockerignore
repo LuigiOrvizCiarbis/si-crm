@@ -47,23 +47,6 @@ temp/
 .local/
 local/
 
-# Python (for completeness, though not detected)
-__pycache__/
-*.pyc
-*.pyo
-.pytest_cache/
-.coverage
-
-# Go (for completeness, though not detected)
-/vendor/
-*.test
-.go-cache/
-
-# Java (for completeness, though not detected)
-target/
-*.class
-.gradle/
-
 # Docker files
 Dockerfile*
 docker-compose*
