@@ -33,7 +33,7 @@ class InvitationController extends Controller
 
         $validated = $request->validate([
             'email' => ['required', 'email'],
-            'role' => ['required', Rule::enum(UserRole::class)],
+            'role' => ['required', 'integer', Rule::enum(UserRole::class)],
         ]);
 
         $tenantId = $request->user()->tenant_id;
