@@ -17,6 +17,7 @@ use App\Models\User;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rules\Password as PasswordRule;
@@ -63,8 +64,16 @@ Route::post('register', function (Request $request): JsonResponse {
         'tenant_id' => $tenant->id,
     ]);
 
-    // Enviar email de verificación automáticamente
-    $user->sendEmailVerificationNotification();
+    // El registro no debe fallar si el proveedor de email está caído.
+    try {
+        $user->sendEmailVerificationNotification();
+    } catch (\Throwable $e) {
+        Log::error('register-verification-email-failed', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'error' => $e->getMessage(),
+        ]);
+    }
 
     $token = $user->createToken('api-token')->plainTextToken;
 

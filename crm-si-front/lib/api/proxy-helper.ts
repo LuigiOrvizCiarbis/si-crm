@@ -8,6 +8,8 @@ export async function proxyToLaravel(
   options: RequestInit = {}
 ) {
   const stripSlash = (url?: string) => (url || "").replace(/\/$/, "");
+  const method = (options.method || "GET").toUpperCase();
+  const isRetryableMethod = method === "GET" || method === "HEAD" || method === "OPTIONS";
   
   const bases = [
     stripSlash(process.env.API_INTERNAL_URL),       // Env: producción o local
@@ -40,11 +42,21 @@ export async function proxyToLaravel(
         return { data, status: res.status };
       }
 
-      // 5xx: intentar siguiente backend
+      // No reintentar mutaciones: evita duplicar escrituras cuando el backend
+      // creó el recurso pero falló en un paso posterior (por ejemplo, email).
+      if (!isRetryableMethod) {
+        return { data, status: res.status };
+      }
+
+      // 5xx: intentar siguiente backend para métodos idempotentes
       console.warn(`[Proxy] 5xx from ${base}: ${res.status}`);
       continue;
 
     } catch (err: any) {
+      if (!isRetryableMethod) {
+        throw err;
+      }
+
       console.warn(`[Proxy] Failed ${base}:`, err.message);
       continue;
     }
