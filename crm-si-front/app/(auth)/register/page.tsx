@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Eye, EyeOff, Loader2, MessageSquare } from "lucide-react"
@@ -38,23 +38,33 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState("")
+  const isSubmittingRef = useRef(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (isSubmittingRef.current || isLoading) {
+      return
+    }
+
+    isSubmittingRef.current = true
     setError("")
 
     if (password !== confirmPassword) {
       setError(t("auth.passwordsDoNotMatch"))
+      isSubmittingRef.current = false
       return
     }
 
     if (password.length < 8) {
       setError(t("auth.passwordTooShort"))
+      isSubmittingRef.current = false
       return
     }
 
     if (!acceptTerms) {
       setError(t("auth.mustAcceptTerms"))
+      isSubmittingRef.current = false
       return
     }
 
@@ -79,6 +89,7 @@ export default function RegisterPage() {
     } catch (err: any) {
       setError(err.message || t("auth.error"))
     } finally {
+      isSubmittingRef.current = false
       setLoading(false)
     }
   }
