@@ -18,6 +18,33 @@ class Tenant extends Model
         'updated_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::created(function (Tenant $tenant) {
+            $now = now();
+            $stages = [
+                ['name' => 'Capturados', 'sort_order' => 1, 'is_default' => true],
+                ['name' => 'Calificados', 'sort_order' => 2, 'is_default' => false],
+                ['name' => 'Negociación', 'sort_order' => 3, 'is_default' => false],
+                ['name' => 'Cierre', 'sort_order' => 4, 'is_default' => false],
+                ['name' => 'Ganado', 'sort_order' => 5, 'is_default' => false],
+                ['name' => 'Perdido', 'sort_order' => 6, 'is_default' => false],
+            ];
+
+            PipelineStage::insert(array_map(fn ($stage) => [
+                ...$stage,
+                'tenant_id' => $tenant->id,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ], $stages));
+        });
+    }
+
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(Invitation::class);
+    }
+
     /**
      * Relación con channels
      */

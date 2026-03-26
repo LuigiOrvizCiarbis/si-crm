@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Eye, EyeOff, Loader2, MessageSquare } from "lucide-react"
 
@@ -23,11 +23,15 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 
 export default function RegisterPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { setAuth, setLoading, isLoading } = useAuthStore()
   const { t } = useTranslation()
 
+  const invitationToken = searchParams.get("invitation_token")
+  const invitedEmail = searchParams.get("email")
+
   const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState(invitedEmail || "")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [acceptTerms, setAcceptTerms] = useState(false)
@@ -60,7 +64,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, password_confirmation: confirmPassword }),
+        body: JSON.stringify({ name, email, password, password_confirmation: confirmPassword, ...(invitationToken ? { invitation_token: invitationToken } : {}) }),
       })
 
       const data = await res.json()
@@ -98,6 +102,12 @@ export default function RegisterPage() {
 
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
+          {invitationToken && (
+            <div className="p-3 text-sm text-primary bg-primary/10 border border-primary/20 rounded-lg text-center">
+              {t("team.joiningWorkspace")}
+            </div>
+          )}
+
           {error && (
             <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
               {error}
@@ -128,7 +138,8 @@ export default function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              disabled={isLoading}
+              disabled={isLoading || !!invitationToken}
+              readOnly={!!invitationToken}
             />
           </div>
 
