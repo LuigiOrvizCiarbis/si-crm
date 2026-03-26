@@ -107,9 +107,6 @@ Route::post('register', function (Request $request): JsonResponse {
         $invitation->update(['accepted_at' => now()]);
     }
 
-    // Enviar email de verificación automáticamente
-    $user->sendEmailVerificationNotification();
-
     $token = $user->createToken('api-token')->plainTextToken;
 
     return response()->json([
