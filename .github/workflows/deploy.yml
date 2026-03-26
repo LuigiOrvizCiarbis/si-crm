@@ -20,11 +20,11 @@ jobs:
 
             # Backend
             cd crm-si-back
-            docker compose build --no-cache
-            docker compose up -d
-            docker compose exec -T app php artisan migrate --force
-            docker compose exec -T app php artisan config:clear
-            docker compose exec -T app php artisan cache:clear
+            docker compose -f docker-compose.prod.yml build --no-cache
+            docker compose -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml exec -T app php artisan migrate --force
+            docker compose -f docker-compose.prod.yml exec -T app php artisan config:clear
+            docker compose -f docker-compose.prod.yml exec -T app php artisan cache:clear
 
             # Frontend (production build)
             cd ../crm-si-front
