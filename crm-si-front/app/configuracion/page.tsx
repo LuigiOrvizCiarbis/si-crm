@@ -10,6 +10,7 @@ import { ChannelsCard } from "@/components/config/ChannelsCard"
 import { ApiKeysCard } from "@/components/config/ApiKeysCard"
 import { BillingCard } from "@/components/config/BillingCard"
 import { RolesCard } from "@/components/config/RolesCard"
+import { TeamInvitationsCard } from "@/components/config/TeamInvitationsCard"
 import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 import { useTranslation } from "@/hooks/useTranslation"
 
@@ -31,6 +32,7 @@ export default function ConfiguracionPage() {
           <ProfileCard />
           <NotificationsCard />
           <RolesCard />
+          <TeamInvitationsCard />
           <SecurityCard />
           <IntegrationsCard />
           <ChannelsCard />
