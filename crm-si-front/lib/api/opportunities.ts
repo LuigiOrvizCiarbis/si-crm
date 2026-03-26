@@ -1,4 +1,5 @@
 import { getAuthToken } from "./auth-token";
+import { throwApiError } from "./api-error";
 
 export interface OpportunityPayload {
   contact_id: number
@@ -45,7 +46,7 @@ export async function getOpportunities(options: GetOpportunitiesOptions = {}) {
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload?.message || "Error al cargar oportunidades");
+    throwApiError(response.status, payload, "Error al cargar oportunidades");
   }
 
   return payload.data || [];
@@ -66,7 +67,7 @@ export async function createOpportunity(body: OpportunityPayload) {
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload?.message || "Error al crear oportunidad");
+    throwApiError(response.status, payload, "Error al crear oportunidad");
   }
 
   return payload.data;
@@ -87,7 +88,7 @@ export async function updateOpportunityStage(opportunityId: number, stageId: num
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload?.message || "Error al actualizar etapa");
+    throwApiError(response.status, payload, "Error al actualizar etapa");
   }
 
   return payload.data;

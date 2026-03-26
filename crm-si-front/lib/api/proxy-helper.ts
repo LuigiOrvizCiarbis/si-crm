@@ -40,11 +40,19 @@ export async function proxyToLaravel(
         return { data, status: res.status };
       }
 
+      // 5xx: intentar siguiente backend
+      console.warn(`[Proxy] 5xx from ${base}: ${res.status}`);
+      continue;
+
     } catch (err: any) {
       console.warn(`[Proxy] Failed ${base}:`, err.message);
       continue;
     }
   }
 
-  throw new Error(`No reachable backend found. Tried: ${tried.join(", ")}`);
+  // Todos los backends fallaron o devolvieron 5xx: mensaje genérico
+  return {
+    data: { message: "Ocurrió un error interno. Inténtalo de nuevo más tarde." },
+    status: 502,
+  };
 }
