@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Eye, EyeOff, Loader2, MessageSquare } from "lucide-react"
 
@@ -23,34 +23,48 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 
 export default function RegisterPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { setAuth, setLoading, isLoading } = useAuthStore()
   const { t } = useTranslation()
 
+  const invitationToken = searchParams.get("invitation_token")
+  const invitedEmail = searchParams.get("email")
+
   const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState(invitedEmail || "")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState("")
+  const isSubmittingRef = useRef(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (isSubmittingRef.current || isLoading) {
+      return
+    }
+
+    isSubmittingRef.current = true
     setError("")
 
     if (password !== confirmPassword) {
       setError(t("auth.passwordsDoNotMatch"))
+      isSubmittingRef.current = false
       return
     }
 
     if (password.length < 8) {
       setError(t("auth.passwordTooShort"))
+      isSubmittingRef.current = false
       return
     }
 
     if (!acceptTerms) {
       setError(t("auth.mustAcceptTerms"))
+      isSubmittingRef.current = false
       return
     }
 
@@ -60,7 +74,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, password_confirmation: confirmPassword }),
+        body: JSON.stringify({ name, email, password, password_confirmation: confirmPassword, ...(invitationToken ? { invitation_token: invitationToken } : {}) }),
       })
 
       const data = await res.json()
@@ -75,6 +89,7 @@ export default function RegisterPage() {
     } catch (err: any) {
       setError(err.message || t("auth.error"))
     } finally {
+      isSubmittingRef.current = false
       setLoading(false)
     }
   }
@@ -98,6 +113,12 @@ export default function RegisterPage() {
 
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
+          {invitationToken && (
+            <div className="p-3 text-sm text-primary bg-primary/10 border border-primary/20 rounded-lg text-center">
+              {t("team.joiningWorkspace")}
+            </div>
+          )}
+
           {error && (
             <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
               {error}
@@ -128,7 +149,8 @@ export default function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              disabled={isLoading}
+              disabled={isLoading || !!invitationToken}
+              readOnly={!!invitationToken}
             />
           </div>
 

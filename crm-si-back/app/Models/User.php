@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\UserRole;
+use App\Models\Concerns\BelongsToTenant;
 use App\Notifications\CustomVerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -16,7 +17,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasApiTokens, HasFactory, Notifiable, BelongsToTenant;
+    use BelongsToTenant, HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
         'name',
@@ -37,6 +38,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => UserRole::class,
         ];
     }
 
@@ -60,6 +62,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         $ownedIds = $this->ownedChannels()->pluck('id')->toArray();
         $assignedIds = $this->channels()->pluck('channels.id')->toArray();
+
         return array_unique(array_merge($ownedIds, $assignedIds));
     }
 

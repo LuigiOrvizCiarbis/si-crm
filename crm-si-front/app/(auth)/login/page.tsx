@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Eye, EyeOff, Loader2, MessageSquare } from "lucide-react"
 import { useTranslation } from "@/hooks/useTranslation"
@@ -23,6 +23,8 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get("redirect")
   const { setAuth, setLoading, isLoading } = useAuthStore()
   const { t } = useTranslation()
 
@@ -53,7 +55,9 @@ export default function LoginPage() {
       const emailVerified = data.email_verified || !!data.user?.email_verified_at
       setAuth(data.user, data.token, rememberMe, emailVerified)
 
-      if (emailVerified) {
+      if (redirectTo && redirectTo.startsWith("/")) {
+        router.push(redirectTo)
+      } else if (emailVerified) {
         router.push("/chats")
       } else {
         router.push("/verify-email")

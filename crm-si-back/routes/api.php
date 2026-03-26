@@ -1,10 +1,12 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Api\ChannelController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ContactHistoryController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationStreamController;
+use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\PipelineStageController;
@@ -12,6 +14,8 @@ use App\Http\Controllers\Api\TenantStreamController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WhatsAppTemplateController;
 use App\Http\Controllers\WhatsAppController;
+use App\Models\Invitation;
+use App\Models\Scopes\TenantScope;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Auth\Events\Verified;
@@ -50,18 +54,42 @@ Route::post('register', function (Request $request): JsonResponse {
         'name' => 'required|string|max:255',
         'email' => 'required|email|unique:users,email',
         'password' => ['required', 'confirmed', PasswordRule::min(8)],
+        'invitation_token' => ['nullable', 'string', 'size:64'],
     ]);
 
-    // Crear tenant para el nuevo usuario
-    $tenant = Tenant::create([
-        'name' => $request->name."'s Workspace",
-    ]);
+    $invitation = null;
+    $role = UserRole::ADMIN;
+
+    // If invitation token provided, join existing tenant
+    if ($request->invitation_token) {
+        $invitation = Invitation::withoutGlobalScope(TenantScope::class)
+            ->with('tenant')
+            ->where('token', $request->invitation_token)
+            ->first();
+
+        if (! $invitation || $invitation->isAccepted() || $invitation->isExpired()) {
+            return response()->json(['message' => 'La invitación no es válida o ha expirado.'], 422);
+        }
+
+        if ($invitation->email !== $request->email) {
+            return response()->json(['message' => 'El email no coincide con la invitación.'], 422);
+        }
+
+        $tenant = $invitation->tenant;
+        $role = $invitation->role;
+    } else {
+        // Create new tenant for the user
+        $tenant = Tenant::create([
+            'name' => $request->name."'s Workspace",
+        ]);
+    }
 
     $user = User::create([
         'name' => $request->name,
         'email' => $request->email,
         'password' => Hash::make($request->password),
         'tenant_id' => $tenant->id,
+        'role' => $role,
     ]);
 
     // El registro no debe fallar si el proveedor de email está caído.
@@ -74,6 +102,13 @@ Route::post('register', function (Request $request): JsonResponse {
             'error' => $e->getMessage(),
         ]);
     }
+    // Mark invitation as accepted
+    if ($invitation) {
+        $invitation->update(['accepted_at' => now()]);
+    }
+
+    // Enviar email de verificación automáticamente
+    $user->sendEmailVerificationNotification();
 
     $token = $user->createToken('api-token')->plainTextToken;
 
@@ -287,7 +322,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('channels/{channel}/templates', [WhatsAppTemplateController::class, 'index']);
     Route::post('channels/{channel}/templates/sync', [WhatsAppTemplateController::class, 'sync']);
     Route::post('conversations/{conversation}/send-template', [WhatsAppTemplateController::class, 'send']);
+
+    Route::get('invitations', [InvitationController::class, 'index']);
+    Route::post('invitations', [InvitationController::class, 'store']);
+    Route::delete('invitations/{invitation}', [InvitationController::class, 'destroy']);
+    Route::post('invitations/accept', [InvitationController::class, 'accept']);
 });
+
+// Public: view invitation details by token (no auth required)
+Route::get('invitations/by-token/{token}', [InvitationController::class, 'showByToken']);
 
 Route::match(['get', 'post'], 'whatsapp-webhook', [WhatsAppController::class, 'webhook']);
 
