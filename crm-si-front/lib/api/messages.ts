@@ -1,5 +1,6 @@
 import { Message } from "react-hook-form";
 import { getAuthToken } from "./auth-token";
+import { throwApiError } from "./api-error";
 
 export async function sendMessage(conversationId: number, content: string) {
   const token = getAuthToken();
@@ -20,7 +21,7 @@ export async function sendMessage(conversationId: number, content: string) {
   });
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.message || "No se pudo enviar el mensaje");
+  if (!res.ok) throwApiError(res.status, data, "No se pudo enviar el mensaje");
   return data.data;
 }
 
@@ -38,7 +39,7 @@ export async function getMessages(): Promise<Message[]> {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || "Failed to fetch channels");
+    throwApiError(response.status, error, "Error al cargar mensajes");
   }
 
   const json = await response.json();

@@ -1,5 +1,6 @@
 import type { Conversation } from "@/data/types";
 import { getAuthToken } from "./auth-token";
+import { throwApiError } from "./api-error";
 
 function mapConversation(c: any): Conversation {
   return {
@@ -42,9 +43,7 @@ export async function getConversations(): Promise<Conversation[]> {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(
-      error.message || `HTTP ${response.status}: Failed to fetch conversations`
-    );
+    throwApiError(response.status, error, "Error al cargar conversaciones");
   }
 
   const json = await response.json();
@@ -66,7 +65,7 @@ export async function getChannelConversations(channelId: number, perPage = 50) {
   });
 
   const payload = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(payload?.message || "Error conversaciones");
+  if (!res.ok) throwApiError(res.status, payload, "Error conversaciones");
 
   return (payload.data || []).map(mapConversation);
 }
@@ -86,7 +85,7 @@ export async function getUserConversations(userId: number, perPage = 50) {
   });
 
   const payload = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(payload?.message || "Error conversaciones");
+  if (!res.ok) throwApiError(res.status, payload, "Error conversaciones");
 
   return (payload.data || []).map(mapConversation);
 }
@@ -102,8 +101,7 @@ export async function getConversationWithMessages(conversationId: number): Promi
   });
 
   const payload = await res.json().catch(() => ({}));
-  if (!res.ok)
-    throw new Error(payload?.message || "Error al cargar conversación");
+  if (!res.ok) throwApiError(res.status, payload, "Error al cargar conversación");
 
   return mapConversation(payload.data);
 }
@@ -120,8 +118,7 @@ export async function getConversationMessages(conversationId: number, page: numb
   });
 
   const payload = await res.json().catch(() => ({}));
-  if (!res.ok)
-    throw new Error(payload?.message || "Error al cargar historial de mensajes");
+  if (!res.ok) throwApiError(res.status, payload, "Error al cargar historial de mensajes");
 
   return payload;
 }
@@ -146,7 +143,7 @@ export async function updateConversationStage(conversationId: number, stage: num
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData?.message || "Failed to update stage");
+    throwApiError(res.status, errorData, "Error al actualizar etapa");
   }
 
   return await res.json();
@@ -168,7 +165,7 @@ export async function assignConversationUser(conversationId: number, userId: num
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData?.message || "Failed to assign user");
+    throwApiError(res.status, errorData, "Error al asignar usuario");
   }
 
   return await res.json();

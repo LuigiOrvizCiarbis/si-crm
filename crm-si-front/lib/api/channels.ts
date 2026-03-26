@@ -1,5 +1,6 @@
 import { Channel } from "@/data/types";
 import { getAuthToken } from "./auth-token";
+import { throwApiError } from "./api-error";
 
 export async function getChannels(): Promise<Channel[]> {
   const token = getAuthToken();
@@ -15,7 +16,7 @@ export async function getChannels(): Promise<Channel[]> {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || "Failed to fetch channels");
+    throwApiError(response.status, error, "Error al cargar canales");
   }
 
   const json = await response.json();

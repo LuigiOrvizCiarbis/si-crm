@@ -1,5 +1,6 @@
 import { WhatsAppTemplate } from "@/data/types";
 import { getAuthToken } from "./auth-token";
+import { throwApiError } from "./api-error";
 
 export async function getTemplates(channelId: number): Promise<WhatsAppTemplate[]> {
   const token = getAuthToken();
@@ -14,7 +15,7 @@ export async function getTemplates(channelId: number): Promise<WhatsAppTemplate[
   });
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || "Failed to fetch templates");
+  if (!res.ok) throwApiError(res.status, data, "Error al cargar plantillas");
 
   return Array.isArray(data) ? data : data.data ?? [];
 }
@@ -32,7 +33,7 @@ export async function syncTemplates(channelId: number): Promise<{ message: strin
   });
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || "Failed to sync templates");
+  if (!res.ok) throwApiError(res.status, data, "Error al sincronizar plantillas");
 
   return data;
 }
@@ -59,7 +60,7 @@ export async function sendTemplate(
   });
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || "Failed to send template");
+  if (!res.ok) throwApiError(res.status, data, "Error al enviar plantilla");
 
   return data;
 }
