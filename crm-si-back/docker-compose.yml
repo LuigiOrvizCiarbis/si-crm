@@ -35,9 +35,14 @@ services:
       CACHE_DRIVER: redis
       SESSION_DRIVER: redis
       QUEUE_CONNECTION: redis
-      MAIL_MAILER: ${MAIL_MAILER:-resend}
-      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-noreply@socialimpulse.com}
-      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Social Impulse}
+      MAIL_MAILER: ${MAIL_MAILER:-smtp}
+      MAIL_SCHEME: ${MAIL_SCHEME:-smtps}
+      MAIL_HOST: ${MAIL_HOST:-smtp.hostinger.com}
+      MAIL_PORT: ${MAIL_PORT:-465}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-info@sicrmapp.com}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-SICRM}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     env_file:
       - .env
@@ -74,7 +79,7 @@ services:
     networks:
       - laravel-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-laravel}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-laravel} -d ${DB_DATABASE:-laravel}"]
       interval: 10s
       timeout: 5s
       retries: 5
