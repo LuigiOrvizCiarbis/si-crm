@@ -79,7 +79,7 @@ services:
     networks:
       - laravel-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-laravel}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-laravel} -d ${DB_DATABASE:-laravel}"]
       interval: 10s
       timeout: 5s
       retries: 5
