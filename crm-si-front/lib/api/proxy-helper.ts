@@ -5,7 +5,7 @@
 export async function proxyToLaravel(
   endpoint: string,
   authHeader: string,
-  options: RequestInit = {}
+  options: RequestInit & { rawBody?: boolean } = {}
 ) {
   const stripSlash = (url?: string) => (url || "").replace(/\/$/, "");
   const method = (options.method || "GET").toUpperCase();
@@ -17,6 +17,7 @@ export async function proxyToLaravel(
     "http://localhost:8000",                        // Local fallback
   ].filter(Boolean);
 
+  const { rawBody, ...fetchOptions } = options;
   const tried: string[] = [];
 
   for (const base of bases) {
@@ -24,14 +25,19 @@ export async function proxyToLaravel(
     tried.push(url);
 
     try {
-      
+      const defaultHeaders: Record<string, string> = {
+        "Accept": "application/json",
+        "Authorization": authHeader,
+      };
+      if (!rawBody) {
+        defaultHeaders["Content-Type"] = "application/json";
+      }
+
       const res = await fetch(url, {
-        ...options,
+        ...fetchOptions,
         headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-          "Authorization": authHeader,
-          ...options.headers,
+          ...defaultHeaders,
+          ...fetchOptions.headers,
         },
       });
 
