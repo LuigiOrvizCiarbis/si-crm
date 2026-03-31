@@ -12,7 +12,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Search, Filter, Plus, MoreVertical, Phone, Mail, MessageSquare, Users, Loader2, Calendar, Hash } from "lucide-react"
+import { Search, Filter, Plus, Upload, MoreVertical, Phone, Mail, MessageSquare, Users, Loader2, Calendar, Hash } from "lucide-react"
+import { ImportContactsDialog } from "./import-contacts-dialog"
 import { getAuthToken } from "@/lib/api/auth-token"
 import { getPipelineStages } from "@/lib/api/pipeline"
 import { createOpportunity, getOpportunities, updateOpportunityStage } from "@/lib/api/opportunities"
@@ -79,6 +80,7 @@ export function ContactsList() {
   const [deleteContact, setDeleteContact] = useState<Contact | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [addingToPipelineId, setAddingToPipelineId] = useState<number | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const profileResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -326,6 +328,11 @@ export function ContactsList() {
               <DropdownMenuItem onClick={() => setSourceFilter("manual")}>Manual</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            Importar CSV
+          </Button>
 
           <Button size="sm" onClick={() => setDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
@@ -623,6 +630,13 @@ export function ContactsList() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Dialog Importar CSV */}
+      <ImportContactsDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImportComplete={() => fetchContacts()}
+      />
 
       {/* AlertDialog Eliminar */}
       <AlertDialog open={!!deleteContact} onOpenChange={(open) => { if (!open) setDeleteContact(null) }}>

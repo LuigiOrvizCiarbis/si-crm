@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ImportContactsRequest;
+use App\Services\ContactImportService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Models\Contact;
 
@@ -76,6 +79,17 @@ class ContactController extends Controller
         $contact->delete();
 
         return response()->json(['message' => 'Contacto eliminado']);
+    }
+
+    public function import(ImportContactsRequest $request): JsonResponse
+    {
+        $mapping = $request->decodedMapping();
+        $tenantId = $request->user()->tenant_id;
+
+        $service = new ContactImportService();
+        $result = $service->import($request->file('file'), $mapping, $tenantId);
+
+        return response()->json(['data' => $result]);
     }
 
     private function contactRules(): array
