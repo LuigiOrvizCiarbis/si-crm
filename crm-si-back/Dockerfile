@@ -40,9 +40,12 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-av
     && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
 COPY ./docker/apache/common.conf /etc/apache2/conf-available/common.conf
+COPY ./docker/apache/servername.conf /etc/apache2/conf-available/servername.conf
 COPY ./docker/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
 COPY ./docker/apache/default-ssl.conf /etc/apache2/sites-available/default-ssl.conf
 COPY ./docker/apache/mpm_prefork.conf /etc/apache2/mods-available/mpm_prefork.conf
+
+RUN a2enconf servername
 
 WORKDIR /var/www/html
 EXPOSE 80 443
