@@ -23,8 +23,9 @@ class MessageStreamController extends Controller
         // El scope BelongsToTenant ya filtró por tenant_id automáticamente
 
         return response()->stream(function () use ($conversationId): void {
-            // Configurar para evitar timeout
-            set_time_limit(0);
+            $maxLifetime = 90; // seconds — frontend auto-reconnects
+            set_time_limit($maxLifetime + 10);
+            $startTime = time();
 
             // Enviar mensajes iniciales
             $this->sendInitialMessages($conversationId);
@@ -34,12 +35,7 @@ class MessageStreamController extends Controller
                 ->max('id') ?? 0;
 
             // Loop de polling para nuevos mensajes
-            while (true) {
-                // Verificar si la conexión sigue activa
-                if (connection_aborted()) {
-                    break;
-                }
-
+            while (! connection_aborted() && (time() - $startTime) < $maxLifetime) {
                 // Buscar mensajes nuevos
                 $newMessages = Message::where('conversation_id', $conversationId)
                     ->where('id', '>', $lastMessageId)
@@ -62,6 +58,11 @@ class MessageStreamController extends Controller
                 // Esperar 2 segundos antes de siguiente check
                 sleep(2);
             }
+
+            echo "event: reconnect\n";
+            echo "data: {}\n\n";
+            if (ob_get_level() > 0) ob_flush();
+            flush();
         }, 200, [
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
