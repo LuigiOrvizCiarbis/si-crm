@@ -23,21 +23,24 @@ class TenantStreamController extends Controller
             if (ob_get_level() > 0) ob_flush();
             flush();
 
-            // Liberar conexión DB antes del subscribe bloqueante
+            // Liberar conexión DB antes del subscribe
             DB::disconnect('pgsql');
 
-            try {
-                $redis = Redis::connection();
+            $channel = 'tenant.' . $tenantId;
 
-                $redis->subscribe(['tenant.' . $tenantId], function ($message) {
-                    echo "event: message\n";
-                    echo "data: " . $message . "\n\n";
+            while (! connection_aborted()) {
+                try {
+                    Redis::connection('default')->subscribe([$channel], function ($message, $chan) {
+                        echo "event: message\n";
+                        echo "data: " . $message . "\n\n";
 
-                    if (ob_get_level() > 0) ob_flush();
-                    flush();
-                });
-            } catch (\Exception $e) {
-                Log::error("Error en tenant stream SSE: " . $e->getMessage());
+                        if (ob_get_level() > 0) ob_flush();
+                        flush();
+                    });
+                } catch (\Exception $e) {
+                    Log::error("Error en tenant stream SSE: " . $e->getMessage());
+                    break;
+                }
             }
         }, 200, [
             'Content-Type' => 'text/event-stream',
