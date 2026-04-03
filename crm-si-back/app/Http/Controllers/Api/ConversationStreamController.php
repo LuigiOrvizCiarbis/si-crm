@@ -42,26 +42,25 @@ class ConversationStreamController extends Controller
                 flush();
             }
 
-            // Liberar conexión DB antes del subscribe bloqueante
+            // Liberar conexión DB antes del subscribe
             DB::disconnect('pgsql');
 
-            // 3. Suscripción a Redis (Bloqueante pero eficiente)
-            // El servidor se queda "dormido" aquí hasta que llega un evento
-            try {
-                $redis = Redis::connection();
+            // 3. Suscripción a Redis usando la abstracción de Laravel
+            $channel = 'conversation.' . $conversation->id;
 
-                // Suscribirse al canal específico de esta conversación
-                $redis->subscribe(['conversation.' . $conversation->id], function ($message) {
-                    // Este callback se ejecuta cada vez que alguien hace Redis::publish
-                    echo "event: message\n";
-                    echo "data: " . $message . "\n\n";
+            while (! connection_aborted()) {
+                try {
+                    Redis::connection('default')->subscribe([$channel], function ($message, $chan) {
+                        echo "event: message\n";
+                        echo "data: " . $message . "\n\n";
 
-                    if (ob_get_level() > 0) ob_flush();
-                    flush();
-                });
-            } catch (\Exception $e) {
-                // Si Redis falla o la conexión se cierra
-                Log::error("Error en stream SSE Redis: " . $e->getMessage());
+                        if (ob_get_level() > 0) ob_flush();
+                        flush();
+                    });
+                } catch (\Exception $e) {
+                    Log::error("Error en stream SSE Redis: " . $e->getMessage());
+                    break;
+                }
             }
         }, 200, [
             'Content-Type' => 'text/event-stream',
