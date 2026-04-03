@@ -6,6 +6,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
@@ -38,7 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // Cualquier otra excepción es un error interno: ocultar detalles, loguear
             report($e);
 
-            return response()->json([
+            return new JsonResponse([
                 'message' => 'Ocurrió un error interno. Inténtalo de nuevo más tarde.',
             ], 500);
         });

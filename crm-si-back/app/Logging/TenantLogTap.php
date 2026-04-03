@@ -2,12 +2,17 @@
 
 namespace App\Logging;
 
-use Monolog\Logger;
+use Illuminate\Log\Logger as IlluminateLogger;
+use Monolog\Logger as MonologLogger;
 
 class TenantLogTap
 {
-    public function __invoke(Logger $logger): void
+    public function __invoke(IlluminateLogger|MonologLogger $logger): void
     {
-        $logger->pushProcessor(new TenantProcessor());
+        $monolog = $logger instanceof IlluminateLogger
+            ? $logger->getLogger()
+            : $logger;
+
+        $monolog->pushProcessor(new TenantProcessor());
     }
 }
