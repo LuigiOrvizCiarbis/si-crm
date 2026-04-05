@@ -13,8 +13,9 @@ use App\Models\WhatsAppConfig;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
+use App\Events\MessageSent;
+use App\Events\TenantMessageReceived;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
 
 class WhatsAppMessageService
 {
@@ -171,16 +172,11 @@ class WhatsAppMessageService
         }
 
         try {
-            $payload = json_encode($message);
-            Redis::publish('conversation.' . $message->conversation_id, $payload);
-
-            if (isset($messageData['tenant_id'])) {
-                Redis::publish('tenant.' . $messageData['tenant_id'], $payload);
-            }
+            broadcast(new MessageSent($message));
+            broadcast(new TenantMessageReceived($message, $messageData['tenant_id']));
         } catch (\Exception $e) {
-            Log::error("Error publicando en Redis: " . $e->getMessage());
+            Log::error("Error broadcasting message: " . $e->getMessage());
         }
-
 
         return $message;
     }
@@ -330,9 +326,10 @@ class WhatsAppMessageService
         ]);
 
         try {
-            Redis::publish('conversation.' . $message->conversation_id, json_encode($message));
+            broadcast(new MessageSent($message));
+            broadcast(new TenantMessageReceived($message, $conversation->tenant_id));
         } catch (\Exception $e) {
-            Log::error("Error publicando en Redis (Outbound): " . $e->getMessage());
+            Log::error("Error broadcasting outbound message: " . $e->getMessage());
         }
 
         return $message;

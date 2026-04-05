@@ -8,7 +8,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 # ── Dependencies ──
 FROM base AS deps
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json pnpm-lock.yaml* .npmrc* ./
 RUN --mount=type=cache,target=/pnpm/store \
     pnpm config set store-dir /pnpm/store && \
     pnpm install --frozen-lockfile

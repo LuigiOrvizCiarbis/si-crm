@@ -5,12 +5,10 @@ use App\Http\Controllers\Api\ChannelController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ContactHistoryController;
 use App\Http\Controllers\Api\ConversationController;
-use App\Http\Controllers\Api\ConversationStreamController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\PipelineStageController;
-use App\Http\Controllers\Api\TenantStreamController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WhatsAppTemplateController;
 use App\Http\Controllers\WhatsAppController;
@@ -298,12 +296,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('channels/{id}/users', [ChannelController::class, 'syncUsers']);
 
     Route::post('admin/channels/whatsapp-auth', [WhatsAppController::class, 'handleAuth']);
-
-    Route::get('/conversations/{conversation}/stream', [ConversationStreamController::class, 'stream'])
-        ->name('conversations.stream');
-
-    Route::get('/tenant/stream', [TenantStreamController::class, 'stream'])
-        ->name('tenant.stream');
 
     Route::get('/conversations/{id}/messages', [ConversationController::class, 'fetchMessages']);
 

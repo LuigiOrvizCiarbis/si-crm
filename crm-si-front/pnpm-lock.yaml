@@ -22,7 +22,7 @@ importers:
         version: 3.10.0(react-hook-form@7.66.0(react@19.2.0))
       '@laravel/echo-react':
         specifier: ^2.2.6
-        version: 2.3.0(pusher-js@8.4.0)(react@19.2.0)(socket.io-client@4.8.3)
+        version: 2.3.0(pusher-js@8.5.0)(react@19.2.0)(socket.io-client@4.8.3)
       '@radix-ui/react-accordion':
         specifier: 1.2.2
         version: 1.2.2(@types/react-dom@18.3.7(@types/react@18.3.26))(@types/react@18.3.26)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -143,6 +143,9 @@ importers:
       next-themes:
         specifier: latest
         version: 0.4.6(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      pusher-js:
+        specifier: ^8.5.0
+        version: 8.5.0
       react:
         specifier: ^19.2.0
         version: 19.2.0
@@ -1849,8 +1852,8 @@ packages:
   prop-types@15.8.1:
     resolution: {integrity: sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==}
 
-  pusher-js@8.4.0:
-    resolution: {integrity: sha512-wp3HqIIUc1GRyu1XrP6m2dgyE9MoCsXVsWNlohj0rjSkLf+a0jLvEyVubdg58oMk7bhjBWnFClgp8jfAa6Ak4Q==}
+  pusher-js@8.5.0:
+    resolution: {integrity: sha512-V7uzGi9bqOOOyM/6IkJdpFyjGZj7llz1v0oWnYkZKcYLvbz6VcHVLmzKqkvegjuMumpfIEKGLmWHwFb39XFCpw==}
 
   react-day-picker@9.8.0:
     resolution: {integrity: sha512-E0yhhg7R+pdgbl/2toTb0xBhsEAtmAx1l7qjIWYfcxOy8w4rTSVfbtBoSzVVhPwKP/5E9iL38LivzoE3AQDhCQ==}
@@ -2279,9 +2282,9 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@laravel/echo-react@2.3.0(pusher-js@8.4.0)(react@19.2.0)(socket.io-client@4.8.3)':
+  '@laravel/echo-react@2.3.0(pusher-js@8.5.0)(react@19.2.0)(socket.io-client@4.8.3)':
     dependencies:
-      pusher-js: 8.4.0
+      pusher-js: 8.5.0
       react: 19.2.0
       socket.io-client: 4.8.3
 
@@ -3604,7 +3607,7 @@ snapshots:
       object-assign: 4.1.1
       react-is: 16.13.1
 
-  pusher-js@8.4.0:
+  pusher-js@8.5.0:
     dependencies:
       tweetnacl: 1.0.3
 
