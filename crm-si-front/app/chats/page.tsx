@@ -23,7 +23,6 @@ import { ChatQuickBar } from "@/components/ChatQuickBar"
 import { getChannelConversations, getConversationMessages, getConversations, getConversationWithMessages } from "@/lib/api/conversations"
 
 import { sendMessage } from "@/lib/api/messages"
-import { getAuthToken } from "@/lib/api/auth-token"
 import { ConversationHeader } from "@/components/chat/ConversationHeader"
 import { AISuggestions } from "@/components/chat/AISuggestions"
 import { MessageList } from "@/components/chat/MessageList"
@@ -171,11 +170,8 @@ export default function ChatsPage() {
 
 
 
-  const [authToken] = useState(() => getAuthToken() ?? "");
-
   useSSEMessages({
     conversationId: selectedConversationId,
-    token: authToken,
     onMessage: handleRealTimeMessage
   });
 
@@ -214,7 +210,6 @@ export default function ChatsPage() {
   }, [normalizeIncomingTemplateContent]);
 
   useTenantSSE({
-    token: authToken,
     onMessage: handleTenantMessage,
   });
 

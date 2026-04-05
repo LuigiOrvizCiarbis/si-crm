@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
+import { disconnectPusher } from "@/lib/pusher"
 
 export interface User {
   id: number
@@ -67,6 +68,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        disconnectPusher()
         set({
           user: null,
           token: null,

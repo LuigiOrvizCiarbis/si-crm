@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { getChannels } from '@/lib/api/channels'
-import { Channel } from 'pusher-js'
+import { Channel } from '@/data/types'
 
 interface UseAccountsReturn {
   accounts: Channel[]

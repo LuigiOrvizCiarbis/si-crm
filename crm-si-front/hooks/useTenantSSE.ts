@@ -1,45 +1,33 @@
 import { useEffect, useRef } from "react";
 import { Message } from "@/data/types";
+import { getPusher } from "@/lib/pusher";
+import { useAuthStore } from "@/store/useAuthStore";
 
-interface UseTenantSSEProps {
-  token: string | null;
+interface UseTenantReverbProps {
   onMessage: (message: Message) => void;
 }
 
-export function useTenantSSE({ token, onMessage }: UseTenantSSEProps) {
-  const eventSourceRef = useRef<EventSource | null>(null);
+export function useTenantSSE({ onMessage }: UseTenantReverbProps) {
   const onMessageRef = useRef(onMessage);
+  const tenantId = useAuthStore((s) => s.user?.tenant_id);
 
   useEffect(() => {
     onMessageRef.current = onMessage;
   }, [onMessage]);
 
   useEffect(() => {
-    if (!token) return;
+    if (!tenantId) return;
 
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
+    const pusher = getPusher();
+    const channel = pusher.subscribe(`private-tenant.${tenantId}`);
 
-    const url = `/api/tenant/stream?token=${token}`;
-    const eventSource = new EventSource(url);
-    eventSourceRef.current = eventSource;
-
-    eventSource.addEventListener("message", (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        onMessageRef.current(message);
-      } catch (error) {
-        console.error("Tenant SSE: error parsing", error);
-      }
+    channel.bind("message.received", (data: Message) => {
+      onMessageRef.current(data);
     });
 
-    eventSource.onerror = () => {
-      // EventSource auto-reconnects
-    };
-
     return () => {
-      eventSource.close();
+      channel.unbind_all();
+      pusher.unsubscribe(`private-tenant.${tenantId}`);
     };
-  }, [token]);
+  }, [tenantId]);
 }

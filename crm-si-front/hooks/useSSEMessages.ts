@@ -1,19 +1,16 @@
 import { useEffect, useRef } from "react";
 import { Message } from "@/data/types";
+import { getPusher } from "@/lib/pusher";
 
-interface UseSSEMessagesProps {
+interface UseReverbMessagesProps {
   conversationId: string | number | null;
-  token: string | null;
   onMessage: (message: Message) => void;
 }
 
 export function useSSEMessages({
   conversationId,
-  token,
   onMessage,
-}: UseSSEMessagesProps) {
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const lastMessageIdRef = useRef<number>(0);
+}: UseReverbMessagesProps) {
   const onMessageRef = useRef(onMessage);
 
   useEffect(() => {
@@ -21,36 +18,18 @@ export function useSSEMessages({
   }, [onMessage]);
 
   useEffect(() => {
-    if (!conversationId || !token) return;
+    if (!conversationId) return;
 
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
+    const pusher = getPusher();
+    const channel = pusher.subscribe(`private-conversations.${conversationId}`);
 
-    const url = `/api/conversations/${conversationId}/stream?token=${token}&last_id=${lastMessageIdRef.current}`;
-    const eventSource = new EventSource(url);
-    eventSourceRef.current = eventSource;
-
-    eventSource.addEventListener("message", (event) => {
-      try {
-        const newMessage = JSON.parse(event.data);
-
-        if (newMessage.id) {
-          lastMessageIdRef.current = newMessage.id;
-        }
-
-        onMessageRef.current(newMessage);
-      } catch (error) {
-        console.error("SSE: Error parsing JSON", error);
-      }
+    channel.bind("message.sent", (data: Message) => {
+      onMessageRef.current(data);
     });
 
-    eventSource.onerror = () => {
-      // EventSource auto-reconnects
-    };
-
     return () => {
-      eventSource.close();
+      channel.unbind_all();
+      pusher.unsubscribe(`private-conversations.${conversationId}`);
     };
-  }, [conversationId, token]);
+  }, [conversationId]);
 }
