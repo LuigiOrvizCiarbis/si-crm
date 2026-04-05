@@ -12,8 +12,9 @@ use App\Models\WhatsAppConfig;
 use App\Models\WhatsAppTemplate;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
+use App\Events\MessageSent;
+use App\Events\TenantMessageReceived;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
 
 class WhatsAppTemplateService
 {
@@ -145,9 +146,10 @@ class WhatsAppTemplateService
         ]);
 
         try {
-            Redis::publish('conversation.'.$message->conversation_id, json_encode($message));
+            broadcast(new MessageSent($message));
+            broadcast(new TenantMessageReceived($message, $conversation->tenant_id));
         } catch (\Exception $e) {
-            Log::error('Error publicando en Redis (Template): '.$e->getMessage());
+            Log::error('Error broadcasting template message: '.$e->getMessage());
         }
 
         return $message;

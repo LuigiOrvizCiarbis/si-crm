@@ -8,7 +8,11 @@ class TenantProcessor
 {
     public function __invoke(LogRecord $record): LogRecord
     {
-        $user = auth()->user();
+        try {
+            $user = auth()->user();
+        } catch (\Throwable) {
+            return $record;
+        }
 
         if (! $user) {
             return $record;
