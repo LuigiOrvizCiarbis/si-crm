@@ -10,9 +10,13 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 });
 
 Broadcast::channel('conversations.{conversationId}', function ($user, $conversationId) {
-    return $user->tenant_id === Conversation::find($conversationId)?->tenant_id;
+    return (int) $user->tenant_id === (int) Conversation::find($conversationId)?->tenant_id;
 });
 
 Broadcast::channel('messages.{messageId}', function (User $user, int $messageId) {
     return $user->id === Message::findOrNew($messageId)->user_id;
+});
+
+Broadcast::channel('tenant.{tenantId}', function (User $user, int $tenantId) {
+    return (int) $user->tenant_id === $tenantId;
 });

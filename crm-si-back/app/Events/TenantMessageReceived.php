@@ -6,20 +6,23 @@ use App\Models\Message;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 
-class MessageSent implements ShouldBroadcastNow
+class TenantMessageReceived implements ShouldBroadcastNow
 {
-    public function __construct(public Message $message) {}
+    public function __construct(
+        public Message $message,
+        public int $tenantId,
+    ) {}
 
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('conversations.' . $this->message->conversation_id)
+            new PrivateChannel('tenant.'.$this->tenantId),
         ];
     }
 
     public function broadcastAs(): string
     {
-        return 'message.sent';
+        return 'message.received';
     }
 
     public function broadcastWith(): array
