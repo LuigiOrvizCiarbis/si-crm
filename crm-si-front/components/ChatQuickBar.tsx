@@ -90,7 +90,6 @@ export function ChatQuickBar({
         ])
         setPipelineStages(stages)
         setUsers(fetchedUsers.map(u => ({ id: u.id, name: u.name, role: (u.role as TeamUser['role']) || 'Vendedor' })))
-        console.log('[ChatQuickBar] users loaded:', fetchedUsers.length)
       } catch (error) {
         console.error('Error loading stages/users', error)
       } finally {
@@ -188,12 +187,10 @@ export function ChatQuickBar({
     const effectiveTeam = team.length ? team : users
     const assignee = effectiveTeam.find((t) => t.id === assigneeId)
 
-    console.log("[ChatQuickBar] handleAssigneeChange called with:", assigneeId);
 
     try {
       // Llamar al backend para guardar
       const response = await assignConversationUser(chatId, assigneeId)
-      console.log("[ChatQuickBar] Backend response:", response);
 
       // Notificar al componente padre
       onChangeAssignee(assigneeId)
@@ -283,9 +280,7 @@ export function ChatQuickBar({
   }
 
   useEffect(() => {
-    console.log("ChatQuickBar value:", value);
-    console.log("ChatQuickBar value.assigneeId:", value.assigneeId, "type:", typeof value.assigneeId);
-    console.log("Pipeline stages:", pipelineStages);
+   
   }, [value, pipelineStages]);
 
   return (
@@ -296,9 +291,6 @@ export function ChatQuickBar({
       const selectedAssigneeId = toNumber(value.assigneeId) ?? desktopFallbackId ?? ''
       const selectedAssigneeName = effectiveTeam.find((m) => String(m.id) === String(selectedAssigneeId))?.name || t("chats.select")
       const selectedStageName = pipelineStages.find((s) => s.id === value.stageId)?.name || t("chats.select")
-
-      console.log("[ChatQuickBar render] value.assigneeId:", value.assigneeId, "selectedAssigneeId:", selectedAssigneeId, "users:", users.length);
-
       const mobileEffectiveTeam = effectiveTeam
       const mobileFallbackId = mobileEffectiveTeam[0]?.id
       const selectedTempAssigneeId = toNumber(tempValues.assigneeId) ?? mobileFallbackId ?? ''
