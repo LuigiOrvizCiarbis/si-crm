@@ -310,7 +310,7 @@ export function ChatQuickBar({
               value={value.stageId?.toString() || ""}
               onValueChange={(val) => handleStageChange(Number(val))}
             >
-              <SelectTrigger className="h-auto w-[140px] border-0 bg-transparent p-0 text-[#D8DEE9] text-sm focus:ring-0 focus:ring-offset-0 gap-2 hover:bg-transparent data-placeholder:text-[#D8DEE9]">
+              <SelectTrigger className="h-auto w-35 border-0 bg-transparent p-0 text-[#D8DEE9] text-sm focus:ring-0 focus:ring-offset-0 gap-2 hover:bg-transparent data-placeholder:text-[#D8DEE9]">
                 <SelectValue placeholder={t("chats.select")} className="truncate">
                   <span className="truncate block w-full text-left">
                     {selectedStageName}

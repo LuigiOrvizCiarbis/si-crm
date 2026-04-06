@@ -8,6 +8,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: dev
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     restart: unless-stopped
     working_dir: /var/www/html
     volumes:
