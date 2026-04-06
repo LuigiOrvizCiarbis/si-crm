@@ -18,10 +18,10 @@ services:
       - "3000:3000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    env_file:
+      - .env.production
     environment:
       - NODE_ENV=production
-      - FACEBOOK_APP_SECRET=${FACEBOOK_APP_SECRET}
-      - API_INTERNAL_URL=${API_INTERNAL_URL:-http://host.docker.internal:8000}
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000"]
       interval: 30s
