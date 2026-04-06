@@ -28,5 +28,5 @@ jobs:
 
             # Frontend (production build)
             cd ../crm-si-front
-            docker compose -f docker-compose.prod.yaml build --no-cache
-            docker compose -f docker-compose.prod.yaml up -d
+            docker compose --env-file .env.production -f docker-compose.prod.yaml build --no-cache
+            docker compose --env-file .env.production -f docker-compose.prod.yaml up -d
