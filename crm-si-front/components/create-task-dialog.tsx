@@ -28,7 +28,7 @@ export function CreateTaskDialog() {
           Nueva Tarea
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="sm:max-w-131.25">
         <DialogHeader>
           <DialogTitle>Crear Nueva Tarea</DialogTitle>
           <DialogDescription>Crea una nueva tarea y asígnala a un lead o oportunidad.</DialogDescription>

@@ -2,3 +2,4 @@ CLAUDE.md
 .github/copilot-instructions.md
 .vscode/settings.json
 .DS_Store
+crm-si-back/docker-compose.yml

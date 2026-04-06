@@ -380,7 +380,7 @@ export function ContactsList() {
                     <div>
                       <p className="font-medium text-sm">{contact.name}</p>
                       {contact.conversations && contact.conversations.length > 0 && (
-                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        <p className="text-xs text-muted-foreground truncate max-w-50">
                           {contact.conversations[0].last_message_content}
                         </p>
                       )}

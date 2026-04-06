@@ -338,7 +338,7 @@ export function ImportContactsDialog({ open, onOpenChange, onImportComplete }: I
                 <TableHeader>
                   <TableRow>
                     {headers.map((header, i) => (
-                      <TableHead key={i} className="min-w-[140px]">
+                      <TableHead key={i} className="min-w-35">
                         <div className="space-y-1.5">
                           <p className="text-xs text-muted-foreground truncate">{header}</p>
                           <Select
@@ -376,7 +376,7 @@ export function ImportContactsDialog({ open, onOpenChange, onImportComplete }: I
                   {previewRows.map((row, ri) => (
                     <TableRow key={ri}>
                       {headers.map((_, ci) => (
-                        <TableCell key={ci} className="text-xs truncate max-w-[200px]">
+                        <TableCell key={ci} className="text-xs truncate max-w-50">
                           {row[ci] || ""}
                         </TableCell>
                       ))}
