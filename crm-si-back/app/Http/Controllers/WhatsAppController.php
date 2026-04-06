@@ -359,6 +359,9 @@ class WhatsAppController extends Controller
                     if ($field === 'messages' && isset($value['messages'])) {
                         $this->messageService->processIncomingMessage($change);
 
+                    } elseif ($field === 'smb_message_echoes' && isset($value['message_echoes'])) {
+                        $this->messageService->processSmbMessageEchoes($change);
+
                     } elseif ($field === 'smb_app_state_sync') {
                         $this->handleSmbAppStateSync($entry['id'] ?? null, $value);
                     }
