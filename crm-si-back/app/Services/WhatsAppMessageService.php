@@ -21,7 +21,6 @@ class WhatsAppMessageService
 {
     public function processIncomingMessage(array $webhookData): ?Message
     {
-
         try {
             $value = $webhookData['value'] ?? null;
             if (!is_array($value)) {
@@ -35,39 +34,17 @@ class WhatsAppMessageService
                 return null;
             }
 
+            $channel = $this->resolveChannelFromWebhook($value, 'processIncomingMessage');
+            if (!$channel) {
+                return null;
+            }
+
             $messageData = $messages[0];
             $contactData = $value['contacts'][0] ?? null;
-            $metadata = $value['metadata'] ?? [];
-
-            $phoneNumberId = $metadata['phone_number_id'] ?? null;
-            if (!$phoneNumberId) {
-                Log::warning('phone_number_id ausente en metadata');
-                return null;
-            }
-
-            $whatsappConfig = WhatsAppConfig::with('channels')
-                ->where('phone_number_id', $phoneNumberId)
-                ->first();
-
-            if (!$whatsappConfig || $whatsappConfig->channels->isEmpty()) {
-                Log::warning('Canal no encontrado para phone_number_id: ' . $phoneNumberId);
-                return null;
-            }
-
-            // Tomar el primer canal asociado a esta config
-            $channel = $whatsappConfig->channels->first();
             $tenantId = $channel->tenant_id;
 
-            // Contacto
             $contact = $this->findOrCreateContact($contactData, $messageData['from'] ?? '', $tenantId);
-
-            // Conversación (usar el ID del canal)
             $conversation = $this->findOrCreateConversation($contact, $channel);
-
-            // Crear el mensaje (tenant_id del canal)
-            $deliveredAt = isset($messageData['timestamp'])
-                ? Carbon::createFromTimestamp((int) $messageData['timestamp'])->setTimezone(config('app.timezone'))
-                : now();
 
             return $this->createMessage([
                 'tenant_id' => $tenantId,
@@ -77,7 +54,7 @@ class WhatsAppMessageService
                 'content' => $this->extractMessageContent($messageData),
                 'direction' => MessageDirection::INBOUND,
                 'external_id' => $messageData['id'] ?? null,
-                'delivered_at' => $deliveredAt,
+                'delivered_at' => $this->parseWebhookTimestamp($messageData['timestamp'] ?? null),
             ]);
         } catch (\Exception $e) {
             Log::error('Error procesando mensaje de WhatsApp: ' . $e->getMessage(), [
@@ -137,6 +114,36 @@ class WhatsAppMessageService
         }
 
         return $conversation;
+    }
+
+    private function resolveChannelFromWebhook(array $value, string $context): ?Channel
+    {
+        $phoneNumberId = $value['metadata']['phone_number_id'] ?? null;
+
+        if (!$phoneNumberId) {
+            Log::warning("{$context}: phone_number_id ausente en metadata");
+            return null;
+        }
+
+        $whatsappConfig = WhatsAppConfig::with('channels')
+            ->where('phone_number_id', $phoneNumberId)
+            ->first();
+
+        if (!$whatsappConfig || $whatsappConfig->channels->isEmpty()) {
+            Log::warning("{$context}: canal no encontrado para phone_number_id: {$phoneNumberId}");
+            return null;
+        }
+
+        return $whatsappConfig->channels->first();
+    }
+
+    private function parseWebhookTimestamp(?string $timestamp): Carbon
+    {
+        if ($timestamp) {
+            return Carbon::createFromTimestamp((int) $timestamp)->setTimezone(config('app.timezone'));
+        }
+
+        return Carbon::now();
     }
 
     private function extractMessageContent(array $messageData): string
@@ -278,6 +285,57 @@ class WhatsAppMessageService
                     'external_id' => $bsuid,
                 ]);
             }
+        }
+    }
+
+    /**
+     * Procesa mensajes enviados desde la app de WhatsApp Business (coexistencia).
+     * Estos llegan como smb_message_echoes y son mensajes OUTBOUND que el negocio
+     * envió desde la app, no desde el CRM.
+     */
+    public function processSmbMessageEchoes(array $webhookData): void
+    {
+        $value = $webhookData['value'] ?? null;
+        if (!is_array($value)) {
+            return;
+        }
+
+        $echoes = $value['message_echoes'] ?? [];
+        if (empty($echoes)) {
+            return;
+        }
+
+        $channel = $this->resolveChannelFromWebhook($value, 'smb_message_echoes');
+        if (!$channel) {
+            return;
+        }
+
+        $tenantId = $channel->tenant_id;
+
+        foreach ($echoes as $echo) {
+            $customerPhone = $echo['to'] ?? null;
+            if (!$customerPhone) {
+                continue;
+            }
+
+            $externalId = $echo['id'] ?? null;
+            if ($externalId && Message::where('tenant_id', $tenantId)->where('external_id', $externalId)->exists()) {
+                continue;
+            }
+
+            $contact = $this->findOrCreateContact(null, $customerPhone, $tenantId);
+            $conversation = $this->findOrCreateConversation($contact, $channel);
+
+            $this->createMessage([
+                'tenant_id' => $tenantId,
+                'conversation_id' => $conversation->id,
+                'sender_type' => SenderType::USER,
+                'sender_id' => $channel->user_id,
+                'content' => $this->extractMessageContent($echo),
+                'direction' => MessageDirection::OUTBOUND,
+                'external_id' => $externalId,
+                'delivered_at' => $this->parseWebhookTimestamp($echo['timestamp'] ?? null),
+            ]);
         }
     }
 
