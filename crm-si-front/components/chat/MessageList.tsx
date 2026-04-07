@@ -1,12 +1,34 @@
 import { Message } from "@/data/types"
 import { useEffect, useRef, useLayoutEffect, useState } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { useTranslation } from "@/hooks/useTranslation"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
 
 interface MessageListProps {
   messages: Message[]
   onLoadMore: () => Promise<void>
   hasMore: boolean
   isLoadingMore: boolean
+  onEditMessage?: (message: Message) => void
+  onDeleteMessage?: (message: Message) => void
+  currentUserId?: number
+  isAdmin?: boolean
 }
 
 function parseTemplateContent(content: string): { isTemplate: boolean; title: string; body: string } {
@@ -126,10 +148,21 @@ function MessageBubbleImage({ mediaUrl, isUser }: { mediaUrl: string; isUser: bo
   )
 }
 
-export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: MessageListProps) {
+export function MessageList({
+  messages,
+  onLoadMore,
+  hasMore,
+  isLoadingMore,
+  onEditMessage,
+  onDeleteMessage,
+  currentUserId,
+  isAdmin,
+}: MessageListProps) {
+  const { t } = useTranslation()
   const scrollRef = useRef<HTMLDivElement>(null)
   const prevScrollHeightRef = useRef(0)
   const lastMessageIdRef = useRef<number | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Message | null>(null)
 
   useLayoutEffect(() => {
     if (scrollRef.current && prevScrollHeightRef.current > 0) {
@@ -168,71 +201,193 @@ export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: Me
     }
   }
 
+  const canEdit = (msg: Message) =>
+    msg.sender_type === "user" &&
+    msg.sender_id === currentUserId &&
+    msg.direction === "outbound" &&
+    (!msg.message_type || msg.message_type === "text") &&
+    !msg.deleted_at
+
+  const canDelete = (msg: Message) =>
+    !msg.deleted_at &&
+    (
+      (msg.sender_type === "user" && msg.sender_id === currentUserId) ||
+      isAdmin
+    )
+
+  const hasActions = (msg: Message) => canEdit(msg) || canDelete(msg)
+
   return (
-    <div
-      ref={scrollRef}
-      className="flex-1 p-4 overflow-y-auto min-h-0"
-      onScroll={handleScroll}
-    >
-      {isLoadingMore && (
-        <div className="flex justify-center py-2">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-        </div>
-      )}
+    <>
+      <div
+        ref={scrollRef}
+        className="flex-1 p-4 overflow-y-auto min-h-0"
+        onScroll={handleScroll}
+      >
+        {isLoadingMore && (
+          <div className="flex justify-center py-2">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        )}
 
-      <div className="space-y-4">
-        {messages.map((msg) => {
-          const isUser = msg.sender_type === "user"
-          const imageUrl = msg.media_full_url || msg.media_url
-          const isImage = msg.message_type === "image" && imageUrl
-          const parsed = !isImage ? parseTemplateContent(msg.content || "") : { isTemplate: false, title: "", body: "" }
+        <div className="space-y-4">
+          {messages.map((msg) => {
+            const isUser = msg.sender_type === "user"
+            const isDeleted = !!msg.deleted_at
+            const isEdited = !!msg.edited_at && !isDeleted
+            const hasOriginalContent =
+              isEdited &&
+              !!msg.original_content &&
+              msg.original_content !== msg.content
+            const imageUrl = msg.media_full_url || msg.media_url
+            const isImage = msg.message_type === "image" && imageUrl
+            const parsed = !isImage && !isDeleted ? parseTemplateContent(msg.content || "") : { isTemplate: false, title: "", body: "" }
 
-          return (
-            <div
-              key={msg.id}
-              className={`flex ${isUser ? "justify-end" : "justify-start"}`}
-            >
+            return (
               <div
-                className={`p-3 rounded-lg max-w-xs ${isUser
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
-                  }`}
+                key={msg.id}
+                className={`group/msg flex ${isUser ? "justify-end" : "justify-start"}`}
               >
-                {isImage && imageUrl ? (
-                  <div className="space-y-1">
-                    <MessageBubbleImage mediaUrl={imageUrl} isUser={isUser} />
-                    {msg.content && (
-                      <p className="text-sm mt-1">{msg.content}</p>
-                    )}
+                {/* Action button - before bubble for user messages */}
+                {isUser && hasActions(msg) && (
+                  <div className="flex items-center mr-1 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {canEdit(msg) && onEditMessage && (
+                          <DropdownMenuItem onClick={() => onEditMessage(msg)}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            {t("chats.editMessage")}
+                          </DropdownMenuItem>
+                        )}
+                        {canDelete(msg) && onDeleteMessage && (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setDeleteTarget(msg)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {t("chats.deleteMessage")}
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                ) : parsed.isTemplate ? (
-                  <div className="space-y-1">
-                    <span className="text-xs font-medium opacity-75">
-                      {parsed.title}
-                    </span>
-                    {parsed.body && (
-                      <p className="text-sm whitespace-pre-wrap">
-                        {parsed.body}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm">{msg.content}</p>
                 )}
-                {(msg.delivered_at || msg.created_at) && (
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(msg.delivered_at || msg.created_at).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    })}
-                  </span>
+
+                <div
+                  className={`p-3 rounded-lg max-w-xs ${isUser
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                    }`}
+                >
+                  {isDeleted ? (
+                    <p className="text-sm italic opacity-60">
+                      {t("chats.messageDeleted")}
+                    </p>
+                  ) : hasOriginalContent ? (
+                    <div className="space-y-2">
+                      <p className="text-xs opacity-70 line-through whitespace-pre-wrap">
+                        {msg.original_content}
+                      </p>
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                  ) : isImage && imageUrl ? (
+                    <div className="space-y-1">
+                      <MessageBubbleImage mediaUrl={imageUrl} isUser={isUser} />
+                      {msg.content && (
+                        <p className="text-sm mt-1">{msg.content}</p>
+                      )}
+                    </div>
+                  ) : parsed.isTemplate ? (
+                    <div className="space-y-1">
+                      <span className="text-xs font-medium opacity-75">
+                        {parsed.title}
+                      </span>
+                      {parsed.body && (
+                        <p className="text-sm whitespace-pre-wrap">
+                          {parsed.body}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm">{msg.content}</p>
+                  )}
+                  {(msg.delivered_at || msg.created_at) && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(msg.delivered_at || msg.created_at).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}
+                      </span>
+                      {isEdited && (
+                        <span className="text-xs text-muted-foreground opacity-70">
+                          · {t("chats.edited")}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Action button - after bubble for contact messages */}
+                {!isUser && hasActions(msg) && (
+                  <div className="flex items-center ml-1 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {canDelete(msg) && onDeleteMessage && (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setDeleteTarget(msg)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {t("chats.deleteMessage")}
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 )}
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
-    </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("chats.deleteMessageTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("chats.deleteMessageConfirm")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteTarget && onDeleteMessage) {
+                  onDeleteMessage(deleteTarget)
+                }
+                setDeleteTarget(null)
+              }}
+            >
+              {t("chats.deleteMessageAction")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

@@ -1,4 +1,4 @@
-import { Message } from "react-hook-form";
+import { Message } from "@/data/types";
 import { getAuthToken } from "./auth-token";
 import { throwApiError } from "./api-error";
 
@@ -66,4 +66,41 @@ export async function getMessages(): Promise<Message[]> {
   const json = await response.json();
 
   return json.data ?? [];
+}
+
+export async function editMessage(messageId: number, content: string): Promise<Message> {
+  const token = getAuthToken();
+  if (!token) throw new Error("Token faltante");
+
+  const res = await fetch(`/api/messages/${messageId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ content }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throwApiError(res.status, data, "No se pudo editar el mensaje");
+  return data.data;
+}
+
+export async function deleteMessage(messageId: number): Promise<void> {
+  const token = getAuthToken();
+  if (!token) throw new Error("Token faltante");
+
+  const res = await fetch(`/api/messages/${messageId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throwApiError(res.status, data, "No se pudo eliminar el mensaje");
+  }
 }

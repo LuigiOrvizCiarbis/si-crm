@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Enums\SenderType;
 use App\Enums\MessageDirection;
 use App\Enums\MessageType;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Message extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'tenant_id',
         'conversation_id',
@@ -25,6 +27,8 @@ class Message extends Model
         'external_id',
         'delivered_at',
         'read_at',
+        'edited_at',
+        'original_content',
     ];
 
     protected $casts = [
@@ -33,6 +37,7 @@ class Message extends Model
         'message_type' => MessageType::class,
         'delivered_at' => 'datetime',
         'read_at' => 'datetime',
+        'edited_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -136,5 +141,21 @@ class Message extends Model
     public function isRead(): bool
     {
         return !is_null($this->read_at);
+    }
+
+    public function isEdited(): bool
+    {
+        return !is_null($this->edited_at);
+    }
+
+    public function conversationPreviewContent(): string
+    {
+        return match ($this->message_type) {
+            MessageType::Image => '📷 ' . ($this->content ?: 'Imagen'),
+            MessageType::Video => '🎥 ' . ($this->content ?: 'Video'),
+            MessageType::Audio => '🎵 Audio',
+            MessageType::Document => '📄 ' . ($this->content ?: 'Documento'),
+            default => $this->content ?? '',
+        };
     }
 }

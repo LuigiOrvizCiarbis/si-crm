@@ -77,7 +77,7 @@ class Conversation extends Model
      */
     public function messages(): HasMany
     {
-        return $this->hasMany(Message::class);
+        return $this->hasMany(Message::class)->withTrashed();
     }
 
     /**
@@ -125,7 +125,21 @@ class Conversation extends Model
      */
     public function lastMessage(): ?Message
     {
-        return $this->messages()->latest()->first();
+        return $this->messages()
+            ->withoutTrashed()
+            ->latest('created_at')
+            ->latest('id')
+            ->first();
+    }
+
+    public function syncLastMessageSummary(): void
+    {
+        $lastMessage = $this->lastMessage();
+
+        $this->updateQuietly([
+            'last_message_at' => $lastMessage?->created_at,
+            'last_message_content' => $lastMessage?->conversationPreviewContent(),
+        ]);
     }
 
 

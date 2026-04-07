@@ -216,6 +216,7 @@ class WhatsAppMessageService
             throw new \Exception('Error enviando imagen por WhatsApp: ' . $sendResponse->body());
         }
 
+        $externalId = $sendResponse->json('messages.0.id');
 
         $message = Message::create([
             'tenant_id' => $conversation->tenant_id,
@@ -229,6 +230,7 @@ class WhatsAppMessageService
             'media_filename' => basename($localMediaPath),
             'direction' => MessageDirection::OUTBOUND,
             'delivered_at' => now(),
+            'external_id' => $externalId,
         ]);
 
         $conversation->update([
@@ -563,6 +565,8 @@ class WhatsAppMessageService
             throw new \Exception("Error enviando mensaje a WhatsApp: " . $response->body());
         }
 
+        $externalId = $response->json('messages.0.id');
+
         $message = Message::create([
             'tenant_id' => $conversation->tenant_id,
             'conversation_id' => $conversation->id,
@@ -572,6 +576,7 @@ class WhatsAppMessageService
             'direction' => MessageDirection::OUTBOUND,
             'delivered_at' => now(),
             'message_type' => MessageType::Text,
+            'external_id' => $externalId,
         ]);
 
         $conversation->update([
