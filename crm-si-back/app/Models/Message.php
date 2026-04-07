@@ -37,6 +37,21 @@ class Message extends Model
         'updated_at' => 'datetime',
     ];
 
+    protected $appends = ['media_full_url'];
+
+    public function getMediaFullUrlAttribute(): ?string
+    {
+        if (! $this->media_url) {
+            return null;
+        }
+
+        if (str_starts_with($this->media_url, 'http')) {
+            return $this->media_url;
+        }
+
+        return rtrim(config('app.url'), '/') . $this->media_url;
+    }
+
     public function sender(): MorphTo
     {
         return $this->morphTo();

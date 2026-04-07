@@ -106,17 +106,14 @@ function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
   )
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || ""
-
 function MessageBubbleImage({ mediaUrl, isUser }: { mediaUrl: string; isUser: boolean }) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
-  const fullUrl = mediaUrl.startsWith("http") ? mediaUrl : `${API_URL}${mediaUrl}`
 
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={fullUrl}
+        src={mediaUrl}
         alt="Imagen"
         className={`rounded-lg max-w-[240px] max-h-[240px] object-cover cursor-pointer hover:opacity-90 transition-opacity ${
           isUser ? "bg-primary/20" : "bg-muted"
@@ -124,7 +121,7 @@ function MessageBubbleImage({ mediaUrl, isUser }: { mediaUrl: string; isUser: bo
         onClick={() => setLightboxOpen(true)}
         loading="lazy"
       />
-      {lightboxOpen && <ImageLightbox src={fullUrl} onClose={() => setLightboxOpen(false)} />}
+      {lightboxOpen && <ImageLightbox src={mediaUrl} onClose={() => setLightboxOpen(false)} />}
     </>
   )
 }
@@ -186,7 +183,8 @@ export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: Me
       <div className="space-y-4">
         {messages.map((msg) => {
           const isUser = msg.sender_type === "user"
-          const isImage = msg.message_type === "image" && msg.media_url
+          const imageUrl = msg.media_full_url || msg.media_url
+          const isImage = msg.message_type === "image" && imageUrl
           const parsed = !isImage ? parseTemplateContent(msg.content || "") : { isTemplate: false, title: "", body: "" }
 
           return (
@@ -200,9 +198,9 @@ export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: Me
                     : "bg-muted"
                   }`}
               >
-                {isImage && msg.media_url ? (
+                {isImage && imageUrl ? (
                   <div className="space-y-1">
-                    <MessageBubbleImage mediaUrl={msg.media_url} isUser={isUser} />
+                    <MessageBubbleImage mediaUrl={imageUrl} isUser={isUser} />
                     {msg.content && (
                       <p className="text-sm mt-1">{msg.content}</p>
                     )}
