@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Enums\SenderType;
 use App\Enums\MessageDirection;
+use App\Enums\MessageType;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Message extends Model
@@ -16,6 +17,10 @@ class Message extends Model
         'sender_type',
         'sender_id',
         'content',
+        'message_type',
+        'media_url',
+        'media_mime_type',
+        'media_filename',
         'direction',
         'external_id',
         'delivered_at',
@@ -25,6 +30,7 @@ class Message extends Model
     protected $casts = [
         'sender_type' => SenderType::class,
         'direction' => MessageDirection::class,
+        'message_type' => MessageType::class,
         'delivered_at' => 'datetime',
         'read_at' => 'datetime',
         'created_at' => 'datetime',

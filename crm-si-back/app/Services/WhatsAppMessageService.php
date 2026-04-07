@@ -15,7 +15,9 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use App\Events\MessageSent;
 use App\Events\TenantMessageReceived;
+use App\Enums\MessageType;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class WhatsAppMessageService
 {
@@ -46,12 +48,31 @@ class WhatsAppMessageService
             $contact = $this->findOrCreateContact($contactData, $messageData['from'] ?? '', $tenantId);
             $conversation = $this->findOrCreateConversation($contact, $channel);
 
+            $extracted = $this->extractMessageData($messageData);
+
+            $mediaFields = [];
+            if ($extracted['media_id'] && $extracted['type'] !== 'text') {
+                $waConfig = $channel->whatsappConfig;
+                if ($waConfig) {
+                    $accessToken = Crypt::decryptString($waConfig->bussines_token);
+                    $mediaFields = $this->downloadWhatsAppMedia(
+                        $extracted['media_id'],
+                        $accessToken,
+                        $tenantId
+                    );
+                }
+            }
+
             return $this->createMessage([
                 'tenant_id' => $tenantId,
                 'conversation_id' => $conversation->id,
                 'sender_type' => SenderType::CONTACT,
                 'sender_id' => $contact->id,
-                'content' => $this->extractMessageContent($messageData),
+                'content' => $extracted['content'],
+                'message_type' => $extracted['type'],
+                'media_url' => $mediaFields['url'] ?? null,
+                'media_mime_type' => $mediaFields['mime_type'] ?? null,
+                'media_filename' => $mediaFields['filename'] ?? null,
                 'direction' => MessageDirection::INBOUND,
                 'external_id' => $messageData['id'] ?? null,
                 'delivered_at' => $this->parseWebhookTimestamp($messageData['timestamp'] ?? null),
@@ -146,18 +167,191 @@ class WhatsAppMessageService
         return Carbon::now();
     }
 
-    private function extractMessageContent(array $messageData): string
+    public function sendImageMessageFromCRM(
+        Conversation $conversation,
+        string $localMediaPath,
+        string $mediaUrl,
+        string $mimeType,
+        ?string $caption,
+        $user
+    ): Message {
+        $channel = $conversation->channel;
+        $waConfig = $channel->whatsappConfig;
+        $to = $this->normalizePhoneForWhatsApp($conversation->contact->phone);
+        $businessPhoneId = $waConfig->phone_number_id;
+        $businessToken = Crypt::decryptString($waConfig->bussines_token);
+
+        $uploadResponse = Http::withToken($businessToken)
+            ->attach('file', Storage::disk('public')->get($localMediaPath), basename($localMediaPath), ['Content-Type' => $mimeType])
+            ->post("https://graph.facebook.com/v21.0/{$businessPhoneId}/media", [
+                'messaging_product' => 'whatsapp',
+                'type' => $mimeType,
+            ]);
+
+        if (! $uploadResponse->successful()) {
+            throw new \Exception('Error subiendo imagen a WhatsApp: ' . $uploadResponse->body());
+        }
+
+        $whatsappMediaId = $uploadResponse->json('id');
+
+
+        $messagePayload = [
+            'messaging_product' => 'whatsapp',
+            'recipient_type' => 'individual',
+            'to' => $to,
+            'type' => 'image',
+            'image' => [
+                'id' => $whatsappMediaId,
+            ],
+        ];
+
+        if ($caption) {
+            $messagePayload['image']['caption'] = $caption;
+        }
+
+        $sendResponse = Http::withToken($businessToken)
+            ->post("https://graph.facebook.com/v21.0/{$businessPhoneId}/messages", $messagePayload);
+
+        if (! $sendResponse->successful()) {
+            throw new \Exception('Error enviando imagen por WhatsApp: ' . $sendResponse->body());
+        }
+
+
+        $message = Message::create([
+            'tenant_id' => $conversation->tenant_id,
+            'conversation_id' => $conversation->id,
+            'sender_type' => SenderType::USER,
+            'sender_id' => $user->id,
+            'content' => $caption ?? '',
+            'message_type' => MessageType::Image,
+            'media_url' => $mediaUrl,
+            'media_mime_type' => $mimeType,
+            'media_filename' => basename($localMediaPath),
+            'direction' => MessageDirection::OUTBOUND,
+            'delivered_at' => now(),
+        ]);
+
+        $conversation->update([
+            'last_message_at' => $message->created_at,
+            'last_message_content' => '📷 ' . ($caption ?: 'Imagen'),
+        ]);
+
+        try {
+            broadcast(new MessageSent($message));
+            broadcast(new TenantMessageReceived($message, $conversation->tenant_id));
+        } catch (\Exception $e) {
+            Log::error("Error broadcasting outbound image message: " . $e->getMessage());
+        }
+
+        return $message;
+    }
+
+    /**
+     * @return array{content: string, type: string, media_id: string|null}
+     */
+    private function extractMessageData(array $messageData): array
     {
         $type = $messageData['type'] ?? 'unknown';
-        return match ($type) {
+
+        $content = match ($type) {
             'text' => $messageData['text']['body'] ?? '',
-            'image' => 'Imagen enviada',
-            'document' => 'Documento enviado',
-            'audio' => 'Audio enviado',
-            'video' => 'Video enviado',
+            'image' => $messageData['image']['caption'] ?? '',
+            'document' => $messageData['document']['filename'] ?? 'Documento',
+            'audio' => '',
+            'video' => $messageData['video']['caption'] ?? '',
             'location' => 'Ubicación compartida',
             'contacts' => 'Contacto compartido',
             default => 'Mensaje multimedia',
+        };
+
+        $mediaId = match ($type) {
+            'image' => $messageData['image']['id'] ?? null,
+            'document' => $messageData['document']['id'] ?? null,
+            'audio' => $messageData['audio']['id'] ?? null,
+            'video' => $messageData['video']['id'] ?? null,
+            default => null,
+        };
+
+        $mappedType = match ($type) {
+            'text' => 'text',
+            'image' => 'image',
+            'document' => 'document',
+            'audio' => 'audio',
+            'video' => 'video',
+            default => 'text',
+        };
+
+        return [
+            'content' => $content,
+            'type' => $mappedType,
+            'media_id' => $mediaId,
+        ];
+    }
+
+    /**
+     * @return array{url: string, mime_type: string, filename: string}
+     */
+    private function downloadWhatsAppMedia(string $mediaId, string $accessToken, int $tenantId): array
+    {
+
+        $metaResponse = Http::withToken($accessToken)
+            ->get("https://graph.facebook.com/v21.0/{$mediaId}");
+
+        if (! $metaResponse->successful()) {
+            Log::error("Error obteniendo URL de media WhatsApp: {$metaResponse->body()}");
+
+            return ['url' => '', 'mime_type' => '', 'filename' => ''];
+        }
+
+        $mediaUrl = $metaResponse->json('url');
+        $mimeType = $metaResponse->json('mime_type', 'application/octet-stream');
+
+
+        $fileResponse = Http::withToken($accessToken)->get($mediaUrl);
+
+        if (! $fileResponse->successful()) {
+            Log::error("Error descargando media de WhatsApp: {$fileResponse->status()}");
+
+            return ['url' => '', 'mime_type' => '', 'filename' => ''];
+        }
+
+
+        $extension = $this->mimeToExtension($mimeType);
+        $filename = uniqid('wa_') . '.' . $extension;
+        $path = "messages/{$tenantId}/{$filename}";
+
+        Storage::disk('public')->put($path, $fileResponse->body());
+
+        return [
+            'url' => '/storage/' . $path,
+            'mime_type' => $mimeType,
+            'filename' => $filename,
+        ];
+    }
+
+    private function normalizePhoneForWhatsApp(string $phone): string
+    {
+        if (strpos($phone, '549') === 0) {
+            return '54' . substr($phone, 3);
+        }
+
+        return $phone;
+    }
+
+    private function mimeToExtension(string $mimeType): string
+    {
+        return match ($mimeType) {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            'image/gif' => 'gif',
+            'video/mp4' => 'mp4',
+            'video/3gpp' => '3gp',
+            'audio/aac' => 'aac',
+            'audio/ogg' => 'ogg',
+            'audio/mpeg' => 'mp3',
+            'application/pdf' => 'pdf',
+            default => 'bin',
         };
     }
 
@@ -165,16 +359,20 @@ class WhatsAppMessageService
     {
         $message = Message::create($messageData);
 
-        if (
-            isset($messageData['content']) &&
-            isset($messageData['conversation_id']) &&
-            ($messageData['type'] ?? 'text') === 'text'
-        ) {
-            // Actualiza la conversación con el último mensaje de texto
+        if (isset($messageData['conversation_id'])) {
+            $type = $messageData['message_type'] ?? 'text';
+            $lastContent = match ($type) {
+                'image' => '📷 ' . ($messageData['content'] ?: 'Imagen'),
+                'video' => '🎥 ' . ($messageData['content'] ?: 'Video'),
+                'audio' => '🎵 Audio',
+                'document' => '📄 ' . ($messageData['content'] ?: 'Documento'),
+                default => $messageData['content'] ?? '',
+            };
+
             Conversation::where('id', $messageData['conversation_id'])
                 ->update([
                     'last_message_at' => $message->created_at,
-                    'last_message_content' => $messageData['content'],
+                    'last_message_content' => $lastContent,
                 ]);
         }
 
@@ -326,12 +524,15 @@ class WhatsAppMessageService
             $contact = $this->findOrCreateContact(null, $customerPhone, $tenantId);
             $conversation = $this->findOrCreateConversation($contact, $channel);
 
+            $extracted = $this->extractMessageData($echo);
+
             $this->createMessage([
                 'tenant_id' => $tenantId,
                 'conversation_id' => $conversation->id,
                 'sender_type' => SenderType::USER,
                 'sender_id' => $channel->user_id,
-                'content' => $this->extractMessageContent($echo),
+                'content' => $extracted['content'],
+                'message_type' => $extracted['type'],
                 'direction' => MessageDirection::OUTBOUND,
                 'external_id' => $externalId,
                 'delivered_at' => $this->parseWebhookTimestamp($echo['timestamp'] ?? null),
@@ -343,13 +544,9 @@ class WhatsAppMessageService
     {
         $channel = $conversation->channel;
         $waConfig = $channel->whatsappConfig;
-        $to = $conversation->contact->phone;
+        $to = $this->normalizePhoneForWhatsApp($conversation->contact->phone);
         $businessPhoneId = $waConfig->phone_number_id;
         $businessToken = Crypt::decryptString($waConfig->bussines_token);
-
-        if (strpos($to, '549') === 0) {
-            $to = '54' . substr($to, 3);
-        }
 
         $response = Http::withToken($businessToken)
             ->post("https://graph.facebook.com/v21.0/{$businessPhoneId}/messages", [
@@ -374,10 +571,9 @@ class WhatsAppMessageService
             'content' => $content,
             'direction' => MessageDirection::OUTBOUND,
             'delivered_at' => now(),
-            'type' => 'text',
+            'message_type' => MessageType::Text,
         ]);
 
-        // 4. Actualizar la conversación con el último mensaje de texto
         $conversation->update([
             'last_message_at' => $message->created_at,
             'last_message_content' => $content,

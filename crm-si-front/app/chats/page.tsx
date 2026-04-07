@@ -485,42 +485,40 @@ export default function ChatsPage() {
     });
   };
 
-  const handleSendMessage = async () => {
-    if (!message.trim() || !selectedConversationId) return;
+  const handleSendMessage = async (content: string, image?: File) => {
+    if (!content && !image) return;
+    if (!selectedConversationId) return;
 
-    const textToSend = message.trim();
+    const textToSend = content;
 
-    // 🚀 PASO 1: Limpiar input INMEDIATAMENTE (esto es clave para la sensación de velocidad)
     setMessage("");
 
-    // 🚀 PASO 2: Crear mensaje optimista con ID temporal
     const tempId = `temp-${Date.now()}-${Math.random()}`;
     const optimisticMessage: any = {
       id: tempId,
       content: textToSend,
-      role: "assistant", // O "user" según tu lógica
-      type: "text",
+      message_type: image ? "image" : "text",
+      media_url: image ? URL.createObjectURL(image) : null,
       created_at: new Date().toISOString(),
-      status: "sending", // Estado para mostrar indicador de "enviando..."
+      status: "sending",
       conversation_id: selectedConversationId,
       direction: "outbound",
       sender_type: "user"
     };
 
-    // 🚀 PASO 3: Actualizar UI inmediatamente (chat activo)
     setCurrentConversation((prev) => {
       if (!prev) return prev;
       return { ...prev, messages: [...(prev.messages || []), optimisticMessage] };
     });
 
-    // 🚀 PASO 4: Actualizar UI inmediatamente (sidebar)
+    const sidebarText = image ? `📷 ${textToSend || 'Imagen'}` : textToSend;
     setConversations((prevConversations) => {
       const index = prevConversations.findIndex(c => c.id === selectedConversationId);
       if (index === -1) return prevConversations;
 
       const updatedConversation = {
         ...prevConversations[index],
-        last_message: textToSend,
+        last_message: sidebarText,
         updated_at: new Date().toISOString(),
       };
 
@@ -529,39 +527,34 @@ export default function ChatsPage() {
       return [updatedConversation, ...newConversations];
     });
 
-    // 🚀 PASO 5: Enviar al backend en segundo plano
     try {
-      await sendMessage(selectedConversationId, textToSend);
-
-      // El mensaje real llegará por SSE y reemplazará el optimista
-      // gracias a la lógica en handleRealTimeMessage
-
+      await sendMessage(selectedConversationId, textToSend, image);
     } catch (error) {
       console.error('[ChatsPage] Error sending message:', error);
 
-      // 🚨 PASO 6: Si falla, revertir cambios
+      if (optimisticMessage.media_url) {
+        URL.revokeObjectURL(optimisticMessage.media_url);
+      }
+
       addToast({
         type: "error",
         title: t("chats.sendMessageError"),
         description: error instanceof Error ? error.message : t("chats.sendMessageErrorDesc")
       });
 
-      // Restaurar el texto en el input
       setMessage(textToSend);
 
-      // Remover el mensaje optimista
       setCurrentConversation((prev) => {
         if (!prev) return prev;
         return { ...prev, messages: (prev.messages || []).filter((m: any) => m.id !== tempId) };
       });
 
-      // Revertir actualización del sidebar
       setConversations((prevConversations) => {
         const index = prevConversations.findIndex(c => c.id === selectedConversationId);
         if (index === -1) return prevConversations;
 
         const conversation = prevConversations[index];
-        const previousMessage = conversation.messages?.[conversation.messages.length - 2]; // Obtener mensaje anterior
+        const previousMessage = conversation.messages?.[conversation.messages.length - 2];
 
         return prevConversations.map(c =>
           c.id === selectedConversationId
