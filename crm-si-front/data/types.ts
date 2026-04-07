@@ -124,6 +124,7 @@ export interface Message {
   content: string
   message_type?: "text" | "image" | "document" | "audio" | "video"
   media_url?: string | null
+  media_full_url?: string | null
   media_mime_type?: string | null
   media_filename?: string | null
   sender_type: "user" | "contact" | "system"
