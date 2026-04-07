@@ -122,8 +122,12 @@ export interface Message {
   id: number
   conversation_id: number
   content: string
-  sender_type: "user" | "contact" | "system"  // Mapea SenderType enum del backend
-  direction: "inbound" | "outbound"            // Mapea MessageDirection enum
+  message_type?: "text" | "image" | "document" | "audio" | "video"
+  media_url?: string | null
+  media_mime_type?: string | null
+  media_filename?: string | null
+  sender_type: "user" | "contact" | "system"
+  direction: "inbound" | "outbound"
   delivered_at?: string | null
   read_at?: string | null
   created_at: string

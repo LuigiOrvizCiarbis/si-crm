@@ -1,5 +1,5 @@
 import { Message } from "@/data/types"
-import { useEffect, useRef, useLayoutEffect } from "react"
+import { useEffect, useRef, useLayoutEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
 
 interface MessageListProps {
@@ -89,13 +89,51 @@ function parseTemplateContent(content: string): { isTemplate: boolean; title: st
   return { isTemplate: false, title: "", body: "" }
 }
 
+function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center cursor-pointer"
+      onClick={onClose}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt="Imagen completa"
+        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  )
+}
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || ""
+
+function MessageBubbleImage({ mediaUrl, isUser }: { mediaUrl: string; isUser: boolean }) {
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const fullUrl = mediaUrl.startsWith("http") ? mediaUrl : `${API_URL}${mediaUrl}`
+
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={fullUrl}
+        alt="Imagen"
+        className={`rounded-lg max-w-[240px] max-h-[240px] object-cover cursor-pointer hover:opacity-90 transition-opacity ${
+          isUser ? "bg-primary/20" : "bg-muted"
+        }`}
+        onClick={() => setLightboxOpen(true)}
+        loading="lazy"
+      />
+      {lightboxOpen && <ImageLightbox src={fullUrl} onClose={() => setLightboxOpen(false)} />}
+    </>
+  )
+}
+
 export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  // Usamos Refs para guardar estado sin provocar re-renders visuales
   const prevScrollHeightRef = useRef(0)
   const lastMessageIdRef = useRef<number | null>(null)
 
-  // 1. Restaurar posición de scroll al cargar mensajes antiguos (Infinite Scroll)
   useLayoutEffect(() => {
     if (scrollRef.current && prevScrollHeightRef.current > 0) {
       const newScrollHeight = scrollRef.current.scrollHeight
@@ -105,39 +143,29 @@ export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: Me
     }
   }, [messages])
 
-  // 2. Auto-scroll al fondo INTELIGENTE
   useEffect(() => {
     if (messages.length === 0) return
 
     const lastMsg = messages[messages.length - 1]
 
-    // Si el ID del último mensaje cambió, significa que llegó algo nuevo al final
-    // (o es la carga inicial).
     if (lastMsg.id !== lastMessageIdRef.current) {
       if (scrollRef.current) {
-        // Si es la primera vez (null), scroll instantáneo ('auto').
-        // Si ya había mensajes, scroll suave ('smooth') para que el usuario note el nuevo mensaje.
         const behavior = lastMessageIdRef.current === null ? "auto" : "smooth"
-
         scrollRef.current.scrollTo({
           top: scrollRef.current.scrollHeight,
           behavior: behavior
         })
       }
-      // Actualizamos la referencia del último mensaje conocido
       lastMessageIdRef.current = lastMsg.id
     }
   }, [messages])
 
-  // 3. Handler de Scroll
   const handleScroll = () => {
     if (!scrollRef.current) return
 
     const { scrollTop, scrollHeight } = scrollRef.current
 
-    // Si llega arriba (scrollTop 0) y no está cargando y hay más
     if (scrollTop === 0 && !isLoadingMore && hasMore) {
-      // Guardamos la altura actual para restaurarla después
       prevScrollHeightRef.current = scrollHeight
       onLoadMore()
     }
@@ -158,7 +186,9 @@ export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: Me
       <div className="space-y-4">
         {messages.map((msg) => {
           const isUser = msg.sender_type === "user"
-          const parsed = parseTemplateContent(msg.content || "")
+          const isImage = msg.message_type === "image" && msg.media_url
+          const parsed = !isImage ? parseTemplateContent(msg.content || "") : { isTemplate: false, title: "", body: "" }
+
           return (
             <div
               key={msg.id}
@@ -170,7 +200,14 @@ export function MessageList({ messages, onLoadMore, hasMore, isLoadingMore }: Me
                     : "bg-muted"
                   }`}
               >
-                {parsed.isTemplate ? (
+                {isImage && msg.media_url ? (
+                  <div className="space-y-1">
+                    <MessageBubbleImage mediaUrl={msg.media_url} isUser={isUser} />
+                    {msg.content && (
+                      <p className="text-sm mt-1">{msg.content}</p>
+                    )}
+                  </div>
+                ) : parsed.isTemplate ? (
                   <div className="space-y-1">
                     <span className="text-xs font-medium opacity-75">
                       {parsed.title}

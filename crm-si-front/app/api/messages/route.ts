@@ -6,23 +6,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "No authorization token provided" }, { status: 401 });
   }
 
-  const body = await req.json();
+  const contentType = req.headers.get("content-type") || "";
+  const isMultipart = contentType.includes("multipart/form-data");
+
   const publicBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
   const internalBase = (process.env.API_INTERNAL_URL || "").replace(/\/$/, "");
   const bases = [internalBase, publicBase, "http://localhost:8000", "http://host.docker.internal:8000"].filter(Boolean);
 
+  // Read body once before the retry loop (streams can only be consumed once)
+  let fetchBody: FormData | string;
+  const headers: Record<string, string> = {
+    "Authorization": authHeader,
+    "Accept": "application/json",
+  };
+
+  if (isMultipart) {
+    fetchBody = await req.formData();
+  } else {
+    fetchBody = JSON.stringify(await req.json());
+    headers["Content-Type"] = "application/json";
+  }
+
   for (const base of bases) {
     try {
       const url = `${base}/api/messages`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Authorization": authHeader,
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
+      const res = await fetch(url, { method: "POST", headers, body: fetchBody });
       const data = await res.json().catch(() => ({}));
       if (res.ok || res.status >= 400) {
         return NextResponse.json(data, { status: res.status });
@@ -67,4 +75,3 @@ export async function GET(req: NextRequest) {
   }
   return NextResponse.json({ message: "No reachable backend" }, { status: 500 });
 }
-
