@@ -3,10 +3,11 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useTranslation } from "@/hooks/useTranslation"
-import { Paperclip, Smile, Send, X } from "lucide-react"
+import { Paperclip, Smile, Send, X, Pencil, Check } from "lucide-react"
 import { KeyboardEvent, SyntheticEvent, useRef, useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import Image from "next/image"
+import { Message } from "@/data/types"
 
 const TemplatePicker = dynamic(
   () => import("./TemplatePicker").then(m => m.TemplatePicker),
@@ -22,6 +23,8 @@ interface MessageInputProps {
   channelId?: number | null
   conversationId?: number | null
   onSendTemplate?: (content: string) => void
+  editingMessage?: Message | null
+  onCancelEdit?: () => void
 }
 
 export function MessageInput({
@@ -33,12 +36,17 @@ export function MessageInput({
   channelId,
   conversationId,
   onSendTemplate,
+  editingMessage,
+  onCancelEdit,
 }: MessageInputProps) {
   const { t } = useTranslation()
   const resolvedPlaceholder = placeholder ?? t("chats.messagePlaceholder")
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+
+  const isEditing = !!editingMessage
 
   useEffect(() => {
     if (selectedImage) {
@@ -49,6 +57,12 @@ export function MessageInput({
     setImagePreview(null)
   }, [selectedImage])
 
+  useEffect(() => {
+    if (editingMessage) {
+      inputRef.current?.focus()
+    }
+  }, [editingMessage])
+
   const stopPropagation = (e: SyntheticEvent) => {
     e.stopPropagation()
   }
@@ -58,6 +72,10 @@ export function MessageInput({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handleSend()
+    }
+    if (e.key === "Escape" && isEditing && onCancelEdit) {
+      e.preventDefault()
+      onCancelEdit()
     }
   }
 
@@ -89,7 +107,23 @@ export function MessageInput({
 
   return (
     <div className="border-t border-border bg-card sticky bottom-0 md:relative">
-      {imagePreview && (
+      {/* Edit mode banner */}
+      {isEditing && (
+        <div className="px-4 pt-3 flex items-center gap-2 text-sm text-muted-foreground">
+          <Pencil className="h-4 w-4 shrink-0" />
+          <span className="truncate flex-1">
+            {t("chats.editingMessage")}: {editingMessage.content}
+          </span>
+          <button
+            onClick={onCancelEdit}
+            className="shrink-0 hover:text-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {imagePreview && !isEditing && (
         <div className="px-4 pt-3 flex items-end gap-2">
           <div className="relative inline-block">
             <Image
@@ -110,31 +144,36 @@ export function MessageInput({
       )}
       <div className="p-4">
         <div className="flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileSelect}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={disabled}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Paperclip className="w-4 h-4" />
-          </Button>
-          {channelId && conversationId && onSendTemplate && (
-            <TemplatePicker
-              channelId={channelId}
-              conversationId={conversationId}
-              onSend={onSendTemplate}
-              disabled={disabled}
-            />
+          {!isEditing && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={disabled}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Paperclip className="w-4 h-4" />
+              </Button>
+              {channelId && conversationId && onSendTemplate && (
+                <TemplatePicker
+                  channelId={channelId}
+                  conversationId={conversationId}
+                  onSend={onSendTemplate}
+                  disabled={disabled}
+                />
+              )}
+            </>
           )}
           <Input
-            placeholder={selectedImage ? (t("chats.captionPlaceholder") || "Agregar caption...") : resolvedPlaceholder}
+            ref={inputRef}
+            placeholder={isEditing ? t("chats.editingMessage") : (selectedImage ? (t("chats.captionPlaceholder") || "Agregar caption...") : resolvedPlaceholder)}
             className="flex-1"
             value={value}
             onChange={(e) => onChange(e.target.value)}
@@ -143,11 +182,13 @@ export function MessageInput({
             onKeyPress={stopPropagation}
             disabled={disabled}
           />
-          <Button variant="ghost" size="sm" disabled={disabled}>
-            <Smile className="w-4 h-4" />
-          </Button>
+          {!isEditing && (
+            <Button variant="ghost" size="sm" disabled={disabled}>
+              <Smile className="w-4 h-4" />
+            </Button>
+          )}
           <Button size="sm" onClick={handleSend} disabled={disabled || !canSend}>
-            <Send className="w-4 h-4" />
+            {isEditing ? <Check className="w-4 h-4" /> : <Send className="w-4 h-4" />}
           </Button>
         </div>
       </div>

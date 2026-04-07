@@ -22,7 +22,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { ChatQuickBar } from "@/components/ChatQuickBar"
 import { getChannelConversations, getConversationMessages, getConversations, getConversationWithMessages } from "@/lib/api/conversations"
 
-import { sendMessage } from "@/lib/api/messages"
+import { sendMessage, editMessage, deleteMessage } from "@/lib/api/messages"
 import { ConversationHeader } from "@/components/chat/ConversationHeader"
 import { AISuggestions } from "@/components/chat/AISuggestions"
 import { MessageList } from "@/components/chat/MessageList"
@@ -36,6 +36,7 @@ import { useConversationFilters } from "@/hooks/useConversationFilters"
 import { useSSEMessages } from "@/hooks/useSSEMessages"
 import { useTenantSSE } from "@/hooks/useTenantSSE"
 import { useTranslation } from "@/hooks/useTranslation"
+import { useAuthStore } from "@/store/useAuthStore"
 
 export default function ChatsPage() {
   const { addToast, removeToast } = useToast()
@@ -44,6 +45,9 @@ export default function ChatsPage() {
   const searchParams = useSearchParams()
   const { launchWhatsAppSignup } = useFacebookSDK()
   const { chatStates, ...chatHandlers } = useChatState()
+  const { user } = useAuthStore()
+  const currentUserId = user?.id
+  const isAdmin = String(user?.role) === "1" || user?.role === "admin"
 
   const chatIdFromUrl = searchParams.get("chat")
 
@@ -71,6 +75,7 @@ export default function ChatsPage() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null)
 
   const conversationsRef = useRef(conversations);
   useEffect(() => {
@@ -168,11 +173,44 @@ export default function ChatsPage() {
     });
   }, [normalizeIncomingTemplateContent, selectedConversationId]);
 
+  const handleRealTimeEdit = useCallback((updatedMsg: Message) => {
+    setCurrentConversation((prev) => {
+      if (!prev) return prev;
+      const messages = prev.messages || [];
+      return {
+        ...prev,
+        messages: messages.map((m: Message) =>
+          m.id === updatedMsg.id
+            ? {
+                ...m,
+                content: updatedMsg.content,
+                edited_at: updatedMsg.edited_at,
+                original_content: updatedMsg.original_content ?? m.original_content,
+              }
+            : m
+        ),
+      };
+    });
+  }, []);
 
+  const handleRealTimeDelete = useCallback((data: { id: number; conversation_id: number }) => {
+    setCurrentConversation((prev) => {
+      if (!prev) return prev;
+      const messages = prev.messages || [];
+      return {
+        ...prev,
+        messages: messages.map((m: Message) =>
+          m.id === data.id ? { ...m, deleted_at: new Date().toISOString() } : m
+        ),
+      };
+    });
+  }, []);
 
   useSSEMessages({
     conversationId: selectedConversationId,
-    onMessage: handleRealTimeMessage
+    onMessage: handleRealTimeMessage,
+    onEdited: handleRealTimeEdit,
+    onDeleted: handleRealTimeDelete,
   });
 
   const selectedChannelIdRef = useRef(selectedChannelId);
@@ -485,6 +523,73 @@ export default function ChatsPage() {
     });
   };
 
+  const handleEditMessage = useCallback((msg: Message) => {
+    setEditingMessage(msg);
+    setMessage(msg.content || "");
+  }, []);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingMessage(null);
+    setMessage("");
+  }, []);
+
+  const handleSaveEdit = async (content: string) => {
+    if (!editingMessage) return;
+
+    try {
+      const updated = await editMessage(editingMessage.id, content);
+      setCurrentConversation((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          messages: (prev.messages || []).map((m: Message) =>
+            m.id === editingMessage.id
+              ? {
+                  ...m,
+                  content: updated.content,
+                  edited_at: updated.edited_at,
+                  original_content: updated.original_content ?? m.original_content,
+                }
+              : m
+          ),
+        };
+      });
+      setEditingMessage(null);
+      setMessage("");
+      addToast({ type: "success", title: t("chats.messageEdited") });
+    } catch (error) {
+      console.error('[ChatsPage] Error editing message:', error);
+      addToast({
+        type: "error",
+        title: t("chats.editMessageError"),
+        description: error instanceof Error ? error.message : t("chats.unknownError"),
+      });
+    }
+  };
+
+  const handleDeleteMessage = async (msg: Message) => {
+    try {
+      await deleteMessage(msg.id);
+      setCurrentConversation((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          messages: (prev.messages || []).map((m: Message) =>
+            m.id === msg.id ? { ...m, deleted_at: new Date().toISOString() } : m
+          ),
+        };
+      });
+      addToast({ type: "success", title: t("chats.messageDeletedSuccess") });
+    } catch (error) {
+      console.error('[ChatsPage] Error deleting message:', error);
+      addToast({
+        type: "error",
+        title: t("chats.deleteMessageError"),
+        description: error instanceof Error ? error.message : t("chats.unknownError"),
+      });
+    }
+  };
+
   const handleSendMessage = async (content: string, image?: File) => {
     if (!content && !image) return;
     if (!selectedConversationId) return;
@@ -503,7 +608,8 @@ export default function ChatsPage() {
       status: "sending",
       conversation_id: selectedConversationId,
       direction: "outbound",
-      sender_type: "user"
+      sender_type: "user",
+      sender_id: currentUserId,
     };
 
     setCurrentConversation((prev) => {
@@ -528,7 +634,41 @@ export default function ChatsPage() {
     });
 
     try {
-      await sendMessage(selectedConversationId, textToSend, image);
+      const savedMessage = await sendMessage(selectedConversationId, textToSend, image);
+
+      setCurrentConversation((prev) => {
+        if (!prev) return prev;
+
+        return {
+          ...prev,
+          messages: (prev.messages || []).map((m: Message) =>
+            m.id === tempId
+              ? {
+                  ...savedMessage,
+                  content: normalizeIncomingTemplateContent(savedMessage.content, textToSend),
+                }
+              : m
+          ),
+        };
+      });
+
+      setConversations((prevConversations) => {
+        const index = prevConversations.findIndex(c => c.id === selectedConversationId);
+        if (index === -1) return prevConversations;
+
+        const updatedConversation = {
+          ...prevConversations[index],
+          last_message: normalizeIncomingTemplateContent(
+            image ? `📷 ${savedMessage.content || "Imagen"}` : savedMessage.content,
+            prevConversations[index].last_message
+          ),
+          updated_at: savedMessage.created_at,
+        };
+
+        const newConversations = [...prevConversations];
+        newConversations.splice(index, 1);
+        return [updatedConversation, ...newConversations];
+      });
     } catch (error) {
       console.error('[ChatsPage] Error sending message:', error);
 
@@ -678,15 +818,21 @@ export default function ChatsPage() {
                 onLoadMore={handleLoadMoreMessages}
                 hasMore={hasMore}
                 isLoadingMore={isLoadingMore}
+                onEditMessage={handleEditMessage}
+                onDeleteMessage={handleDeleteMessage}
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
               />
               <MessageInput
                 value={message}
                 onChange={setMessage}
-                onSend={handleSendMessage}
+                onSend={editingMessage ? handleSaveEdit : handleSendMessage}
                 disabled={isLoading}
                 channelId={activeConversation?.channel?.id ?? activeConversation?.channelId}
                 conversationId={selectedConversationId}
                 onSendTemplate={handleSendTemplate}
+                editingMessage={editingMessage}
+                onCancelEdit={handleCancelEdit}
               />
             </>
 

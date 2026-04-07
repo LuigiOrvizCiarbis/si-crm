@@ -128,9 +128,13 @@ export interface Message {
   media_mime_type?: string | null
   media_filename?: string | null
   sender_type: "user" | "contact" | "system"
+  sender_id?: number
   direction: "inbound" | "outbound"
   delivered_at?: string | null
   read_at?: string | null
+  edited_at?: string | null
+  original_content?: string | null
+  deleted_at?: string | null
   created_at: string
   updated_at?: string
 }
