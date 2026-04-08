@@ -69,6 +69,55 @@ class MessageLifecycleTest extends TestCase
             ->assertJsonCount(2, 'data');
     }
 
+    public function test_audio_message_updates_conversation_preview_with_audio_label(): void
+    {
+        $tenant = Tenant::create([
+            'name' => 'Acme',
+        ]);
+
+        $user = User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'role' => UserRole::ADMIN,
+        ]);
+
+        $channel = Channel::create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $user->id,
+            'type' => 'whatsapp',
+            'name' => 'Main channel',
+            'status' => 'active',
+        ]);
+
+        $contact = Contact::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Jane Doe',
+            'phone' => '+5491111111111',
+            'source' => 'whatsapp',
+        ]);
+
+        $conversation = Conversation::create([
+            'tenant_id' => $tenant->id,
+            'channel_id' => $channel->id,
+            'contact_id' => $contact->id,
+            'status' => 'open',
+        ]);
+
+        Message::create([
+            'tenant_id' => $conversation->tenant_id,
+            'conversation_id' => $conversation->id,
+            'sender_type' => SenderType::USER,
+            'sender_id' => $user->id,
+            'content' => '',
+            'message_type' => MessageType::Audio,
+            'direction' => MessageDirection::OUTBOUND,
+        ]);
+
+        $conversation->refresh();
+
+        $this->assertSame('🎵 Audio', $conversation->last_message_content);
+        $this->assertNotNull($conversation->last_message_at);
+    }
+
     /**
      * @return array{0: User, 1: Conversation, 2: Message, 3: Message}
      */

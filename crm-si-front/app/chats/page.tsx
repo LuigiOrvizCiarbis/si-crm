@@ -590,11 +590,12 @@ export default function ChatsPage() {
     }
   };
 
-  const handleSendMessage = async (content: string, image?: File) => {
-    if (!content && !image) return;
+  const handleSendMessage = async (content: string, media?: File) => {
+    if (!content && !media) return;
     if (!selectedConversationId) return;
 
     const textToSend = content;
+    const mediaType = media?.type.startsWith("audio/") ? "audio" : media ? "image" : "text";
 
     setMessage("");
 
@@ -602,8 +603,9 @@ export default function ChatsPage() {
     const optimisticMessage: any = {
       id: tempId,
       content: textToSend,
-      message_type: image ? "image" : "text",
-      media_url: image ? URL.createObjectURL(image) : null,
+      message_type: mediaType,
+      media_url: media ? URL.createObjectURL(media) : null,
+      media_filename: media?.name ?? null,
       created_at: new Date().toISOString(),
       status: "sending",
       conversation_id: selectedConversationId,
@@ -617,7 +619,11 @@ export default function ChatsPage() {
       return { ...prev, messages: [...(prev.messages || []), optimisticMessage] };
     });
 
-    const sidebarText = image ? `📷 ${textToSend || 'Imagen'}` : textToSend;
+    const sidebarText = mediaType === "audio"
+      ? "🎵 Audio"
+      : mediaType === "image"
+        ? `📷 ${textToSend || 'Imagen'}`
+        : textToSend;
     setConversations((prevConversations) => {
       const index = prevConversations.findIndex(c => c.id === selectedConversationId);
       if (index === -1) return prevConversations;
@@ -634,7 +640,7 @@ export default function ChatsPage() {
     });
 
     try {
-      const savedMessage = await sendMessage(selectedConversationId, textToSend, image);
+      const savedMessage = await sendMessage(selectedConversationId, textToSend, media);
 
       setCurrentConversation((prev) => {
         if (!prev) return prev;
@@ -642,7 +648,7 @@ export default function ChatsPage() {
         return {
           ...prev,
           messages: (prev.messages || []).map((m: Message) =>
-            m.id === tempId
+            String(m.id) === tempId
               ? {
                   ...savedMessage,
                   content: normalizeIncomingTemplateContent(savedMessage.content, textToSend),
@@ -659,7 +665,11 @@ export default function ChatsPage() {
         const updatedConversation = {
           ...prevConversations[index],
           last_message: normalizeIncomingTemplateContent(
-            image ? `📷 ${savedMessage.content || "Imagen"}` : savedMessage.content,
+            mediaType === "audio"
+              ? "🎵 Audio"
+              : mediaType === "image"
+                ? `📷 ${savedMessage.content || "Imagen"}`
+                : savedMessage.content,
             prevConversations[index].last_message
           ),
           updated_at: savedMessage.created_at,

@@ -42,9 +42,10 @@ class MessageController extends Controller
     {
         $data = $request->validate([
             'conversation_id' => 'required|exists:conversations,id',
-            'content' => 'required_unless:type,image|nullable|string',
-            'type' => 'required|string|in:text,image',
+            'content' => 'required_unless:type,image,audio|nullable|string',
+            'type' => 'required|string|in:text,image,audio',
             'image' => 'required_if:type,image|image|max:10240',
+            'audio' => 'required_if:type,audio|file|mimetypes:audio/aac,audio/mpeg,audio/mp3,audio/ogg,audio/mp4,audio/amr,audio/3gpp|max:16384',
         ]);
 
         $conversation = Conversation::findOrFail($data['conversation_id']);
@@ -61,6 +62,18 @@ class MessageController extends Controller
                 '/storage/' . $path,
                 $file->getMimeType(),
                 $data['content'] ?? null,
+                $request->user()
+            );
+        } elseif ($type === 'audio' && $request->hasFile('audio')) {
+            $file = $request->file('audio');
+            $tenantId = $request->user()->tenant_id;
+            $path = $file->store("messages/{$tenantId}", 'public');
+
+            $message = $this->messageService->sendAudioMessageFromCRM(
+                $conversation,
+                $path,
+                '/storage/' . $path,
+                $file->getMimeType() ?: 'audio/mpeg',
                 $request->user()
             );
         } else {

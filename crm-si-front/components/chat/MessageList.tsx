@@ -1,6 +1,6 @@
 import { Message } from "@/data/types"
 import { useEffect, useRef, useLayoutEffect, useState } from "react"
-import { Loader2, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { Loader2, MoreHorizontal, Pencil, Trash2, Music2 } from "lucide-react"
 import { useTranslation } from "@/hooks/useTranslation"
 import {
   DropdownMenu,
@@ -148,6 +148,18 @@ function MessageBubbleImage({ mediaUrl, isUser }: { mediaUrl: string; isUser: bo
   )
 }
 
+function MessageBubbleAudio({ mediaUrl, filename }: { mediaUrl: string; filename?: string | null }) {
+  return (
+    <div className="space-y-2 min-w-[220px]">
+      <div className="flex items-center gap-2 text-xs opacity-80">
+        <Music2 className="h-4 w-4 shrink-0" />
+        <span className="truncate">{filename || "Audio"}</span>
+      </div>
+      <audio controls src={mediaUrl} className="w-full max-w-[280px]" preload="metadata" />
+    </div>
+  )
+}
+
 export function MessageList({
   messages,
   onLoadMore,
@@ -240,8 +252,12 @@ export function MessageList({
               !!msg.original_content &&
               msg.original_content !== msg.content
             const imageUrl = msg.media_full_url || msg.media_url
+            const audioUrl = msg.media_full_url || msg.media_url
             const isImage = msg.message_type === "image" && imageUrl
-            const parsed = !isImage && !isDeleted ? parseTemplateContent(msg.content || "") : { isTemplate: false, title: "", body: "" }
+            const isAudio = msg.message_type === "audio" && audioUrl
+            const parsed = !isImage && !isAudio && !isDeleted
+              ? parseTemplateContent(msg.content || "")
+              : { isTemplate: false, title: "", body: "" }
 
             return (
               <div
@@ -302,6 +318,8 @@ export function MessageList({
                         <p className="text-sm mt-1">{msg.content}</p>
                       )}
                     </div>
+                  ) : isAudio && audioUrl ? (
+                    <MessageBubbleAudio mediaUrl={audioUrl} filename={msg.media_filename} />
                   ) : parsed.isTemplate ? (
                     <div className="space-y-1">
                       <span className="text-xs font-medium opacity-75">

@@ -248,6 +248,79 @@ class WhatsAppMessageService
         return $message;
     }
 
+    public function sendAudioMessageFromCRM(
+        Conversation $conversation,
+        string $localMediaPath,
+        string $mediaUrl,
+        string $mimeType,
+        $user
+    ): Message {
+        $channel = $conversation->channel;
+        $waConfig = $channel->whatsappConfig;
+        $to = $this->normalizePhoneForWhatsApp($conversation->contact->phone);
+        $businessPhoneId = $waConfig->phone_number_id;
+        $businessToken = Crypt::decryptString($waConfig->bussines_token);
+
+        $uploadResponse = Http::withToken($businessToken)
+            ->attach('file', Storage::disk('public')->get($localMediaPath), basename($localMediaPath), ['Content-Type' => $mimeType])
+            ->post("https://graph.facebook.com/v21.0/{$businessPhoneId}/media", [
+                'messaging_product' => 'whatsapp',
+                'type' => $mimeType,
+            ]);
+
+        if (! $uploadResponse->successful()) {
+            throw new \Exception('Error subiendo audio a WhatsApp: ' . $uploadResponse->body());
+        }
+
+        $whatsappMediaId = $uploadResponse->json('id');
+
+        $sendResponse = Http::withToken($businessToken)
+            ->post("https://graph.facebook.com/v21.0/{$businessPhoneId}/messages", [
+                'messaging_product' => 'whatsapp',
+                'recipient_type' => 'individual',
+                'to' => $to,
+                'type' => 'audio',
+                'audio' => [
+                    'id' => $whatsappMediaId,
+                ],
+            ]);
+
+        if (! $sendResponse->successful()) {
+            throw new \Exception('Error enviando audio por WhatsApp: ' . $sendResponse->body());
+        }
+
+        $externalId = $sendResponse->json('messages.0.id');
+
+        $message = Message::create([
+            'tenant_id' => $conversation->tenant_id,
+            'conversation_id' => $conversation->id,
+            'sender_type' => SenderType::USER,
+            'sender_id' => $user->id,
+            'content' => '',
+            'message_type' => MessageType::Audio,
+            'media_url' => $mediaUrl,
+            'media_mime_type' => $mimeType,
+            'media_filename' => basename($localMediaPath),
+            'direction' => MessageDirection::OUTBOUND,
+            'delivered_at' => now(),
+            'external_id' => $externalId,
+        ]);
+
+        $conversation->update([
+            'last_message_at' => $message->created_at,
+            'last_message_content' => '🎵 Audio',
+        ]);
+
+        try {
+            broadcast(new MessageSent($message));
+            broadcast(new TenantMessageReceived($message, $conversation->tenant_id));
+        } catch (\Exception $e) {
+            Log::error("Error broadcasting outbound audio message: " . $e->getMessage());
+        }
+
+        return $message;
+    }
+
     /**
      * @return array{content: string, type: string, media_id: string|null}
      */
