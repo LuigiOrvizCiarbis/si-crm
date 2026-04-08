@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useTranslation } from "@/hooks/useTranslation"
-import { Paperclip, Smile, Send, X, Pencil, Check } from "lucide-react"
+import { Paperclip, Smile, Send, X, Pencil, Check, Music2 } from "lucide-react"
 import { KeyboardEvent, SyntheticEvent, useRef, useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import Image from "next/image"
@@ -17,7 +17,7 @@ const TemplatePicker = dynamic(
 interface MessageInputProps {
   value: string
   onChange: (value: string) => void
-  onSend: (content: string, image?: File) => void
+  onSend: (content: string, media?: File) => void
   disabled?: boolean
   placeholder?: string
   channelId?: number | null
@@ -43,19 +43,21 @@ export function MessageInput({
   const resolvedPlaceholder = placeholder ?? t("chats.messagePlaceholder")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const [selectedImage, setSelectedImage] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [selectedMedia, setSelectedMedia] = useState<File | null>(null)
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null)
 
   const isEditing = !!editingMessage
+  const isAudio = !!selectedMedia?.type.startsWith("audio/")
+  const isImage = !!selectedMedia?.type.startsWith("image/")
 
   useEffect(() => {
-    if (selectedImage) {
-      const url = URL.createObjectURL(selectedImage)
-      setImagePreview(url)
+    if (selectedMedia) {
+      const url = URL.createObjectURL(selectedMedia)
+      setMediaPreview(url)
       return () => URL.revokeObjectURL(url)
     }
-    setImagePreview(null)
-  }, [selectedImage])
+    setMediaPreview(null)
+  }, [selectedMedia])
 
   useEffect(() => {
     if (editingMessage) {
@@ -80,9 +82,9 @@ export function MessageInput({
   }
 
   const handleSend = () => {
-    if (!value.trim() && !selectedImage) return
-    onSend(value.trim(), selectedImage || undefined)
-    setSelectedImage(null)
+    if (!value.trim() && !selectedMedia) return
+    onSend(value.trim(), selectedMedia || undefined)
+    setSelectedMedia(null)
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,16 +96,16 @@ export function MessageInput({
       return
     }
 
-    if (!file.type.startsWith("image/")) {
-      alert(t("chats.onlyImages") || "Solo se permiten imágenes")
+    if (!file.type.startsWith("image/") && !file.type.startsWith("audio/")) {
+      alert(t("chats.onlyImagesOrAudio") || "Solo se permiten imágenes o audios")
       return
     }
 
-    setSelectedImage(file)
+    setSelectedMedia(file)
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
-  const canSend = value.trim() || selectedImage
+  const canSend = isAudio ? selectedMedia : value.trim() || selectedMedia
 
   return (
     <div className="border-t border-border bg-card sticky bottom-0 md:relative">
@@ -123,18 +125,28 @@ export function MessageInput({
         </div>
       )}
 
-      {imagePreview && !isEditing && (
+      {mediaPreview && !isEditing && (
         <div className="px-4 pt-3 flex items-end gap-2">
           <div className="relative inline-block">
-            <Image
-              src={imagePreview}
-              alt="Preview"
-              width={120}
-              height={120}
-              className="rounded-lg object-cover max-h-[120px] w-auto"
-            />
+            {isImage ? (
+              <Image
+                src={mediaPreview}
+                alt="Preview"
+                width={120}
+                height={120}
+                className="rounded-lg object-cover max-h-[120px] w-auto"
+              />
+            ) : (
+              <div className="min-w-[240px] max-w-[320px] rounded-lg border border-border bg-background p-3">
+                <div className="mb-2 flex items-center gap-2 text-sm">
+                  <Music2 className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{selectedMedia?.name}</span>
+                </div>
+                <audio controls src={mediaPreview} className="w-full" />
+              </div>
+            )}
             <button
-              onClick={() => setSelectedImage(null)}
+              onClick={() => setSelectedMedia(null)}
               className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5 hover:opacity-80"
             >
               <X className="w-3 h-3" />
@@ -149,7 +161,7 @@ export function MessageInput({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,audio/*"
                 className="hidden"
                 onChange={handleFileSelect}
               />
@@ -173,14 +185,20 @@ export function MessageInput({
           )}
           <Input
             ref={inputRef}
-            placeholder={isEditing ? t("chats.editingMessage") : (selectedImage ? (t("chats.captionPlaceholder") || "Agregar caption...") : resolvedPlaceholder)}
+            placeholder={
+              isEditing
+                ? t("chats.editingMessage")
+                : isAudio
+                  ? (t("chats.audioPlaceholder") || "Audio listo para enviar")
+                  : (selectedMedia ? (t("chats.captionPlaceholder") || "Agregar caption...") : resolvedPlaceholder)
+            }
             className="flex-1"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             onKeyUp={stopPropagation}
             onKeyPress={stopPropagation}
-            disabled={disabled}
+            disabled={disabled || isAudio}
           />
           {!isEditing && (
             <Button variant="ghost" size="sm" disabled={disabled}>
