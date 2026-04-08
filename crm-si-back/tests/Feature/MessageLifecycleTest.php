@@ -118,6 +118,58 @@ class MessageLifecycleTest extends TestCase
         $this->assertNotNull($conversation->last_message_at);
     }
 
+    public function test_sticker_message_updates_conversation_preview_with_sticker_label(): void
+    {
+        $tenant = Tenant::create([
+            'name' => 'Acme',
+        ]);
+
+        $user = User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'role' => UserRole::ADMIN,
+        ]);
+
+        $channel = Channel::create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $user->id,
+            'type' => 'whatsapp',
+            'name' => 'Main channel',
+            'status' => 'active',
+        ]);
+
+        $contact = Contact::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Jane Doe',
+            'phone' => '+5491111111111',
+            'source' => 'whatsapp',
+        ]);
+
+        $conversation = Conversation::create([
+            'tenant_id' => $tenant->id,
+            'channel_id' => $channel->id,
+            'contact_id' => $contact->id,
+            'status' => 'open',
+        ]);
+
+        Message::create([
+            'tenant_id' => $conversation->tenant_id,
+            'conversation_id' => $conversation->id,
+            'sender_type' => SenderType::CONTACT,
+            'sender_id' => $contact->id,
+            'content' => '',
+            'message_type' => MessageType::Sticker,
+            'media_url' => '/storage/messages/test-sticker.webp',
+            'media_mime_type' => 'image/webp',
+            'media_filename' => 'test-sticker.webp',
+            'direction' => MessageDirection::INBOUND,
+        ]);
+
+        $conversation->refresh();
+
+        $this->assertSame('🏷️ Sticker', $conversation->last_message_content);
+        $this->assertNotNull($conversation->last_message_at);
+    }
+
     /**
      * @return array{0: User, 1: Conversation, 2: Message, 3: Message}
      */

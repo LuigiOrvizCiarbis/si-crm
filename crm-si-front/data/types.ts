@@ -122,7 +122,7 @@ export interface Message {
   id: number
   conversation_id: number
   content: string
-  message_type?: "text" | "image" | "document" | "audio" | "video"
+  message_type?: "text" | "image" | "sticker" | "document" | "audio" | "video"
   media_url?: string | null
   media_full_url?: string | null
   media_mime_type?: string | null

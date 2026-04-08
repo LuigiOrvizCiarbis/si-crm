@@ -148,6 +148,24 @@ function MessageBubbleImage({ mediaUrl, isUser }: { mediaUrl: string; isUser: bo
   )
 }
 
+function MessageBubbleSticker({ mediaUrl }: { mediaUrl: string }) {
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={mediaUrl}
+        alt="Sticker"
+        className="max-w-[160px] max-h-[160px] object-contain cursor-pointer hover:opacity-90 transition-opacity"
+        onClick={() => setLightboxOpen(true)}
+        loading="lazy"
+      />
+      {lightboxOpen && <ImageLightbox src={mediaUrl} onClose={() => setLightboxOpen(false)} />}
+    </>
+  )
+}
+
 function MessageBubbleAudio({ mediaUrl, filename }: { mediaUrl: string; filename?: string | null }) {
   return (
     <div className="space-y-2 min-w-[220px]">
@@ -252,10 +270,12 @@ export function MessageList({
               !!msg.original_content &&
               msg.original_content !== msg.content
             const imageUrl = msg.media_full_url || msg.media_url
+            const stickerUrl = msg.media_full_url || msg.media_url
             const audioUrl = msg.media_full_url || msg.media_url
             const isImage = msg.message_type === "image" && imageUrl
+            const isSticker = msg.message_type === "sticker" && stickerUrl
             const isAudio = msg.message_type === "audio" && audioUrl
-            const parsed = !isImage && !isAudio && !isDeleted
+            const parsed = !isImage && !isSticker && !isAudio && !isDeleted
               ? parseTemplateContent(msg.content || "")
               : { isTemplate: false, title: "", body: "" }
 
@@ -314,6 +334,13 @@ export function MessageList({
                   ) : isImage && imageUrl ? (
                     <div className="space-y-1">
                       <MessageBubbleImage mediaUrl={imageUrl} isUser={isUser} />
+                      {msg.content && (
+                        <p className="text-sm mt-1">{msg.content}</p>
+                      )}
+                    </div>
+                  ) : isSticker && stickerUrl ? (
+                    <div className="space-y-1">
+                      <MessageBubbleSticker mediaUrl={stickerUrl} />
                       {msg.content && (
                         <p className="text-sm mt-1">{msg.content}</p>
                       )}

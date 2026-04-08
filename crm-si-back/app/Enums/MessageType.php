@@ -6,6 +6,7 @@ enum MessageType: string
 {
     case Text = 'text';
     case Image = 'image';
+    case Sticker = 'sticker';
     case Document = 'document';
     case Audio = 'audio';
     case Video = 'video';
@@ -20,6 +21,7 @@ enum MessageType: string
         return match ($this) {
             self::Text => 'Texto',
             self::Image => 'Imagen',
+            self::Sticker => 'Sticker',
             self::Document => 'Documento',
             self::Audio => 'Audio',
             self::Video => 'Video',
