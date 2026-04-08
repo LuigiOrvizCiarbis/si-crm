@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use App\Models\Message;
-use App\Enums\UserRole;
 use App\Models\User;
 use App\Observers\MessageObserver;
 use Illuminate\Support\Facades\Gate;
@@ -31,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
                 return true;
             }
 
-            return $user?->role === UserRole::ADMIN;
+            return request()->query('key') === config('app.pulse_key');
         });
     }
 }
