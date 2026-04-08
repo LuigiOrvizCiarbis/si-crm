@@ -26,8 +26,12 @@ class AppServiceProvider extends ServiceProvider
     {
         Message::observe(MessageObserver::class);
 
-        Gate::define('viewPulse', function (User $user) {
-            return $user->role === UserRole::ADMIN;
+        Gate::define('viewPulse', function (?User $user) {
+            if (app()->environment('local')) {
+                return true;
+            }
+
+            return $user?->role === UserRole::ADMIN;
         });
     }
 }
