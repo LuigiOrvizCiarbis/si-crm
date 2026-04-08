@@ -331,6 +331,7 @@ class WhatsAppMessageService
         $content = match ($type) {
             'text' => $messageData['text']['body'] ?? '',
             'image' => $messageData['image']['caption'] ?? '',
+            'sticker' => '',
             'document' => $messageData['document']['filename'] ?? 'Documento',
             'audio' => '',
             'video' => $messageData['video']['caption'] ?? '',
@@ -341,6 +342,7 @@ class WhatsAppMessageService
 
         $mediaId = match ($type) {
             'image' => $messageData['image']['id'] ?? null,
+            'sticker' => $messageData['sticker']['id'] ?? null,
             'document' => $messageData['document']['id'] ?? null,
             'audio' => $messageData['audio']['id'] ?? null,
             'video' => $messageData['video']['id'] ?? null,
@@ -350,6 +352,7 @@ class WhatsAppMessageService
         $mappedType = match ($type) {
             'text' => 'text',
             'image' => 'image',
+            'sticker' => 'sticker',
             'document' => 'document',
             'audio' => 'audio',
             'video' => 'video',
@@ -438,6 +441,7 @@ class WhatsAppMessageService
             $type = $messageData['message_type'] ?? 'text';
             $lastContent = match ($type) {
                 'image' => '📷 ' . ($messageData['content'] ?: 'Imagen'),
+                'sticker' => '🏷️ Sticker',
                 'video' => '🎥 ' . ($messageData['content'] ?: 'Video'),
                 'audio' => '🎵 Audio',
                 'document' => '📄 ' . ($messageData['content'] ?: 'Documento'),
@@ -600,6 +604,18 @@ class WhatsAppMessageService
             $conversation = $this->findOrCreateConversation($contact, $channel);
 
             $extracted = $this->extractMessageData($echo);
+            $mediaFields = [];
+            if ($extracted['media_id'] && $extracted['type'] !== 'text') {
+                $waConfig = $channel->whatsappConfig;
+                if ($waConfig) {
+                    $accessToken = Crypt::decryptString($waConfig->bussines_token);
+                    $mediaFields = $this->downloadWhatsAppMedia(
+                        $extracted['media_id'],
+                        $accessToken,
+                        $tenantId
+                    );
+                }
+            }
 
             $this->createMessage([
                 'tenant_id' => $tenantId,
@@ -608,6 +624,9 @@ class WhatsAppMessageService
                 'sender_id' => $channel->user_id,
                 'content' => $extracted['content'],
                 'message_type' => $extracted['type'],
+                'media_url' => $mediaFields['url'] ?? null,
+                'media_mime_type' => $mediaFields['mime_type'] ?? null,
+                'media_filename' => $mediaFields['filename'] ?? null,
                 'direction' => MessageDirection::OUTBOUND,
                 'external_id' => $externalId,
                 'delivered_at' => $this->parseWebhookTimestamp($echo['timestamp'] ?? null),

@@ -110,6 +110,17 @@ export default function ChatsPage() {
     [isTemplateFallbackContent]
   );
 
+  const getRealtimeMessagePreview = useCallback(
+    (incomingMessage: Message, currentPreview?: string) => {
+      const fallbackPreview = incomingMessage.message_type === "sticker"
+        ? "🏷️ Sticker"
+        : incomingMessage.content;
+
+      return normalizeIncomingTemplateContent(fallbackPreview, currentPreview);
+    },
+    [normalizeIncomingTemplateContent]
+  );
+
 
   const handleRealTimeMessage = useCallback((newMessage: Message) => {
     // 1. Actualizar el chat abierto (si coincide el ID)
@@ -160,8 +171,8 @@ export default function ChatsPage() {
 
       const updatedConversation = {
         ...prevConversations[index],
-        last_message: normalizeIncomingTemplateContent(
-          newMessage.content,
+        last_message: getRealtimeMessagePreview(
+          newMessage,
           prevConversations[index].last_message
         ),
         updated_at: newMessage.created_at,
@@ -171,7 +182,7 @@ export default function ChatsPage() {
       newConversations.splice(index, 1);
       return [updatedConversation, ...newConversations];
     });
-  }, [normalizeIncomingTemplateContent, selectedConversationId]);
+  }, [getRealtimeMessagePreview, normalizeIncomingTemplateContent, selectedConversationId]);
 
   const handleRealTimeEdit = useCallback((updatedMsg: Message) => {
     setCurrentConversation((prev) => {
@@ -224,8 +235,8 @@ export default function ChatsPage() {
       if (idx !== -1) {
         const updated = {
           ...prev[idx],
-          last_message: normalizeIncomingTemplateContent(
-            message.content,
+          last_message: getRealtimeMessagePreview(
+            message,
             prev[idx].last_message
           ),
           updated_at: message.created_at,
@@ -245,7 +256,7 @@ export default function ChatsPage() {
       }).catch(() => {});
       return prev;
     });
-  }, [normalizeIncomingTemplateContent]);
+  }, [getRealtimeMessagePreview]);
 
   useTenantSSE({
     onMessage: handleTenantMessage,

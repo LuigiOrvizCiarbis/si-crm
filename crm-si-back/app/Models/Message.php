@@ -152,6 +152,7 @@ class Message extends Model
     {
         return match ($this->message_type) {
             MessageType::Image => '📷 ' . ($this->content ?: 'Imagen'),
+            MessageType::Sticker => '🏷️ Sticker',
             MessageType::Video => '🎥 ' . ($this->content ?: 'Video'),
             MessageType::Audio => '🎵 Audio',
             MessageType::Document => '📄 ' . ($this->content ?: 'Documento'),
