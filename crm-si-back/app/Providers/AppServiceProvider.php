@@ -30,7 +30,13 @@ class AppServiceProvider extends ServiceProvider
                 return true;
             }
 
-            return request()->query('key') === config('app.pulse_key');
+            $key = config('app.pulse_key');
+
+            if ($key && request()->query('key') === $key) {
+                session()->put('pulse_authorized', true);
+            }
+
+            return session()->get('pulse_authorized', false);
         });
     }
 }
