@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useTranslation } from "@/hooks/useTranslation"
 import { Paperclip, Smile, Send, X, Pencil, Check, Music2 } from "lucide-react"
 import { KeyboardEvent, SyntheticEvent, useRef, useState, useEffect } from "react"
@@ -13,6 +14,34 @@ const TemplatePicker = dynamic(
   () => import("./TemplatePicker").then(m => m.TemplatePicker),
   { ssr: false }
 )
+
+const EMOJI_GROUPS = [
+  {
+    key: "smileys",
+    translationKey: "chats.emojiCategorySmileys",
+    emojis: ["😀", "😂", "😊", "😍", "😎", "🤔", "🥲", "😴"],
+  },
+  {
+    key: "gestures",
+    translationKey: "chats.emojiCategoryGestures",
+    emojis: ["👍", "👎", "👏", "🙌", "🙏", "🤝", "💪", "👌"],
+  },
+  {
+    key: "hearts",
+    translationKey: "chats.emojiCategoryHearts",
+    emojis: ["❤️", "🧡", "💛", "💚", "💙", "💜", "🤍", "🖤"],
+  },
+  {
+    key: "celebration",
+    translationKey: "chats.emojiCategoryCelebration",
+    emojis: ["🎉", "✨", "🔥", "🚀", "🏆", "🎯", "🥳", "💥"],
+  },
+  {
+    key: "objects",
+    translationKey: "chats.emojiCategoryObjects",
+    emojis: ["📌", "📅", "💬", "📞", "✅", "⚠️", "💡", "📎"],
+  },
+]
 
 interface MessageInputProps {
   value: string
@@ -45,6 +74,7 @@ export function MessageInput({
   const inputRef = useRef<HTMLInputElement>(null)
   const [selectedMedia, setSelectedMedia] = useState<File | null>(null)
   const [mediaPreview, setMediaPreview] = useState<string | null>(null)
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false)
 
   const isEditing = !!editingMessage
   const isAudio = !!selectedMedia?.type.startsWith("audio/")
@@ -85,6 +115,7 @@ export function MessageInput({
     if (!value.trim() && !selectedMedia) return
     onSend(value.trim(), selectedMedia || undefined)
     setSelectedMedia(null)
+    setIsEmojiPickerOpen(false)
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,6 +137,23 @@ export function MessageInput({
   }
 
   const canSend = isAudio ? selectedMedia : value.trim() || selectedMedia
+  const emojiPickerDisabled = disabled || isAudio
+
+  const handleEmojiSelect = (emoji: string) => {
+    const input = inputRef.current
+    const selectionStart = input?.selectionStart ?? value.length
+    const selectionEnd = input?.selectionEnd ?? value.length
+    const nextValue = `${value.slice(0, selectionStart)}${emoji}${value.slice(selectionEnd)}`
+    const nextCursorPosition = selectionStart + emoji.length
+
+    onChange(nextValue)
+    setIsEmojiPickerOpen(false)
+
+    requestAnimationFrame(() => {
+      inputRef.current?.focus()
+      inputRef.current?.setSelectionRange(nextCursorPosition, nextCursorPosition)
+    })
+  }
 
   return (
     <div className="border-t border-border bg-card sticky bottom-0 md:relative">
@@ -201,9 +249,46 @@ export function MessageInput({
             disabled={disabled || isAudio}
           />
           {!isEditing && (
-            <Button variant="ghost" size="sm" disabled={disabled}>
-              <Smile className="w-4 h-4" />
-            </Button>
+            <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={emojiPickerDisabled}
+                  aria-label={t("chats.openEmojiPicker")}
+                >
+                  <Smile className="w-4 h-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 p-3">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{t("chats.emojiPickerTitle")}</p>
+                    <Smile className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  {EMOJI_GROUPS.map((group) => (
+                    <div key={group.key} className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {t(group.translationKey)}
+                      </p>
+                      <div className="grid grid-cols-8 gap-1">
+                        {group.emojis.map((emoji) => (
+                          <button
+                            key={`${group.key}-${emoji}`}
+                            type="button"
+                            className="flex h-9 w-9 items-center justify-center rounded-md text-lg transition-colors hover:bg-accent focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
+                            onClick={() => handleEmojiSelect(emoji)}
+                            aria-label={`${t(group.translationKey)} ${emoji}`}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           )}
           <Button size="sm" onClick={handleSend} disabled={disabled || !canSend}>
             {isEditing ? <Check className="w-4 h-4" /> : <Send className="w-4 h-4" />}
