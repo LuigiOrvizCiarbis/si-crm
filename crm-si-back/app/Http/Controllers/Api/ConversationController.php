@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Enums\UserRole;
 use Illuminate\Http\Request;
 use App\Models\Conversation;
+use App\Models\Opportunity;
 use App\Models\PipelineStage;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -165,14 +166,34 @@ class ConversationController extends Controller
             'pipeline_stage_id' => 'required|exists:pipeline_stages,id',
         ]);
 
-        $conversation = Conversation::where('id', $id)->firstOrFail(); // El scope tenant aplica aquí
+        $conversation = Conversation::where('id', $id)->firstOrFail();
 
         // Validar que la etapa destino pertenezca al mismo tenant (seguridad extra)
         $stage = PipelineStage::where('id', $request->pipeline_stage_id)->firstOrFail();
 
         $conversation->update([
-            'pipeline_stage_id' => $stage->id
+            'pipeline_stage_id' => $stage->id,
         ]);
+
+        // Sincronizar la Opportunity vinculada: actualizar si existe, crear si no
+        $opportunity = Opportunity::where('conversation_id', $conversation->id)->first();
+
+        if ($opportunity) {
+            $opportunity->update([
+                'pipeline_stage_id' => $stage->id,
+                'last_activity_at' => now(),
+            ]);
+        } else {
+            Opportunity::create([
+                'conversation_id' => $conversation->id,
+                'contact_id' => $conversation->contact_id,
+                'pipeline_stage_id' => $stage->id,
+                'title' => 'Oportunidad - ' . ($conversation->contact?->name ?? 'Sin nombre'),
+                'status' => 'open',
+                'source_type' => 'conversation',
+                'last_activity_at' => now(),
+            ]);
+        }
 
         return response()->json($conversation);
     }

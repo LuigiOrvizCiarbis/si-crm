@@ -148,9 +148,17 @@ class OpportunityController extends Controller
 
         $opportunity = Opportunity::findOrFail($id);
 
+        $stageId = $this->resolveStage($validated)?->id;
+
         $opportunity->update([
-            'pipeline_stage_id' => $this->resolveStage($validated)?->id,
+            'pipeline_stage_id' => $stageId,
         ]);
+
+        // Sincronizar la Conversation vinculada (si existe)
+        if ($opportunity->conversation_id) {
+            Conversation::where('id', $opportunity->conversation_id)
+                ->update(['pipeline_stage_id' => $stageId]);
+        }
 
         $opportunity->load(self::EAGER_LOAD);
 
