@@ -84,9 +84,6 @@ class WhatsAppMessageService
                 return $this->handleIncomingMessageEdited($messageData, $originalEditedId, $tenantId);
             }
 
-            // Si el tipo no está en la lista de tipos soportados, NO creamos un
-            // "Mensaje multimedia" falso. Logueamos el payload completo para poder
-            // iterar sobre nuevos formatos de Meta (edit/delete/reaction/etc).
             if (!$this->isSupportedMessageType($messageType)) {
                 Log::warning('WhatsApp message type no soportado, payload ignorado', [
                     'type'         => $messageType,
@@ -96,14 +93,20 @@ class WhatsAppMessageService
                 return null;
             }
 
+            /** @var Contact $contact */
             $contact = $this->findOrCreateContact($contactData, $messageData['from'] ?? '', $tenantId);
+            /** @var Conversation $conversation */
             $conversation = $this->findOrCreateConversation($contact, $channel);
+            /** @var int $conversationId */
+            $conversationId = $conversation->getKey();
+            /** @var int $contactId */
+            $contactId = $contact->getKey();
 
             $extracted = $this->extractMessageData($messageData);
 
             $mediaFields = [];
             if ($extracted['media_id'] && $extracted['type'] !== 'text') {
-                $waConfig = $channel->whatsappConfig;
+                $waConfig = $channel->WhatsAppConfig;
                 if ($waConfig) {
                     $accessToken = Crypt::decryptString($waConfig->bussines_token);
                     $mediaFields = $this->downloadWhatsAppMedia(
@@ -116,9 +119,9 @@ class WhatsAppMessageService
 
             return $this->createMessage([
                 'tenant_id' => $tenantId,
-                'conversation_id' => $conversation->id,
+                'conversation_id' => $conversationId,
                 'sender_type' => SenderType::CONTACT,
-                'sender_id' => $contact->id,
+                'sender_id' => $contactId,
                 'content' => $extracted['content'],
                 'message_type' => $extracted['type'],
                 'media_url' => $mediaFields['url'] ?? null,
@@ -266,11 +269,13 @@ class WhatsAppMessageService
 
         $externalId = $sendResponse->json('messages.0.id');
 
+        $userId = $user->getKey();
+
         $message = Message::create([
             'tenant_id' => $conversation->tenant_id,
             'conversation_id' => $conversation->id,
             'sender_type' => SenderType::USER,
-            'sender_id' => $user->id,
+            'sender_id' => $userId,
             'content' => $caption ?? '',
             'message_type' => MessageType::Image,
             'media_url' => $mediaUrl,

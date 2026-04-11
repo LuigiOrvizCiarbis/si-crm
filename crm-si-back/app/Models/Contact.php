@@ -8,6 +8,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
+/**
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $name
+ * @property string|null $phone
+ * @property string|null $email
+ * @property string|null $external_id
+ * @property string|null $source
+ */
 class Contact extends Model
 {
     use BelongsToTenant;
