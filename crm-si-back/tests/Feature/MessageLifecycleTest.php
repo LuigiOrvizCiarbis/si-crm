@@ -6,13 +6,17 @@ use App\Enums\MessageDirection;
 use App\Enums\MessageType;
 use App\Enums\SenderType;
 use App\Enums\UserRole;
+use App\Enums\ChannelType;
 use App\Models\Channel;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\WhatsAppConfig;
+use App\Services\WhatsAppMessageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -83,7 +87,7 @@ class MessageLifecycleTest extends TestCase
         $channel = Channel::create([
             'tenant_id' => $tenant->id,
             'user_id' => $user->id,
-            'type' => 'whatsapp',
+            'type' => ChannelType::WHATSAPP,
             'name' => 'Main channel',
             'status' => 'active',
         ]);
@@ -132,7 +136,7 @@ class MessageLifecycleTest extends TestCase
         $channel = Channel::create([
             'tenant_id' => $tenant->id,
             'user_id' => $user->id,
-            'type' => 'whatsapp',
+            'type' => ChannelType::WHATSAPP,
             'name' => 'Main channel',
             'status' => 'active',
         ]);
@@ -170,6 +174,127 @@ class MessageLifecycleTest extends TestCase
         $this->assertNotNull($conversation->last_message_at);
     }
 
+    public function test_whatsapp_revoke_event_soft_deletes_original_message(): void
+    {
+        [$tenant, $channel] = $this->createWhatsAppChannelContext();
+
+        $contact = Contact::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Jane Doe',
+            'phone' => '5492235112208',
+            'source' => 'whatsapp',
+        ]);
+
+        $conversation = Conversation::create([
+            'tenant_id' => $tenant->id,
+            'channel_id' => $channel->id,
+            'contact_id' => $contact->id,
+            'status' => 'open',
+        ]);
+
+        $message = Message::create([
+            'tenant_id' => $tenant->id,
+            'conversation_id' => $conversation->id,
+            'sender_type' => SenderType::CONTACT,
+            'sender_id' => $contact->id,
+            'content' => 'Hola',
+            'message_type' => MessageType::Text,
+            'direction' => MessageDirection::INBOUND,
+            'external_id' => 'wamid.original.revoke',
+        ]);
+
+        $conversation->syncLastMessageSummary();
+
+        app(WhatsAppMessageService::class)->processIncomingMessage([
+            'value' => [
+                'metadata' => [
+                    'phone_number_id' => '123456789',
+                ],
+                'messages' => [[
+                    'from' => '5492235112208',
+                    'id' => 'wamid.event.revoke',
+                    'timestamp' => '1775921049',
+                    'type' => 'revoke',
+                    'revoke' => [
+                        'original_message_id' => 'wamid.original.revoke',
+                    ],
+                ]],
+            ],
+        ]);
+
+        $message->refresh();
+        $conversation->refresh();
+
+        $this->assertSoftDeleted('messages', ['id' => $message->id]);
+        $this->assertNull($conversation->last_message_content);
+        $this->assertNull($conversation->last_message_at);
+    }
+
+    public function test_whatsapp_edit_event_updates_original_message_content(): void
+    {
+        [$tenant, $channel] = $this->createWhatsAppChannelContext();
+
+        $contact = Contact::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Jane Doe',
+            'phone' => '5492235112208',
+            'source' => 'whatsapp',
+        ]);
+
+        $conversation = Conversation::create([
+            'tenant_id' => $tenant->id,
+            'channel_id' => $channel->id,
+            'contact_id' => $contact->id,
+            'status' => 'open',
+        ]);
+
+        $message = Message::create([
+            'tenant_id' => $tenant->id,
+            'conversation_id' => $conversation->id,
+            'sender_type' => SenderType::CONTACT,
+            'sender_id' => $contact->id,
+            'content' => 'Hola',
+            'message_type' => MessageType::Text,
+            'direction' => MessageDirection::INBOUND,
+            'external_id' => 'wamid.original.edit',
+        ]);
+
+        $conversation->syncLastMessageSummary();
+
+        $editedMessage = app(WhatsAppMessageService::class)->processIncomingMessage([
+            'value' => [
+                'metadata' => [
+                    'phone_number_id' => '123456789',
+                ],
+                'messages' => [[
+                    'from' => '5492235112208',
+                    'id' => 'wamid.event.edit',
+                    'timestamp' => '1775921075',
+                    'type' => 'edit',
+                    'edit' => [
+                        'original_message_id' => 'wamid.original.edit',
+                        'message' => [
+                            'type' => 'text',
+                            'text' => [
+                                'body' => 'Hol',
+                            ],
+                        ],
+                    ],
+                ]],
+            ],
+        ]);
+
+        $message->refresh();
+        $conversation->refresh();
+
+        $this->assertNotNull($editedMessage);
+        $this->assertSame($message->id, $editedMessage->id);
+        $this->assertSame('Hol', $message->content);
+        $this->assertSame('Hola', $message->original_content);
+        $this->assertNotNull($message->edited_at);
+        $this->assertSame('Hol', $conversation->last_message_content);
+    }
+
     /**
      * @return array{0: User, 1: Conversation, 2: Message, 3: Message}
      */
@@ -189,7 +314,7 @@ class MessageLifecycleTest extends TestCase
         $channel = Channel::create([
             'tenant_id' => $tenant->id,
             'user_id' => $user->id,
-            'type' => 'whatsapp',
+            'type' => ChannelType::WHATSAPP,
             'name' => 'Main channel',
             'status' => 'active',
         ]);
@@ -239,5 +364,41 @@ class MessageLifecycleTest extends TestCase
         ])->saveQuietly();
 
         return $message->fresh();
+    }
+
+    /**
+     * @return array{0: Tenant, 1: Channel}
+     */
+    private function createWhatsAppChannelContext(): array
+    {
+        $tenant = Tenant::create([
+            'name' => 'Acme',
+        ]);
+
+        $user = User::factory()->create([
+            'tenant_id' => $tenant->id,
+            'role' => UserRole::ADMIN,
+        ]);
+
+        $channel = Channel::create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $user->id,
+            'type' => ChannelType::WHATSAPP,
+            'name' => 'Main channel',
+            'status' => 'active',
+        ]);
+
+        $config = WhatsAppConfig::create([
+            'phone_number_id' => '123456789',
+            'display_phone_number' => '+54 9 223 511-2208',
+            'waba_id' => 'waba-test',
+            'bussines_token' => Crypt::encryptString('test-token'),
+        ]);
+
+        $channel->update([
+            'whatsapp_config_id' => $config->id,
+        ]);
+
+        return [$tenant, $channel->fresh()];
     }
 }
