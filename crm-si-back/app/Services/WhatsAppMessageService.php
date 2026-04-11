@@ -68,7 +68,9 @@ class WhatsAppMessageService
             // Meta envía type: "unsupported" con errors[].code = 131051. El id del
             // mensaje original viene en context.id (no en el id top-level, que es un id nuevo del evento).
             if ($this->isMessageDeletionEvent($messageData)) {
-                $deletedId = $messageData['context']['id'] ?? $messageId;
+                $deletedId = $messageData['revoke']['original_message_id']
+                    ?? $messageData['context']['id']
+                    ?? $messageId;
                 $this->handleIncomingMessageDeleted($deletedId, $tenantId);
                 return null;
             }
@@ -387,12 +389,19 @@ class WhatsAppMessageService
      * Detecta si un webhook entrante representa la eliminación de un mensaje
      * por parte del contacto desde su celular ("delete for everyone").
      *
-     * Meta lo envía como type: "unsupported" con errors[].code = 131051.
-     * El id del mensaje original viene típicamente en context.id.
+     * Meta puede enviarlo como:
+     *   1) type: "unsupported" con errors[].code = 131051 y original en context.id
+     *   2) type: "revoke" con revoke.original_message_id
      */
     private function isMessageDeletionEvent(array $messageData): bool
     {
-        if (($messageData['type'] ?? null) !== 'unsupported') {
+        $type = $messageData['type'] ?? null;
+
+        if ($type === 'revoke') {
+            return !empty($messageData['revoke']['original_message_id']);
+        }
+
+        if ($type !== 'unsupported') {
             return false;
         }
 
@@ -420,7 +429,8 @@ class WhatsAppMessageService
      * Meta puede enviarlo con varias formas. Soportamos:
      *   1) context.edited === true (formato histórico)
      *   2) messages[].edited === true con original id en context.id
-     *   3) Mensaje text con context.id que apunta a un mensaje INBOUND ya
+     *   3) type: "edit" con edit.original_message_id
+     *   4) Mensaje text con context.id que apunta a un mensaje INBOUND ya
      *      existente en el CRM y con campo context.from == from (no es reply)
      */
     private function detectEditedMessageOriginalId(array $messageData, int $tenantId): ?string
@@ -434,6 +444,11 @@ class WhatsAppMessageService
 
         if (!empty($messageData['edited']) && $originalId) {
             return $originalId;
+        }
+
+        $editOriginalId = $messageData['edit']['original_message_id'] ?? null;
+        if (($messageData['type'] ?? null) === 'edit' && $editOriginalId) {
+            return $editOriginalId;
         }
 
         // Último recurso: si llega un mensaje de texto con context.id apuntando
@@ -468,6 +483,9 @@ class WhatsAppMessageService
 
         $content = match ($type) {
             'text' => $messageData['text']['body'] ?? '',
+            'edit' => $messageData['edit']['message']['text']['body']
+                ?? $messageData['edit']['text']['body']
+                ?? '',
             'image' => $messageData['image']['caption'] ?? '',
             'sticker' => '',
             'document' => $messageData['document']['filename'] ?? 'Documento',
@@ -489,6 +507,7 @@ class WhatsAppMessageService
 
         $mappedType = match ($type) {
             'text' => 'text',
+            'edit' => 'text',
             'image' => 'image',
             'sticker' => 'sticker',
             'document' => 'document',
