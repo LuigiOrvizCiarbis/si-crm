@@ -12,6 +12,7 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Services\WhatsAppMessageService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class MessageController extends Controller
@@ -48,40 +49,59 @@ class MessageController extends Controller
             'audio' => 'required_if:type,audio|file|mimetypes:audio/aac,audio/mpeg,audio/mp3,audio/ogg,audio/mp4,audio/amr,audio/3gpp|max:16384',
         ]);
 
-        $conversation = Conversation::findOrFail($data['conversation_id']);
+        $conversation = Conversation::query()
+            ->with(['channel.whatsappConfig', 'contact'])
+            ->whereKey($data['conversation_id'])
+            ->where('tenant_id', $request->user()->tenant_id)
+            ->firstOrFail();
+
         $type = $data['type'] ?? 'text';
+        $tenantId = $request->user()->tenant_id;
 
-        if ($type === 'image' && $request->hasFile('image')) {
-            $file = $request->file('image');
-            $tenantId = $request->user()->tenant_id;
-            $path = $file->store("messages/{$tenantId}", 'public');
+        try {
+            if ($type === 'image' && $request->hasFile('image')) {
+                $file = $request->file('image');
+                $path = $file->store("messages/{$tenantId}", 'public');
 
-            $message = $this->messageService->sendImageMessageFromCRM(
-                $conversation,
-                $path,
-                '/storage/' . $path,
-                $file->getMimeType(),
-                $data['content'] ?? null,
-                $request->user()
-            );
-        } elseif ($type === 'audio' && $request->hasFile('audio')) {
-            $file = $request->file('audio');
-            $tenantId = $request->user()->tenant_id;
-            $path = $file->store("messages/{$tenantId}", 'public');
+                $message = $this->messageService->sendImageMessageFromCRM(
+                    $conversation,
+                    $path,
+                    '/storage/' . $path,
+                    $file->getMimeType(),
+                    $data['content'] ?? null,
+                    $request->user()
+                );
+            } elseif ($type === 'audio' && $request->hasFile('audio')) {
+                $file = $request->file('audio');
+                $path = $file->store("messages/{$tenantId}", 'public');
 
-            $message = $this->messageService->sendAudioMessageFromCRM(
-                $conversation,
-                $path,
-                '/storage/' . $path,
-                $file->getMimeType() ?: 'audio/mpeg',
-                $request->user()
-            );
-        } else {
-            $message = $this->messageService->sendTextMessageFromCRM(
-                $conversation,
-                $data['content'],
-                $request->user()
-            );
+                $message = $this->messageService->sendAudioMessageFromCRM(
+                    $conversation,
+                    $path,
+                    '/storage/' . $path,
+                    $file->getMimeType() ?: 'audio/mpeg',
+                    $request->user()
+                );
+            } else {
+                $message = $this->messageService->sendTextMessageFromCRM(
+                    $conversation,
+                    $data['content'],
+                    $request->user()
+                );
+            }
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\RuntimeException $e) {
+            Log::warning('No se pudo enviar el mensaje por WhatsApp', [
+                'conversation_id' => $conversation->id,
+                'tenant_id' => $request->user()->tenant_id,
+                'type' => $type,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'No se pudo enviar el mensaje a WhatsApp. Verifica la configuración del canal e inténtalo de nuevo.',
+            ], 502);
         }
 
         return response()->json(['data' => $message], 201);
