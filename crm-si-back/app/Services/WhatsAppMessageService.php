@@ -2,12 +2,15 @@
 
 namespace App\Services;
 
+use App\Enums\ChannelType;
 use App\Models\Message;
 use App\Models\Contact;
 use App\Models\Channel;
 use App\Models\PipelineStage;
 use App\Enums\MessageDirection;
 use App\Enums\SenderType;
+use App\Models\Conversation;
+use App\Models\User;
 use App\Models\WhatsAppConfig;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Crypt;
@@ -22,6 +25,8 @@ use Illuminate\Support\Facades\Storage;
 
 class WhatsAppMessageService
 {
+    private const GRAPH_VERSION = 'v21.0';
+
     public function processIncomingMessage(array $webhookData): ?Message
     {
         try {
@@ -192,23 +197,20 @@ class WhatsAppMessageService
         string $mediaUrl,
         string $mimeType,
         ?string $caption,
-        $user
+        User $user
     ): Message {
-        $channel = $conversation->channel;
-        $waConfig = $channel->whatsappConfig;
-        $to = $this->normalizePhoneForWhatsApp($conversation->contact->phone);
-        $businessPhoneId = $waConfig->phone_number_id;
-        $businessToken = Crypt::decryptString($waConfig->bussines_token);
+        ['to' => $to, 'business_phone_id' => $businessPhoneId, 'business_token' => $businessToken] =
+            $this->resolveOutboundWhatsAppContext($conversation);
 
         $uploadResponse = Http::withToken($businessToken)
             ->attach('file', Storage::disk('public')->get($localMediaPath), basename($localMediaPath), ['Content-Type' => $mimeType])
-            ->post("https://graph.facebook.com/v21.0/{$businessPhoneId}/media", [
+            ->post("https://graph.facebook.com/".self::GRAPH_VERSION."/{$businessPhoneId}/media", [
                 'messaging_product' => 'whatsapp',
                 'type' => $mimeType,
             ]);
 
         if (! $uploadResponse->successful()) {
-            throw new \Exception('Error subiendo imagen a WhatsApp: ' . $uploadResponse->body());
+            throw new \RuntimeException('Error subiendo imagen a WhatsApp: ' . $uploadResponse->body());
         }
 
         $whatsappMediaId = $uploadResponse->json('id');
@@ -229,10 +231,10 @@ class WhatsAppMessageService
         }
 
         $sendResponse = Http::withToken($businessToken)
-            ->post("https://graph.facebook.com/v21.0/{$businessPhoneId}/messages", $messagePayload);
+            ->post("https://graph.facebook.com/".self::GRAPH_VERSION."/{$businessPhoneId}/messages", $messagePayload);
 
         if (! $sendResponse->successful()) {
-            throw new \Exception('Error enviando imagen por WhatsApp: ' . $sendResponse->body());
+            throw new \RuntimeException('Error enviando imagen por WhatsApp: ' . $sendResponse->body());
         }
 
         $externalId = $sendResponse->json('messages.0.id');
@@ -272,29 +274,26 @@ class WhatsAppMessageService
         string $localMediaPath,
         string $mediaUrl,
         string $mimeType,
-        $user
+        User $user
     ): Message {
-        $channel = $conversation->channel;
-        $waConfig = $channel->whatsappConfig;
-        $to = $this->normalizePhoneForWhatsApp($conversation->contact->phone);
-        $businessPhoneId = $waConfig->phone_number_id;
-        $businessToken = Crypt::decryptString($waConfig->bussines_token);
+        ['to' => $to, 'business_phone_id' => $businessPhoneId, 'business_token' => $businessToken] =
+            $this->resolveOutboundWhatsAppContext($conversation);
 
         $uploadResponse = Http::withToken($businessToken)
             ->attach('file', Storage::disk('public')->get($localMediaPath), basename($localMediaPath), ['Content-Type' => $mimeType])
-            ->post("https://graph.facebook.com/v21.0/{$businessPhoneId}/media", [
+            ->post("https://graph.facebook.com/".self::GRAPH_VERSION."/{$businessPhoneId}/media", [
                 'messaging_product' => 'whatsapp',
                 'type' => $mimeType,
             ]);
 
         if (! $uploadResponse->successful()) {
-            throw new \Exception('Error subiendo audio a WhatsApp: ' . $uploadResponse->body());
+            throw new \RuntimeException('Error subiendo audio a WhatsApp: ' . $uploadResponse->body());
         }
 
         $whatsappMediaId = $uploadResponse->json('id');
 
         $sendResponse = Http::withToken($businessToken)
-            ->post("https://graph.facebook.com/v21.0/{$businessPhoneId}/messages", [
+            ->post("https://graph.facebook.com/".self::GRAPH_VERSION."/{$businessPhoneId}/messages", [
                 'messaging_product' => 'whatsapp',
                 'recipient_type' => 'individual',
                 'to' => $to,
@@ -305,7 +304,7 @@ class WhatsAppMessageService
             ]);
 
         if (! $sendResponse->successful()) {
-            throw new \Exception('Error enviando audio por WhatsApp: ' . $sendResponse->body());
+            throw new \RuntimeException('Error enviando audio por WhatsApp: ' . $sendResponse->body());
         }
 
         $externalId = $sendResponse->json('messages.0.id');
@@ -433,6 +432,46 @@ class WhatsAppMessageService
         }
 
         return $phone;
+    }
+
+    /**
+     * @return array{to: string, business_phone_id: string, business_token: string}
+     */
+    private function resolveOutboundWhatsAppContext(Conversation $conversation): array
+    {
+        $channel = $conversation->channel;
+        if (! $channel) {
+            throw new \InvalidArgumentException('La conversación no tiene un canal asociado.');
+        }
+
+        if ($channel->type !== ChannelType::WHATSAPP) {
+            throw new \InvalidArgumentException('Solo se pueden enviar mensajes desde conversaciones de WhatsApp.');
+        }
+
+        if (! $channel->isActive()) {
+            throw new \InvalidArgumentException('El canal de WhatsApp está desconectado.');
+        }
+
+        $waConfig = $channel->whatsappConfig;
+        if (! $waConfig || ! $waConfig->phone_number_id) {
+            throw new \InvalidArgumentException('El canal no tiene una configuración válida de WhatsApp.');
+        }
+
+        $businessToken = $waConfig->getDecryptedToken();
+        if (! $businessToken) {
+            throw new \InvalidArgumentException('No se pudo obtener el token de WhatsApp del canal.');
+        }
+
+        $phone = $conversation->contact?->phone;
+        if (! $phone) {
+            throw new \InvalidArgumentException('La conversación no tiene un teléfono de contacto válido.');
+        }
+
+        return [
+            'to' => $this->normalizePhoneForWhatsApp($phone),
+            'business_phone_id' => $waConfig->phone_number_id,
+            'business_token' => $businessToken,
+        ];
     }
 
     private function mimeToExtension(string $mimeType): string
@@ -653,27 +692,24 @@ class WhatsAppMessageService
         }
     }
 
-    public function sendTextMessageFromCRM(Conversation $conversation, string $content, $user): Message
+    public function sendTextMessageFromCRM(Conversation $conversation, string $content, User $user): Message
     {
-        $channel = $conversation->channel;
-        $waConfig = $channel->whatsappConfig;
-        $to = $this->normalizePhoneForWhatsApp($conversation->contact->phone);
-        $businessPhoneId = $waConfig->phone_number_id;
-        $businessToken = Crypt::decryptString($waConfig->bussines_token);
+        ['to' => $to, 'business_phone_id' => $businessPhoneId, 'business_token' => $businessToken] =
+            $this->resolveOutboundWhatsAppContext($conversation);
 
         $response = Http::withToken($businessToken)
-            ->post("https://graph.facebook.com/v21.0/{$businessPhoneId}/messages", [
-                "messaging_product" => "whatsapp",
-                "recipient_type" => "individual",
-                "to" => $to,
-                "type" => "text",
-                "text" => [
-                    "body" => $content,
+            ->post("https://graph.facebook.com/".self::GRAPH_VERSION."/{$businessPhoneId}/messages", [
+                'messaging_product' => 'whatsapp',
+                'recipient_type' => 'individual',
+                'to' => $to,
+                'type' => 'text',
+                'text' => [
+                    'body' => $content,
                 ],
             ]);
 
-        if (!$response->successful()) {
-            throw new \Exception("Error enviando mensaje a WhatsApp: " . $response->body());
+        if (! $response->successful()) {
+            throw new \RuntimeException('Error enviando mensaje a WhatsApp: ' . $response->body());
         }
 
         $externalId = $response->json('messages.0.id');
