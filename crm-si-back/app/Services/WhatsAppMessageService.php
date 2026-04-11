@@ -53,20 +53,45 @@ class WhatsAppMessageService
             $messageType = $messageData['type'] ?? 'unknown';
             $messageId = $messageData['id'] ?? null;
 
+            Log::info('WhatsApp incoming message', [
+                'type'        => $messageType,
+                'id'          => $messageId,
+                'keys'        => array_keys($messageData),
+                'has_context' => isset($messageData['context']),
+                'context'     => $messageData['context'] ?? null,
+                'has_errors'  => isset($messageData['errors']),
+                'errors'      => $messageData['errors'] ?? null,
+                'tenant_id'   => $tenantId,
+            ]);
+
             // Mensaje eliminado por el contacto desde su celular ("delete for everyone").
-            // Meta envía type: "unsupported" con el id del mensaje original.
-            if ($messageType === 'unsupported') {
-                $this->handleIncomingMessageDeleted($messageId, $tenantId);
+            // Meta envía type: "unsupported" con errors[].code = 131051. El id del
+            // mensaje original viene en context.id (no en el id top-level, que es un id nuevo del evento).
+            if ($this->isMessageDeletionEvent($messageData)) {
+                $deletedId = $messageData['context']['id'] ?? $messageId;
+                $this->handleIncomingMessageDeleted($deletedId, $tenantId);
                 return null;
             }
 
             // Mensaje editado por el contacto desde su celular.
-            // Meta envía context.edited: true con el id del mensaje original en context.id.
-            if (!empty($messageData['context']['edited'])) {
-                $originalId = $messageData['context']['id'] ?? null;
-                if ($originalId) {
-                    return $this->handleIncomingMessageEdited($messageData, $originalId, $tenantId);
-                }
+            // Meta puede enviarlo de varias formas: con context.edited: true, con un
+            // top-level edit, o como un mensaje text cuyo context.id apunta a un
+            // mensaje existente y además marca explícitamente la edición.
+            $originalEditedId = $this->detectEditedMessageOriginalId($messageData, $tenantId);
+            if ($originalEditedId) {
+                return $this->handleIncomingMessageEdited($messageData, $originalEditedId, $tenantId);
+            }
+
+            // Si el tipo no está en la lista de tipos soportados, NO creamos un
+            // "Mensaje multimedia" falso. Logueamos el payload completo para poder
+            // iterar sobre nuevos formatos de Meta (edit/delete/reaction/etc).
+            if (!$this->isSupportedMessageType($messageType)) {
+                Log::warning('WhatsApp message type no soportado, payload ignorado', [
+                    'type'         => $messageType,
+                    'message_data' => $messageData,
+                    'tenant_id'    => $tenantId,
+                ]);
+                return null;
             }
 
             $contact = $this->findOrCreateContact($contactData, $messageData['from'] ?? '', $tenantId);
@@ -340,6 +365,101 @@ class WhatsAppMessageService
     }
 
     /**
+     * Lista de tipos de mensajes soportados por el CRM. Cualquier otro tipo
+     * (reaction, unsupported, system, etc.) debe ser manejado explícitamente
+     * o ignorado; no fabricar un "Mensaje multimedia" falso.
+     */
+    private function isSupportedMessageType(string $type): bool
+    {
+        return in_array($type, [
+            'text',
+            'image',
+            'sticker',
+            'document',
+            'audio',
+            'video',
+            'location',
+            'contacts',
+        ], true);
+    }
+
+    /**
+     * Detecta si un webhook entrante representa la eliminación de un mensaje
+     * por parte del contacto desde su celular ("delete for everyone").
+     *
+     * Meta lo envía como type: "unsupported" con errors[].code = 131051.
+     * El id del mensaje original viene típicamente en context.id.
+     */
+    private function isMessageDeletionEvent(array $messageData): bool
+    {
+        if (($messageData['type'] ?? null) !== 'unsupported') {
+            return false;
+        }
+
+        $errors = $messageData['errors'] ?? [];
+        if (!is_array($errors)) {
+            return true;
+        }
+
+        foreach ($errors as $error) {
+            $code = $error['code'] ?? null;
+            if ($code === 131051 || $code === '131051') {
+                return true;
+            }
+        }
+
+        // Si llega type=unsupported sin errors, igual asumimos delete para no
+        // crear un mensaje fantasma.
+        return true;
+    }
+
+    /**
+     * Detecta el id original de un mensaje editado por el contacto desde su celular.
+     * Devuelve null si el mensaje no parece ser una edición.
+     *
+     * Meta puede enviarlo con varias formas. Soportamos:
+     *   1) context.edited === true (formato histórico)
+     *   2) messages[].edited === true con original id en context.id
+     *   3) Mensaje text con context.id que apunta a un mensaje INBOUND ya
+     *      existente en el CRM y con campo context.from == from (no es reply)
+     */
+    private function detectEditedMessageOriginalId(array $messageData, int $tenantId): ?string
+    {
+        $context = $messageData['context'] ?? [];
+        $originalId = $context['id'] ?? null;
+
+        if (!empty($context['edited']) && $originalId) {
+            return $originalId;
+        }
+
+        if (!empty($messageData['edited']) && $originalId) {
+            return $originalId;
+        }
+
+        // Último recurso: si llega un mensaje de texto con context.id apuntando
+        // a un mensaje INBOUND existente del mismo remitente, es casi seguro una
+        // edición (replies suelen venir con context.from distinto del id real del
+        // mensaje referenciado, y Meta no genera "replies a sí mismo").
+        if (($messageData['type'] ?? null) === 'text' && $originalId) {
+            $from = $messageData['from'] ?? null;
+            $contextFrom = $context['from'] ?? null;
+
+            if ($from && $contextFrom && $from === $contextFrom) {
+                $existing = Message::where('tenant_id', $tenantId)
+                    ->where('external_id', $originalId)
+                    ->where('direction', MessageDirection::INBOUND)
+                    ->exists();
+
+                if ($existing) {
+                    return $originalId;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @return array{content: string, type: string, media_id: string|null}
      */
     private function extractMessageData(array $messageData): array
@@ -355,7 +475,7 @@ class WhatsAppMessageService
             'video' => $messageData['video']['caption'] ?? '',
             'location' => 'Ubicación compartida',
             'contacts' => 'Contacto compartido',
-            default => 'Mensaje multimedia',
+            default => '',
         };
 
         $mediaId = match ($type) {
@@ -658,6 +778,16 @@ class WhatsAppMessageService
                 continue;
             }
 
+            $echoType = $echo['type'] ?? 'unknown';
+            if (!$this->isSupportedMessageType($echoType)) {
+                Log::warning('smb_message_echoes: tipo no soportado, echo ignorado', [
+                    'type'      => $echoType,
+                    'echo'      => $echo,
+                    'tenant_id' => $tenantId,
+                ]);
+                continue;
+            }
+
             $contact = $this->findOrCreateContact(null, $customerPhone, $tenantId);
             $conversation = $this->findOrCreateConversation($contact, $channel);
 
@@ -751,7 +881,8 @@ class WhatsAppMessageService
             return;
         }
 
-        $message = Message::where('tenant_id', $tenantId)
+        $message = Message::withTrashed()
+            ->where('tenant_id', $tenantId)
             ->where('external_id', $externalId)
             ->first();
 
@@ -760,6 +891,11 @@ class WhatsAppMessageService
                 'external_id' => $externalId,
                 'tenant_id'   => $tenantId,
             ]);
+            return;
+        }
+
+        // Idempotencia: si Meta reenvía el evento, no volvemos a borrar ni broadcastear.
+        if ($message->trashed()) {
             return;
         }
 
