@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Message;
-use App\Models\Conversation;
 use App\Models\Contact;
 use App\Models\Channel;
 use App\Models\PipelineStage;
@@ -13,6 +12,8 @@ use App\Models\WhatsAppConfig;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
+use App\Events\MessageDeleted;
+use App\Events\MessageEdited;
 use App\Events\MessageSent;
 use App\Events\TenantMessageReceived;
 use App\Enums\MessageType;
@@ -44,6 +45,24 @@ class WhatsAppMessageService
             $messageData = $messages[0];
             $contactData = $value['contacts'][0] ?? null;
             $tenantId = $channel->tenant_id;
+            $messageType = $messageData['type'] ?? 'unknown';
+            $messageId = $messageData['id'] ?? null;
+
+            // Mensaje eliminado por el contacto desde su celular ("delete for everyone").
+            // Meta envía type: "unsupported" con el id del mensaje original.
+            if ($messageType === 'unsupported') {
+                $this->handleIncomingMessageDeleted($messageId, $tenantId);
+                return null;
+            }
+
+            // Mensaje editado por el contacto desde su celular.
+            // Meta envía context.edited: true con el id del mensaje original en context.id.
+            if (!empty($messageData['context']['edited'])) {
+                $originalId = $messageData['context']['id'] ?? null;
+                if ($originalId) {
+                    return $this->handleIncomingMessageEdited($messageData, $originalId, $tenantId);
+                }
+            }
 
             $contact = $this->findOrCreateContact($contactData, $messageData['from'] ?? '', $tenantId);
             $conversation = $this->findOrCreateConversation($contact, $channel);
@@ -684,5 +703,81 @@ class WhatsAppMessageService
         }
 
         return $message;
+    }
+
+    /**
+     * Procesa la eliminación de un mensaje enviada desde el celular del contacto
+     * ("delete for everyone"). Soft-elimina el mensaje en el CRM y notifica por SSE.
+     */
+    private function handleIncomingMessageDeleted(?string $externalId, int $tenantId): void
+    {
+        if (!$externalId) {
+            return;
+        }
+
+        $message = Message::where('tenant_id', $tenantId)
+            ->where('external_id', $externalId)
+            ->first();
+
+        if (!$message) {
+            Log::info('handleIncomingMessageDeleted: mensaje no encontrado en CRM', [
+                'external_id' => $externalId,
+                'tenant_id'   => $tenantId,
+            ]);
+            return;
+        }
+
+        $conversation = $message->conversation;
+        $conversationId = $message->conversation_id;
+        $message->delete();
+
+        $conversation?->syncLastMessageSummary();
+
+        try {
+            broadcast(new MessageDeleted($message, $conversationId));
+            broadcast(new TenantMessageReceived($message, $tenantId));
+        } catch (\Exception $e) {
+            Log::error('Error broadcasting message deleted from webhook: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Procesa la edición de un mensaje enviada desde el celular del contacto.
+     * Actualiza el contenido del mensaje original en el CRM y notifica por SSE.
+     */
+    private function handleIncomingMessageEdited(array $messageData, string $originalExternalId, int $tenantId): ?Message
+    {
+        $existingMessage = Message::where('tenant_id', $tenantId)
+            ->where('external_id', $originalExternalId)
+            ->first();
+
+        if (!$existingMessage) {
+            Log::info('handleIncomingMessageEdited: mensaje original no encontrado en CRM', [
+                'original_external_id' => $originalExternalId,
+                'tenant_id'            => $tenantId,
+            ]);
+            return null;
+        }
+
+        $extracted = $this->extractMessageData($messageData);
+
+        $existingMessage->update([
+            'original_content' => $existingMessage->original_content ?? $existingMessage->content,
+            'content'          => $extracted['content'],
+            'edited_at'        => now(),
+        ]);
+
+        $freshMessage = $existingMessage->fresh();
+
+        $freshMessage?->conversation?->syncLastMessageSummary();
+
+        try {
+            broadcast(new MessageEdited($freshMessage));
+            broadcast(new TenantMessageReceived($freshMessage, $tenantId));
+        } catch (\Exception $e) {
+            Log::error('Error broadcasting message edited from webhook: ' . $e->getMessage());
+        }
+
+        return $freshMessage;
     }
 }
