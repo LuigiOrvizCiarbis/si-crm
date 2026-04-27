@@ -2,21 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Crypt;
-use App\Models\Channel;
 use App\Enums\ChannelType;
+use App\Exceptions\ChannelAlreadyConnectedException;
 use App\Http\Requests\ChannelStoreRequest;
+use App\Models\Channel;
 use App\Models\WhatsAppConfig;
 use App\Services\WhatsAppMessageService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class WhatsAppController extends Controller
 {
-
     public function __construct(
         private WhatsAppMessageService $messageService
     ) {}
@@ -26,32 +26,32 @@ class WhatsAppController extends Controller
         try {
             // 502 si Meta no responde o rechaza el code
             $businessToken = $this->exchangeCodeForToken($request->code);
-            if (!$businessToken) {
+            if (! $businessToken) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No se pudo obtener el token de Meta. Intentá de nuevo.',
                 ], 502);
             }
 
-            $channel  = $this->saveChannel($request, $businessToken);
-            $config   = $channel->whatsappConfig;
+            $channel = $this->saveChannel($request, $businessToken);
+            $config = $channel->whatsappConfig;
             $warnings = [];
 
             $webhookOk = $this->subscribeToWebhooks($config);
-            if (!$webhookOk) {
+            if (! $webhookOk) {
                 $warnings[] = 'No se pudo suscribir a los webhooks de Meta. Los mensajes entrantes pueden no llegar.';
             }
 
             // Inicia la sincronización de contactos del WA Business App.
             // Docs: hay una ventana de 24h y solo se puede hacer una vez por onboarding.
             $syncOk = $this->triggerContactSync($config, $businessToken);
-            if (!$syncOk) {
+            if (! $syncOk) {
                 $warnings[] = 'No se pudo iniciar la sincronización de contactos. Contactá a soporte.';
             }
 
             return response()->json([
-                'success'  => true,
-                'message'  => 'Cuenta conectada exitosamente',
+                'success' => true,
+                'message' => 'Cuenta conectada exitosamente',
                 'warnings' => $warnings,
             ], 200);
 
@@ -60,15 +60,31 @@ class WhatsAppController extends Controller
             Log::warning('handleAuth: phone_number_id no disponible', [
                 'error' => $e->getMessage(),
             ]);
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 422);
 
-        } catch (\Exception $e) {
-            Log::error('handleAuth: error interno', [
-                'exception' => $e->getTraceAsString(),
+        } catch (ChannelAlreadyConnectedException $e) {
+            // 409 cuando el número ya está conectado por otro usuario del mismo tenant
+            Log::warning('handleAuth: número ya conectado por otro usuario del tenant', [
+                'tenant_id' => $e->tenantId,
+                'existing_user_id' => $e->existingUserId,
+                'requesting_user' => $e->requestingUserId,
+                'phone_number_id' => $e->phoneNumberId,
             ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 409);
+
+        } catch (\Exception $e) {
+            // No loguear getTraceAsString(): el stack trace de PHP serializa los
+            // argumentos de cada frame, lo que filtraría $businessToken en claro.
+            Log::error('handleAuth: error interno', $this->describeException($e));
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error interno al procesar la solicitud.',
@@ -76,13 +92,61 @@ class WhatsAppController extends Controller
         }
     }
 
+    /**
+     * Resume una excepción a campos seguros para loguear.
+     * Evita getTraceAsString() (filtra args de método) y getMessage() crudo
+     * cuando la excepción puede contener URLs con secretos (Guzzle).
+     *
+     * @return array{exception: class-string<\Throwable>, message: string, file: string, line: int}
+     */
+    private function describeException(\Throwable $e): array
+    {
+        return [
+            'exception' => $e::class,
+            'message' => $this->scrubMessage($e->getMessage()),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ];
+    }
+
+    /**
+     * Saca tokens y secretos de un mensaje libre antes de loguearlo.
+     * Cubre los formatos típicos de Guzzle/Meta: query strings con `code=`,
+     * `access_token=`, `client_secret=`, y headers `Bearer ...`.
+     */
+    private function scrubMessage(string $message): string
+    {
+        $patterns = [
+            '/(client_secret|access_token|code|bussines_token|business_token)=[^\s&"\']+/i' => '$1=[REDACTED]',
+            '/Bearer\s+[A-Za-z0-9._\-]+/i' => 'Bearer [REDACTED]',
+        ];
+
+        return preg_replace(array_keys($patterns), array_values($patterns), $message) ?? '[unloggable]';
+    }
+
+    /**
+     * Extrae solo los campos seguros de un error de Graph API.
+     * El body crudo puede contener `fbtrace_id`, payloads o eco de credenciales.
+     *
+     * @return array{code: int|null, type: string|null, subcode: int|null, message: string|null}
+     */
+    private function describeMetaError(?array $body): array
+    {
+        return [
+            'code' => data_get($body, 'error.code'),
+            'type' => data_get($body, 'error.type'),
+            'subcode' => data_get($body, 'error.error_subcode'),
+            'message' => data_get($body, 'error.message'),
+        ];
+    }
+
     private function exchangeCodeForToken(string $code): ?string
     {
         try {
             $response = Http::get('https://graph.facebook.com/v21.0/oauth/access_token', [
-                'client_id'     => config('services.facebook.app_id'),
+                'client_id' => config('services.facebook.app_id'),
                 'client_secret' => config('services.facebook.app_secret'),
-                'code'          => $code,
+                'code' => $code,
             ]);
 
             if ($response->successful()) {
@@ -91,10 +155,12 @@ class WhatsAppController extends Controller
 
             Log::error('Token exchange failed', [
                 'status' => $response->status(),
-                'error'  => $response->json(),
+                'error' => $this->describeMetaError($response->json()),
             ]);
         } catch (\Exception $e) {
-            Log::error('Exception exchanging code for token: ' . $e->getMessage());
+            // getMessage() de Guzzle puede incluir la URL completa con
+            // ?client_secret=...&code=..., por eso pasa por scrubMessage.
+            Log::error('Exception exchanging code for token', $this->describeException($e));
         }
 
         return null;
@@ -104,11 +170,11 @@ class WhatsAppController extends Controller
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             throw new \Exception('Usuario no autenticado');
         }
 
-        $wabaId        = $request->data['waba_id'] ?? null;
+        $wabaId = $request->data['waba_id'] ?? null;
         $phoneNumberId = $request->data['phone_number_id'] ?? null;
 
         // Paso 1: obtener datos del número de teléfono desde la Graph API.
@@ -118,7 +184,7 @@ class WhatsAppController extends Controller
         if ($wabaId) {
             $phoneData = $this->fetchFirstPhoneNumber($wabaId, $businessToken);
             if ($phoneData) {
-                if (!$phoneNumberId) {
+                if (! $phoneNumberId) {
                     $phoneNumberId = $phoneData['id'] ?? null;
                 }
                 $displayPhoneNumber = $phoneData['display_phone_number'] ?? null;
@@ -127,7 +193,9 @@ class WhatsAppController extends Controller
 
         // Paso 2: si la API de Meta falló (fallo transitorio / re-auth), recuperar
         // el phone_number_id del registro existente en DB para no bloquear al usuario.
-        if (!$phoneNumberId && $wabaId) {
+        // Nota: el match incluye phone_number_id no nulo solamente para tener un
+        // fallback útil; un WABA con varios números obliga a la API de Meta de todos modos.
+        if (! $phoneNumberId && $wabaId) {
             $existing = WhatsAppConfig::where('waba_id', $wabaId)
                 ->whereNotNull('phone_number_id')
                 ->first();
@@ -135,49 +203,77 @@ class WhatsAppController extends Controller
             if ($existing) {
                 $phoneNumberId = $existing->phone_number_id;
                 Log::info('saveChannel: phone_number_id recuperado de config existente (re-auth)', [
-                    'waba_id'         => $wabaId,
+                    'waba_id' => $wabaId,
                     'phone_number_id' => $phoneNumberId,
                 ]);
             }
         }
 
         // Paso 3: sin phone_number_id el canal no puede rutear mensajes → error 422.
-        if (!$phoneNumberId) {
+        if (! $phoneNumberId) {
             throw new \InvalidArgumentException(
-                'No se pudo obtener el número de teléfono de Meta. ' .
+                'No se pudo obtener el número de teléfono de Meta. '.
                 'Verificá los permisos del token o intentá de nuevo.'
             );
         }
 
-        $channel = Channel::updateOrCreate(
-            ['tenant_id' => $user->tenant_id],
-            [
-                'user_id' => $user->id,
-                'type'    => ChannelType::WHATSAPP,
-                'name'    => $request->input('name', 'WhatsApp Business'),
-                'status'  => 'active',
-            ]
-        );
+        // Paso 4: validar ownership ANTES de escribir credenciales.
+        // Si ya existe una WhatsAppConfig para (waba_id, phone_number_id) con un
+        // Channel del tenant cuyo dueño es otro usuario, se rechaza con 409 sin
+        // sobrescribir el token. Reasignar el dueño es una feature admin separada.
+        $existingConfig = WhatsAppConfig::where('waba_id', $wabaId)
+            ->where('phone_number_id', $phoneNumberId)
+            ->first();
 
-        // Solo actualizamos phone_number_id si lo tenemos, para no pisar un valor
-        // válido existente con null en un re-auth donde el fetch pueda fallar.
-        $updateData = ['bussines_token' => Crypt::encryptString($businessToken)];
-        if ($phoneNumberId) {
-            $updateData['phone_number_id'] = $phoneNumberId;
+        $existingChannel = null;
+        if ($existingConfig) {
+            $existingChannel = Channel::where('tenant_id', $user->tenant_id)
+                ->where('type', ChannelType::WHATSAPP)
+                ->where('whatsapp_config_id', $existingConfig->id)
+                ->first();
+
+            if ($existingChannel && $existingChannel->user_id !== $user->id) {
+                throw new ChannelAlreadyConnectedException(
+                    tenantId: $user->tenant_id,
+                    existingUserId: (int) $existingChannel->user_id,
+                    requestingUserId: $user->id,
+                    phoneNumberId: $phoneNumberId,
+                );
+            }
         }
+
+        // Paso 5: persistir/actualizar la WhatsAppConfig.
+        // El match es por (waba_id, phone_number_id): identifica un número real en Meta.
+        // Cambiar de phone_number_id (segundo número del mismo WABA, o WABA distinto)
+        // crea una config nueva en lugar de pisar el token del número anterior.
+        $updateData = ['bussines_token' => Crypt::encryptString($businessToken)];
         if ($displayPhoneNumber) {
             $updateData['display_phone_number'] = $displayPhoneNumber;
         }
 
         $whatsappConfig = WhatsAppConfig::updateOrCreate(
-            ['waba_id' => $wabaId],
+            [
+                'waba_id' => $wabaId,
+                'phone_number_id' => $phoneNumberId,
+            ],
             $updateData
         );
 
-        $channel->whatsapp_config_id = $whatsappConfig->id;
-        $channel->save();
+        // Paso 6: resolver el Channel del tenant para esa config.
+        if ($existingChannel) {
+            $existingChannel->fill(['status' => 'active'])->save();
 
-        return $channel;
+            return $existingChannel;
+        }
+
+        return Channel::create([
+            'tenant_id' => $user->tenant_id,
+            'user_id' => $user->id,
+            'whatsapp_config_id' => $whatsappConfig->id,
+            'type' => ChannelType::WHATSAPP,
+            'name' => $request->input('name', 'WhatsApp Business'),
+            'status' => 'active',
+        ]);
     }
 
     /**
@@ -203,7 +299,7 @@ class WhatsAppController extends Controller
                 if (count($numbers) > 1) {
                     Log::warning('fetchFirstPhoneNumberId: WABA tiene múltiples números, se tomó el primero', [
                         'waba_id' => $wabaId,
-                        'count'   => count($numbers),
+                        'count' => count($numbers),
                     ]);
                 }
 
@@ -212,10 +308,10 @@ class WhatsAppController extends Controller
 
             Log::error('fetchFirstPhoneNumberId failed', [
                 'status' => $response->status(),
-                'body'   => $response->json(),
+                'error' => $this->describeMetaError($response->json()),
             ]);
         } catch (\Throwable $e) {
-            Log::error('fetchFirstPhoneNumberId exception: ' . $e->getMessage());
+            Log::error('fetchFirstPhoneNumberId exception', $this->describeException($e));
         }
 
         return null;
@@ -225,15 +321,17 @@ class WhatsAppController extends Controller
     {
         $wabaId = $whatsAppConfig->waba_id;
 
-        if (!$wabaId) {
+        if (! $wabaId) {
             Log::warning('subscribeToWebhooks: WABA ID ausente');
+
             return false;
         }
 
         $token = $whatsAppConfig->getDecryptedToken();
 
-        if (!$token) {
+        if (! $token) {
             Log::error('subscribeToWebhooks: no se pudo descifrar el token');
+
             return false;
         }
 
@@ -243,17 +341,19 @@ class WhatsAppController extends Controller
             $response = Http::withToken($token)
                 ->post("https://graph.facebook.com/{$version}/{$wabaId}/subscribed_apps");
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::error('subscribeToWebhooks failed', [
                     'status' => $response->status(),
-                    'body'   => $response->body(),
+                    'error' => $this->describeMetaError($response->json()),
                 ]);
+
                 return false;
             }
 
             return true;
         } catch (\Throwable $e) {
-            Log::error('subscribeToWebhooks exception: ' . $e->getMessage());
+            Log::error('subscribeToWebhooks exception', $this->describeException($e));
+
             return false;
         }
     }
@@ -271,8 +371,9 @@ class WhatsAppController extends Controller
     {
         $phoneNumberId = $whatsAppConfig->phone_number_id;
 
-        if (!$phoneNumberId) {
+        if (! $phoneNumberId) {
             Log::warning('triggerContactSync: phone_number_id no disponible, sync omitida');
+
             return false;
         }
 
@@ -289,14 +390,15 @@ class WhatsAppController extends Controller
                 Log::info('triggerContactSync: sincronización de contactos iniciada', [
                     'phone_number_id' => $phoneNumberId,
                 ]);
+
                 return true;
             }
 
             // 400: puede ser "ya sincronizado antes" (esperado) u otro error real.
             // Validamos el mensaje para no ocultar 400s por payload/permisos inválidos.
             if ($response->status() === 400) {
-                $body         = $response->json();
-                $errorCode    = data_get($body, 'error.code');
+                $body = $response->json();
+                $errorCode = data_get($body, 'error.code');
                 $errorSubcode = data_get($body, 'error.error_subcode');
                 $errorMessage = strtolower((string) data_get($body, 'error.message', ''));
 
@@ -306,36 +408,40 @@ class WhatsAppController extends Controller
                 if ($alreadySynced) {
                     Log::info('triggerContactSync: sync ya realizada previamente (400 esperado)', [
                         'phone_number_id' => $phoneNumberId,
-                        'error_code'      => $errorCode,
-                        'error_subcode'   => $errorSubcode,
+                        'error_code' => $errorCode,
+                        'error_subcode' => $errorSubcode,
                     ]);
+
                     return true;
                 }
 
                 Log::warning('triggerContactSync: 400 inesperado de Meta', [
                     'phone_number_id' => $phoneNumberId,
-                    'body'            => $body,
+                    'error' => $this->describeMetaError($body),
                 ]);
+
                 return false;
             }
 
             Log::warning('triggerContactSync: respuesta inesperada de Meta', [
-                'status'          => $response->status(),
-                'body'            => $response->json(),
+                'status' => $response->status(),
+                'error' => $this->describeMetaError($response->json()),
                 'phone_number_id' => $phoneNumberId,
             ]);
+
             return false;
 
         } catch (\Throwable $e) {
-            Log::error('triggerContactSync exception: ' . $e->getMessage());
+            Log::error('triggerContactSync exception', $this->describeException($e));
+
             return false;
         }
     }
 
     public function webhook(Request $request): Response|JsonResponse
     {
-        $mode        = $request->query('hub_mode', $request->query('hub.mode'));
-        $challenge   = $request->query('hub_challenge', $request->query('hub.challenge'));
+        $mode = $request->query('hub_mode', $request->query('hub.mode'));
+        $challenge = $request->query('hub_challenge', $request->query('hub.challenge'));
         $verifyToken = $request->query('hub_verify_token', $request->query('hub.verify_token'));
 
         if ($mode === 'subscribe') {
@@ -343,6 +449,7 @@ class WhatsAppController extends Controller
             if ($verifyToken && hash_equals($expected, $verifyToken)) {
                 return response($challenge, 200)->header('Content-Type', 'text/plain');
             }
+
             return response()->json(['error' => 'Verification token mismatch'], 403);
         }
 
@@ -368,7 +475,7 @@ class WhatsAppController extends Controller
                 }
             }
         } catch (\Throwable $e) {
-            Log::error('Error processing webhook: ' . $e->getMessage());
+            Log::error('Error processing webhook', $this->describeException($e));
         }
 
         return response()->json(['status' => 'EVENT_RECEIVED'], 200);
@@ -376,7 +483,7 @@ class WhatsAppController extends Controller
 
     private function handleSmbAppStateSync(?string $wabaId, array $value): void
     {
-        $phoneNumberId  = $value['metadata']['phone_number_id'] ?? null;
+        $phoneNumberId = $value['metadata']['phone_number_id'] ?? null;
         $whatsappConfig = null;
 
         if ($phoneNumberId) {
@@ -385,17 +492,18 @@ class WhatsAppController extends Controller
                 ->first();
         }
 
-        if (!$whatsappConfig && $wabaId) {
+        if (! $whatsappConfig && $wabaId) {
             $whatsappConfig = WhatsAppConfig::with('channels')
                 ->where('waba_id', $wabaId)
                 ->first();
         }
 
-        if (!$whatsappConfig || $whatsappConfig->channels->isEmpty()) {
+        if (! $whatsappConfig || $whatsappConfig->channels->isEmpty()) {
             Log::warning('smb_app_state_sync: canal no encontrado', [
-                'waba_id'         => $wabaId,
+                'waba_id' => $wabaId,
                 'phone_number_id' => $phoneNumberId,
             ]);
+
             return;
         }
 
