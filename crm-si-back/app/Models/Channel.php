@@ -11,6 +11,16 @@ use Illuminate\Support\Facades\Log;
 use App\Enums\ChannelType;
 use App\Models\Concerns\BelongsToTenant;
 
+/**
+ * @property int $id
+ * @property int $tenant_id
+ * @property int $user_id
+ * @property int|null $whatsapp_config_id
+ * @property ChannelType $type
+ * @property string $name
+ * @property string|null $external_id
+ * @property string $status
+ */
 class Channel extends Model
 {
 

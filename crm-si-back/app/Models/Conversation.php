@@ -8,6 +8,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property int $tenant_id
+ * @property int $channel_id
+ * @property int $contact_id
+ * @property int|null $assigned_to
+ * @property string $status
+ * @property \Illuminate\Support\Carbon|null $last_message_at
+ * @property string|null $last_message_content
+ * @property int|null $pipeline_stage_id
+ */
 class Conversation extends Model
 {
 
