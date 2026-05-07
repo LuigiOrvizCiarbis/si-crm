@@ -148,7 +148,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
       <div
         className={cn(
           "flex items-center border-b border-sidebar-border",
-          isCollapsed ? "p-3 justify-center" : "p-6 gap-2",
+          isCollapsed ? "p-3 justify-center" : "p-4 gap-2",
         )}
       >
         {!isCollapsed && (
@@ -166,6 +166,35 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
           {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
         </Button>
       </div>
+
+      {!isCollapsed && user?.tenant?.name && (
+        <div className="px-4 py-3 border-b border-sidebar-border">
+          <button
+            type="button"
+            className="w-full flex items-center gap-3 rounded-md p-2 hover:bg-sidebar-accent transition-colors"
+          >
+            <Avatar className="h-9 w-9">
+              <AvatarFallback className="bg-cyan-500/15 text-cyan-400 text-xs font-semibold">
+                {user.tenant.name
+                  .split(" ")
+                  .map((part) => part[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-medium text-sidebar-foreground truncate">
+                {user.tenant.name}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {t("tenant.activeClient")}
+              </p>
+            </div>
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          </button>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className={cn("flex-1 space-y-2", isCollapsed ? "p-2" : "p-4")}>

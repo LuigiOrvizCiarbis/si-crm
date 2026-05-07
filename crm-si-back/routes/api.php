@@ -5,12 +5,14 @@ use App\Http\Controllers\Api\ChannelController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ContactHistoryController;
 use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\PipelineStageController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WhatsAppTemplateController;
+use App\Http\Controllers\FacebookDataDeletionController;
 use App\Http\Controllers\WhatsAppController;
 use App\Models\Invitation;
 use App\Models\Scopes\TenantScope;
@@ -42,7 +44,7 @@ Route::post('login', function (Request $request): JsonResponse {
 
     return response()->json([
         'token' => $token,
-        'user' => $user,
+        'user' => $user->load('tenant:id,name'),
         'email_verified' => $user->hasVerifiedEmail(),
     ]);
 });
@@ -93,7 +95,7 @@ Route::post('register', function (Request $request): JsonResponse {
     // El registro no debe fallar si el proveedor de email está caído.
     try {
         $user->sendEmailVerificationNotification();
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         Log::error('register-verification-email-failed', [
             'user_id' => $user->id,
             'email' => $user->email,
@@ -263,7 +265,7 @@ Route::post('reset-password', function (Request $request) {
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('user', function (Request $request): JsonResponse {
-        return response()->json($request->user());
+        return response()->json($request->user()->load('tenant:id,name'));
     });
 
     Route::post('logout', function (Request $request): JsonResponse {
@@ -271,6 +273,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         return response()->json(['message' => 'Sesión cerrada']);
     });
+
+    Route::get('dashboard/metrics', [DashboardController::class, 'metrics']);
 
     Route::get('users', [UserController::class, 'index']);
     Route::get('users/{user}', [ContactController::class, 'show']);
@@ -326,4 +330,4 @@ Route::get('invitations/by-token/{token}', [InvitationController::class, 'showBy
 
 Route::match(['get', 'post'], 'whatsapp-webhook', [WhatsAppController::class, 'webhook']);
 
-Route::post('facebook/data-deletion', [\App\Http\Controllers\FacebookDataDeletionController::class, 'handle']);
+Route::post('facebook/data-deletion', [FacebookDataDeletionController::class, 'handle']);

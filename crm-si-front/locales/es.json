@@ -11,6 +11,77 @@
     "logout": "Cerrar sesión",
     "dashboard": "Tablero principal"
   },
+  "dashboard": {
+    "title": "Panel",
+    "tabs": {
+      "general": "General",
+      "channels": "Canales",
+      "salespeople": "Vendedores",
+      "tasks": "Tareas",
+      "finance": "Finanzas"
+    },
+    "filters": {
+      "view": "Vista",
+      "period": "Período",
+      "channel": "Canal",
+      "owner": "Dueño",
+      "branchCenter": "Sucursal Centro",
+      "branchNorth": "Sucursal Norte",
+      "salesTeam": "Equipo Ventas",
+      "marketingTeam": "Equipo Marketing",
+      "today": "Hoy",
+      "thisWeek": "Esta semana",
+      "thisMonth": "Este mes",
+      "thisQuarter": "Este trimestre",
+      "thisYear": "Este año",
+      "all": "Todos",
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "telegram": "Telegram",
+      "email": "Email",
+      "web": "Web"
+    },
+    "kpis": {
+      "totalConversations": "Total Conversaciones",
+      "totalRevenue": "Revenue Total",
+      "globalConversion": "Tasa Conversión Global",
+      "avgRoi": "ROI Promedio",
+      "vsPrevious": "vs {value} período anterior"
+    },
+    "funnel": {
+      "title": "Embudo de Ventas",
+      "realtime": "Tiempo real",
+      "leads": "{count} leads",
+      "noStages": "No hay etapas configuradas en el embudo",
+      "configureStages": "Configurá tus etapas de pipeline en Configuración"
+    },
+    "placeholders": {
+      "comingSoon": "Próximamente",
+      "tabComingSoonDesc": "Esta sección estará disponible en una próxima iteración."
+    },
+    "errors": {
+      "loadFailed": "No se pudieron cargar las métricas",
+      "retry": "Reintentar"
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "viewAll": "Ver todas",
+      "empty": "No hay notificaciones nuevas",
+      "demoLead": "Nuevo lead: Ana Martínez desde WhatsApp",
+      "demoLeadTime": "Hace 5 min",
+      "demoMessage": "Nuevo mensaje de Carlos López",
+      "demoMessageTime": "Hace 12 min",
+      "demoTask": "Tarea vencida: Seguimiento con Juan Pérez",
+      "demoTaskTime": "Hace 1 hora",
+      "demoAssignment": "Lead asignado: María García te asignó un lead",
+      "demoAssignmentTime": "Hace 2 horas"
+    }
+  },
+  "tenant": {
+    "activeClient": "Cliente activo",
+    "selectAccount": "Seleccionar cuenta",
+    "myAccount": "Mi cuenta"
+  },
   "auth": {
     "title": "Social Impulse",
     "subtitle": "Ingresa a tu cuenta para continuar",

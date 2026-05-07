@@ -3,3 +3,4 @@ CLAUDE.md
 .vscode/settings.json
 .DS_Store
 crm-si-back/docker-compose.yml
+.tmp/

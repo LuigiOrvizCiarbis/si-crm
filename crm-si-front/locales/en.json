@@ -11,6 +11,77 @@
     "logout": "Log out",
     "dashboard": "Main Dashboard"
   },
+  "dashboard": {
+    "title": "Dashboard",
+    "tabs": {
+      "general": "General",
+      "channels": "Channels",
+      "salespeople": "Salespeople",
+      "tasks": "Tasks",
+      "finance": "Finance"
+    },
+    "filters": {
+      "view": "View",
+      "period": "Period",
+      "channel": "Channel",
+      "owner": "Owner",
+      "branchCenter": "Center Branch",
+      "branchNorth": "North Branch",
+      "salesTeam": "Sales Team",
+      "marketingTeam": "Marketing Team",
+      "today": "Today",
+      "thisWeek": "This week",
+      "thisMonth": "This month",
+      "thisQuarter": "This quarter",
+      "thisYear": "This year",
+      "all": "All",
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "telegram": "Telegram",
+      "email": "Email",
+      "web": "Web"
+    },
+    "kpis": {
+      "totalConversations": "Total Conversations",
+      "totalRevenue": "Total Revenue",
+      "globalConversion": "Global Conversion Rate",
+      "avgRoi": "Average ROI",
+      "vsPrevious": "vs {value} previous period"
+    },
+    "funnel": {
+      "title": "Sales Funnel",
+      "realtime": "Real time",
+      "leads": "{count} leads",
+      "noStages": "No pipeline stages configured",
+      "configureStages": "Configure your pipeline stages in Settings"
+    },
+    "placeholders": {
+      "comingSoon": "Coming soon",
+      "tabComingSoonDesc": "This section will be available in a future iteration."
+    },
+    "errors": {
+      "loadFailed": "Failed to load metrics",
+      "retry": "Retry"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "viewAll": "View all",
+      "empty": "No new notifications",
+      "demoLead": "New lead: Ana Martínez from WhatsApp",
+      "demoLeadTime": "5 min ago",
+      "demoMessage": "New message from Carlos López",
+      "demoMessageTime": "12 min ago",
+      "demoTask": "Overdue task: Follow-up with Juan Pérez",
+      "demoTaskTime": "1 hour ago",
+      "demoAssignment": "Lead assigned: María García assigned you a lead",
+      "demoAssignmentTime": "2 hours ago"
+    }
+  },
+  "tenant": {
+    "activeClient": "Active client",
+    "selectAccount": "Select account",
+    "myAccount": "My account"
+  },
   "auth": {
     "title": "Social Impulse",
     "subtitle": "Sign in to your account to continue",
