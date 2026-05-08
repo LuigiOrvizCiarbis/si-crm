@@ -3,15 +3,15 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { TrendingUp, UserCheck, UserPlus, Users, type LucideIcon } from "lucide-react"
+import { Briefcase, DollarSign, Target, TrendingUp, type LucideIcon } from "lucide-react"
 import { useTranslation } from "@/hooks/useTranslation"
-import { getContactsSummary, type ContactsSummary } from "@/lib/api/contacts"
+import { getOpportunitySummary, type OpportunitySummary } from "@/lib/api/opportunities"
 
-interface ContactsStatsProps {
+interface PipelineKpiCardsProps {
   refreshKey?: number
 }
 
-interface StatCardProps {
+interface KpiCardProps {
   title: string
   value: string
   icon: LucideIcon
@@ -21,15 +21,18 @@ interface StatCardProps {
   gradientTo: string
 }
 
+function formatCurrency(value: number): string {
+  if (value >= 1000) {
+    return `$${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`
+  }
+  return `$${new Intl.NumberFormat("es-AR").format(Math.round(value))}`
+}
+
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("es-AR").format(Math.round(value))
 }
 
-function formatPercent(value: number): string {
-  return `${value.toFixed(1)}%`
-}
-
-function StatCard({ title, value, icon: Icon, iconBg, iconColor, gradientFrom, gradientTo }: StatCardProps) {
+function KpiCard({ title, value, icon: Icon, iconBg, iconColor, gradientFrom, gradientTo }: KpiCardProps) {
   return (
     <Card className="relative overflow-hidden border-border/50 hover:border-border transition-colors">
       <div className={`absolute inset-0 bg-gradient-to-br ${gradientFrom} ${gradientTo} opacity-5 pointer-events-none`} />
@@ -46,7 +49,7 @@ function StatCard({ title, value, icon: Icon, iconBg, iconColor, gradientFrom, g
   )
 }
 
-function LoadingStat() {
+function LoadingKpi() {
   return (
     <Card className="border-border/50">
       <CardContent className="p-5 space-y-3">
@@ -60,15 +63,15 @@ function LoadingStat() {
   )
 }
 
-export function ContactsStats({ refreshKey = 0 }: ContactsStatsProps) {
+export function PipelineKpiCards({ refreshKey = 0 }: PipelineKpiCardsProps) {
   const { t } = useTranslation()
-  const [data, setData] = useState<ContactsSummary | null>(null)
+  const [data, setData] = useState<OpportunitySummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
     setIsLoading(true)
-    getContactsSummary()
+    getOpportunitySummary()
       .then((summary) => {
         if (!cancelled) setData(summary)
       })
@@ -87,46 +90,46 @@ export function ContactsStats({ refreshKey = 0 }: ContactsStatsProps) {
   if (isLoading || !data) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <LoadingStat />
-        <LoadingStat />
-        <LoadingStat />
-        <LoadingStat />
+        <LoadingKpi />
+        <LoadingKpi />
+        <LoadingKpi />
+        <LoadingKpi />
       </div>
     )
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard
-        title={t("contactsPage.stats.total")}
-        value={formatNumber(data.total_contacts)}
-        icon={Users}
+      <KpiCard
+        title={t("pipeline.kpis.totalOpportunities")}
+        value={formatNumber(data.total_opportunities)}
+        icon={Briefcase}
         iconBg="bg-cyan-500/15"
         iconColor="text-cyan-400"
         gradientFrom="from-cyan-500"
         gradientTo="to-blue-500"
       />
-      <StatCard
-        title={t("contactsPage.stats.activeLeads")}
-        value={formatNumber(data.active_leads)}
-        icon={UserPlus}
+      <KpiCard
+        title={t("pipeline.kpis.pipelineValue")}
+        value={formatCurrency(data.pipeline_value)}
+        icon={DollarSign}
         iconBg="bg-emerald-500/15"
         iconColor="text-emerald-400"
         gradientFrom="from-emerald-500"
         gradientTo="to-green-500"
       />
-      <StatCard
-        title={t("contactsPage.stats.qualified")}
-        value={formatNumber(data.qualified)}
-        icon={UserCheck}
+      <KpiCard
+        title={t("pipeline.kpis.weightedValue")}
+        value={formatCurrency(data.weighted_value)}
+        icon={Target}
         iconBg="bg-violet-500/15"
         iconColor="text-violet-400"
         gradientFrom="from-violet-500"
         gradientTo="to-purple-500"
       />
-      <StatCard
-        title={t("contactsPage.stats.conversionRate")}
-        value={formatPercent(data.conversion_rate)}
+      <KpiCard
+        title={t("pipeline.kpis.avgValue")}
+        value={formatCurrency(data.avg_value)}
         icon={TrendingUp}
         iconBg="bg-orange-500/15"
         iconColor="text-orange-400"

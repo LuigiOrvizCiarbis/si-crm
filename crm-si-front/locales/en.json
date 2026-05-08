@@ -3,7 +3,7 @@
     "panel": "Dashboard",
     "chats": "Chats",
     "contacts": "Contacts",
-    "pipeline": "Sales Pipeline",
+    "pipeline": "Sales pipeline",
     "tasks": "Tasks",
     "automation": "Automation & AI",
     "admin": "Administration",
@@ -81,6 +81,83 @@
     "activeClient": "Active client",
     "selectAccount": "Select account",
     "myAccount": "My account"
+  },
+  "contactsPage": {
+    "title": "Contacts",
+    "searchPlaceholder": "Search contacts...",
+    "filters": {
+      "status": "Status",
+      "all": "All",
+      "lead": "Lead",
+      "qualified": "Qualified",
+      "customer": "Customer",
+      "inactive": "Inactive"
+    },
+    "actions": {
+      "exportCsv": "Export CSV",
+      "newContact": "New contact"
+    },
+    "stats": {
+      "total": "Total Contacts",
+      "activeLeads": "Active Leads",
+      "qualified": "Qualified",
+      "conversionRate": "Conversion Rate",
+      "vsPrevious": "vs {value} last month"
+    },
+    "table": {
+      "contact": "Contact",
+      "phone": "Phone",
+      "email": "Email",
+      "source": "Source",
+      "lastContact": "Last contact",
+      "actions": "Actions"
+    }
+  },
+  "pipeline": {
+    "title": "Opportunity Pipeline",
+    "searchPlaceholder": "Search leads...",
+    "newOpportunity": "New opportunity",
+    "moreFilters": "More filters",
+    "filters": {
+      "channels": "Channels",
+      "allChannels": "All channels",
+      "salesperson": "Salesperson",
+      "allSalespeople": "All",
+      "advancedTitle": "Advanced filters",
+      "advancedDesc": "Configure additional pipeline filters",
+      "status": "Status",
+      "selectStatus": "Select status",
+      "statusAll": "All",
+      "statusNew": "New",
+      "statusContacted": "Contacted",
+      "statusQualified": "Qualified",
+      "valueRange": "Estimated value",
+      "selectValue": "Value range",
+      "valueLow": "Less than $10k",
+      "valueMid": "$10k - $50k",
+      "valueHigh": "More than $50k",
+      "date": "Date",
+      "datePeriod": "Period",
+      "dateToday": "Today",
+      "dateWeek": "This week",
+      "dateMonth": "This month",
+      "dateAll": "All time"
+    },
+    "kpis": {
+      "totalOpportunities": "Total opportunities",
+      "pipelineValue": "Total pipeline value",
+      "weightedValue": "Weighted value",
+      "avgValue": "Average value"
+    },
+    "column": {
+      "avgProbability": "Avg probability: {value}%",
+      "leadsCount": "{count} leads",
+      "dropHere": "Drop leads here"
+    },
+    "errors": {
+      "loadSummaryFailed": "Failed to load pipeline summary",
+      "retry": "Retry"
+    }
   },
   "auth": {
     "title": "Social Impulse",

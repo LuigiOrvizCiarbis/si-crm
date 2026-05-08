@@ -9,6 +9,7 @@ import { CommandPalette } from "@/components/CommandPalette"
 import { MobileBottomNav } from "@/components/MobileBottomNav"
 import { useToast } from "@/components/Toast"
 import { AuthGuard } from "@/components/AuthGuard"
+import { AppShell } from "@/components/AppShell"
 import "./globals.css"
 
 function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -39,9 +40,9 @@ export default function ClientLayout({
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <ToastProvider>
             <AuthGuard>
-              <div className="pb-[max(env(safe-area-inset-bottom),64px)] md:pb-0">
+              <AppShell>
                 <Suspense fallback={null}>{children}</Suspense>
-              </div>
+              </AppShell>
               <CommandPalette />
               <MobileBottomNav />
             </AuthGuard>

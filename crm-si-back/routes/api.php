@@ -280,6 +280,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('users/{user}', [ContactController::class, 'show']);
 
     Route::get('contacts', [ContactController::class, 'index']);
+    Route::get('contacts/summary', [ContactController::class, 'summary']);
     Route::post('contacts', [ContactController::class, 'store']);
     Route::post('contacts/import', [ContactController::class, 'import']);
     Route::get('contacts/{contact}', [ContactController::class, 'show']);
@@ -307,6 +308,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('pipeline-stages', PipelineStageController::class);
     Route::post('pipeline-stages/reorder', [PipelineStageController::class, 'reorder']);
+    Route::get('opportunities/summary', [OpportunityController::class, 'summary']);
     Route::apiResource('opportunities', OpportunityController::class);
     Route::patch('opportunities/{id}/stage', [OpportunityController::class, 'updateStage']);
     Route::patch('conversations/{id}/stage', [ConversationController::class, 'updateStage']);

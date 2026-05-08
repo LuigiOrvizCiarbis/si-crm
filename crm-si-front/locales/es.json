@@ -3,7 +3,7 @@
     "panel": "Panel",
     "chats": "Chats",
     "contacts": "Contactos",
-    "pipeline": "Embudo de Ventas",
+    "pipeline": "Pipeline de ventas",
     "tasks": "Tareas",
     "automation": "Automatización & IA",
     "admin": "Administración",
@@ -81,6 +81,83 @@
     "activeClient": "Cliente activo",
     "selectAccount": "Seleccionar cuenta",
     "myAccount": "Mi cuenta"
+  },
+  "contactsPage": {
+    "title": "Contactos",
+    "searchPlaceholder": "Buscar contactos...",
+    "filters": {
+      "status": "Estado",
+      "all": "Todos",
+      "lead": "Lead",
+      "qualified": "Calificado",
+      "customer": "Cliente",
+      "inactive": "Inactivo"
+    },
+    "actions": {
+      "exportCsv": "Exportar CSV",
+      "newContact": "Nuevo contacto"
+    },
+    "stats": {
+      "total": "Total Contactos",
+      "activeLeads": "Leads Activos",
+      "qualified": "Calificados",
+      "conversionRate": "Tasa Conversión",
+      "vsPrevious": "vs {value} mes pasado"
+    },
+    "table": {
+      "contact": "Contacto",
+      "phone": "Teléfono",
+      "email": "Email",
+      "source": "Fuente",
+      "lastContact": "Último contacto",
+      "actions": "Acciones"
+    }
+  },
+  "pipeline": {
+    "title": "Pipeline de Oportunidades",
+    "searchPlaceholder": "Buscar leads...",
+    "newOpportunity": "Nueva oportunidad",
+    "moreFilters": "Más filtros",
+    "filters": {
+      "channels": "Canales",
+      "allChannels": "Todos los canales",
+      "salesperson": "Vendedor",
+      "allSalespeople": "Todos",
+      "advancedTitle": "Filtros avanzados",
+      "advancedDesc": "Configura filtros adicionales para el pipeline",
+      "status": "Estado",
+      "selectStatus": "Seleccionar estado",
+      "statusAll": "Todos",
+      "statusNew": "Nuevos",
+      "statusContacted": "Contactados",
+      "statusQualified": "Calificados",
+      "valueRange": "Valor estimado",
+      "selectValue": "Rango de valor",
+      "valueLow": "Menos de $10k",
+      "valueMid": "$10k - $50k",
+      "valueHigh": "Más de $50k",
+      "date": "Fecha",
+      "datePeriod": "Período",
+      "dateToday": "Hoy",
+      "dateWeek": "Esta semana",
+      "dateMonth": "Este mes",
+      "dateAll": "Todo el tiempo"
+    },
+    "kpis": {
+      "totalOpportunities": "Total oportunidades",
+      "pipelineValue": "Valor total pipeline",
+      "weightedValue": "Valor ponderado",
+      "avgValue": "Valor promedio"
+    },
+    "column": {
+      "avgProbability": "Prob. promedio: {value}%",
+      "leadsCount": "{count} leads",
+      "dropHere": "Arrastra leads aquí"
+    },
+    "errors": {
+      "loadSummaryFailed": "No se pudo cargar el resumen del pipeline",
+      "retry": "Reintentar"
+    }
   },
   "auth": {
     "title": "Social Impulse",

@@ -1,14 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/Badges"
+import { Badge, LeadScoreBadge } from "@/components/Badges"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/Toast"
 import { getPipelineStages } from "@/lib/api/pipeline"
 import { getOpportunities, updateOpportunityStage } from "@/lib/api/opportunities"
-import { Phone, Mail, Calendar, GripVertical, Clock, Loader2 } from "lucide-react"
+import { Phone, Mail, Calendar, GripVertical, Clock, Loader2, TrendingUp } from "lucide-react"
 import {
   DndContext,
   DragOverlay,
@@ -33,6 +33,8 @@ interface Opportunity {
   title: string
   status: "open" | "won" | "lost" | "archived"
   source_type: "manual" | "conversation"
+  source?: string | null
+  channel_type?: number | string | null
   value?: string | number | null
   notes?: string | null
   last_activity_at: string | null
@@ -42,6 +44,8 @@ interface Opportunity {
     name: string
     phone: string | null
     email?: string | null
+    source?: string | null
+    channel_type?: number | string | null
   }
   conversation?: {
     id: number
@@ -75,6 +79,33 @@ function toStageId(value: number | string | null | undefined) {
   return Number.isNaN(numericValue) ? null : numericValue
 }
 
+function getOpportunityScore(opportunity: Opportunity): number {
+  if (opportunity.status === "won") return 92
+  if (opportunity.status === "lost" || opportunity.status === "archived") return 28
+
+  const hasRecentActivity = Boolean(opportunity.last_activity_at)
+  const hasConversation = Boolean(opportunity.conversation)
+  const hasValue = Number(opportunity.value || 0) > 0
+
+  return 45 + (hasRecentActivity ? 15 : 0) + (hasConversation ? 15 : 0) + (hasValue ? 10 : 0)
+}
+
+function getOpportunityProbability(opportunity: Opportunity): number {
+  if (opportunity.status === "won") return 100
+  if (opportunity.status === "lost" || opportunity.status === "archived") return 0
+
+  return Math.min(getOpportunityScore(opportunity), 85)
+}
+
+function formatShortDate(value: string | null | undefined): string {
+  if (!value) return "Sin fecha"
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "Sin fecha"
+
+  return date.toLocaleDateString("es-ES", { month: "short", day: "numeric" })
+}
+
 const getColumnDropId = (columnId: number) => `column-${columnId}`
 
 const getChannelIcon = (channelType: number) => {
@@ -103,6 +134,57 @@ const getChannelColor = (channelType: number) => {
   }
 }
 
+function normalizeSource(value: number | string | null | undefined): string | null {
+  if (value === null || value === undefined || value === "") return null
+
+  const normalizedValue = String(value).toLowerCase()
+  const sourceMap: Record<string, string> = {
+    "1": "whatsapp",
+    whatsapp: "whatsapp",
+    "2": "instagram",
+    instagram: "instagram",
+    "3": "facebook",
+    facebook: "facebook",
+    "8": "manual",
+    manual: "manual",
+  }
+
+  return sourceMap[normalizedValue] ?? normalizedValue
+}
+
+const sourceLabelMap: Record<string, string> = {
+  whatsapp: "📱 WhatsApp",
+  instagram: "📸 Instagram",
+  facebook: "👍 Facebook",
+  manual: "Manual",
+}
+
+const sourceClassNameMap: Record<string, string> = {
+  whatsapp: "bg-green-500/10 text-green-600",
+  instagram: "bg-pink-500/10 text-pink-600",
+  facebook: "bg-blue-500/10 text-blue-600",
+  manual: "bg-slate-500/10 text-slate-500",
+}
+
+function getOpportunitySource(opportunity: Opportunity): { label: string; className: string } {
+  const channel = opportunity.conversation?.channel
+  if (channel) {
+    return {
+      label: `${getChannelIcon(channel.type)} ${channel.name}`,
+      className: getChannelColor(channel.type),
+    }
+  }
+
+  const source = normalizeSource(
+    opportunity.contact.source ?? opportunity.contact.channel_type ?? opportunity.source ?? opportunity.channel_type
+  )
+
+  return {
+    label: source ? sourceLabelMap[source] ?? source : "Manual",
+    className: source ? sourceClassNameMap[source] ?? "bg-slate-500/10 text-slate-600" : "bg-slate-500/10 text-slate-500",
+  }
+}
+
 function OpportunityCard({
   opportunity,
   dragHandleProps,
@@ -123,67 +205,91 @@ function OpportunityCard({
     .map((n) => n[0])
     .join("")
     .slice(0, 2)
+    .toUpperCase()
 
-  const channel = opportunity.conversation?.channel
-  const preview = opportunity.conversation?.last_message_content || opportunity.notes || opportunity.title
-  const sourceLabel = channel ? `${getChannelIcon(channel.type)} ${channel.name}` : "Manual"
-  const sourceClassName = channel ? getChannelColor(channel.type) : "bg-slate-500/10 text-slate-600"
+  const { label: sourceLabel, className: sourceClassName } = getOpportunitySource(opportunity)
+  const valueFormatted = opportunity.value
+    ? formatColumnCurrency(Number(opportunity.value))
+    : "—"
+  const probability = getOpportunityProbability(opportunity)
+  const score = getOpportunityScore(opportunity)
+  const referenceDate = opportunity.conversation?.last_message_at || opportunity.last_activity_at
+  const activityOwner = opportunity.source_type === "conversation" ? "Conversación" : sourceLabel
 
   return (
     <Card
-      className={`cursor-pointer transition-[box-shadow,transform,opacity] ${
-        isOverlay ? "rotate-1 shadow-2xl ring-1 ring-primary/20" : "hover:shadow-md"
+      className={`cursor-pointer transition-[box-shadow,transform,opacity] border-border/60 ${
+        isOverlay ? "rotate-1 shadow-2xl ring-1 ring-primary/20" : "hover:shadow-md hover:border-border"
       } ${isDragging ? "opacity-40 scale-[0.98]" : "opacity-100"}`}
     >
-      <CardContent className="p-3">
-        <div className="flex items-start justify-between mb-2">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <Avatar className="w-8 h-8 shrink-0">
-              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+              <AvatarFallback className="text-xs bg-cyan-500/15 text-cyan-400 font-semibold">
+                {initials}
+              </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
               <h4 className="font-medium text-sm truncate">{opportunity.contact.name}</h4>
               <p className="text-xs text-muted-foreground truncate">
-                {opportunity.contact.phone || opportunity.contact.email || "Sin dato de contacto"}
+                {opportunity.title}
               </p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-6 w-6 p-0 shrink-0 ${isOverlay ? "cursor-grabbing" : "cursor-grab active:cursor-grabbing"}`}
-            {...dragHandleProps}
-          >
-            <GripVertical className="w-3 h-3" />
-          </Button>
+          <div className="flex items-center gap-1 shrink-0">
+            <LeadScoreBadge score={score} />
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-6 w-6 p-0 ${isOverlay ? "cursor-grabbing" : "cursor-grab active:cursor-grabbing"}`}
+              {...dragHandleProps}
+            >
+              <GripVertical className="w-3 h-3" />
+            </Button>
+          </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 mt-3">
           <div className="flex items-center justify-between gap-2">
-            <span className={`text-xs px-2 py-1 rounded ${sourceClassName}`}>
+            <Badge variant="default" className={`text-xs max-w-[9rem] truncate ${sourceClassName}`}>
               {sourceLabel}
-            </span>
-            <Badge variant="default" className="text-xs h-5">
-              {opportunity.status}
             </Badge>
+            <span className="text-sm font-bold text-foreground tabular-nums">{valueFormatted}</span>
           </div>
 
-          <p className="text-xs text-muted-foreground line-clamp-2">
-            {preview || "Sin detalle"}
-          </p>
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-1">
+              <TrendingUp className="w-3 h-3 text-green-500" />
+              <span className="font-medium">{probability}%</span>
+            </div>
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <Clock className="w-3 h-3 shrink-0" />
+              <span>{formatShortDate(referenceDate)}</span>
+            </div>
+          </div>
 
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Clock className="w-3 h-3" />
-            <span>{lastActivityText}</span>
+            <span className="truncate">{lastActivityText}</span>
+            <span>•</span>
+            <span>{activityOwner}</span>
           </div>
 
+          {opportunity.notes && (
+            <p className="line-clamp-2 text-xs text-muted-foreground">{opportunity.notes}</p>
+          )}
+
           <div className="flex gap-1">
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-              <Phone className="w-3 h-3" />
-            </Button>
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-              <Mail className="w-3 h-3" />
-            </Button>
+            {opportunity.contact.phone && (
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                <Phone className="w-3 h-3" />
+              </Button>
+            )}
+            {opportunity.contact.email && (
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                <Mail className="w-3 h-3" />
+              </Button>
+            )}
             <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
               <Calendar className="w-3 h-3" />
             </Button>
@@ -216,30 +322,56 @@ function SortableOpportunityCard({ opportunity }: { opportunity: Opportunity }) 
   )
 }
 
+function formatColumnCurrency(value: number): string {
+  if (value >= 1000) {
+    return `$${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`
+  }
+  return `$${new Intl.NumberFormat("es-AR").format(Math.round(value))}`
+}
+
+const COLUMN_COLOR_MAP: Record<string, string> = {
+  "bg-blue-500": "#3B82F6",
+  "bg-cyan-500": "#06B6D4",
+  "bg-indigo-500": "#6366F1",
+  "bg-purple-500": "#8B5CF6",
+  "bg-violet-500": "#8B5CF6",
+  "bg-pink-500": "#EC4899",
+  "bg-amber-500": "#F59E0B",
+  "bg-yellow-500": "#EAB308",
+  "bg-orange-500": "#F97316",
+  "bg-emerald-500": "#10B981",
+  "bg-green-500": "#22C55E",
+  "bg-red-500": "#EF4444",
+  "bg-teal-500": "#14B8A6",
+  "bg-lime-500": "#84CC16",
+}
+
 function KanbanColumn({ column, opportunities }: { column: Column; opportunities: Opportunity[] }) {
   const { setNodeRef, isOver } = useDroppable({
     id: getColumnDropId(column.id),
   })
 
-  const avgValue =
-    opportunities.length > 0
-      ? Math.round(opportunities.reduce((sum, item) => sum + Number(item.value || 0), 0) / opportunities.length)
-      : 0
+  const totalValue = opportunities.reduce((sum, item) => sum + Number(item.value || 0), 0)
+  const wonCount = opportunities.filter((item) => item.status === "won").length
+  const avgProb = opportunities.length > 0 ? Math.round((wonCount / opportunities.length) * 100) : 0
+  const stripeColor = COLUMN_COLOR_MAP[column.color] ?? "#3B82F6"
 
   return (
     <div className="flex-1 min-w-80">
-      <Card className={`bg-muted/20 transition-colors ${isOver ? "ring-2 ring-primary/30 bg-primary/5" : ""}`}>
+      <Card className={`bg-muted/20 overflow-hidden transition-colors ${isOver ? "ring-2 ring-primary/30 bg-primary/5" : ""}`}>
+        <div className="h-1.5 w-full" style={{ backgroundColor: stripeColor }} />
         <CardContent className="p-4">
           <div className="flex items-center gap-2 mb-2">
-            <div className={`w-3 h-3 rounded-full ${column.color}`} />
-            <h3 className="font-semibold">{column.title}</h3>
-            <Badge variant="default" className="ml-auto">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stripeColor }} />
+            <h3 className="font-semibold flex-1 truncate">{column.title}</h3>
+            <Badge variant="default" className="ml-1 shrink-0">
               {opportunities.length}
             </Badge>
           </div>
 
           <div className="space-y-1 mb-4">
-            <p className="text-xs text-muted-foreground">Valor promedio: {avgValue}</p>
+            <p className="text-sm font-medium">{formatColumnCurrency(totalValue)}</p>
+            <p className="text-xs text-muted-foreground">Prob. promedio: {avgProb}%</p>
           </div>
 
           <SortableContext items={opportunities.map((item) => item.id.toString())} strategy={verticalListSortingStrategy}>
@@ -257,7 +389,7 @@ function KanbanColumn({ column, opportunities }: { column: Column; opportunities
                 <div className={`flex items-center justify-center h-32 text-sm rounded-md border border-dashed ${
                   isOver ? "border-primary/40 text-primary" : "border-border text-muted-foreground"
                 }`}>
-                  No hay oportunidades en esta etapa
+                  Arrastra leads aquí
                 </div>
               )}
             </div>
@@ -268,7 +400,11 @@ function KanbanColumn({ column, opportunities }: { column: Column; opportunities
   )
 }
 
-export function KanbanBoard() {
+interface KanbanBoardProps {
+  refreshKey?: number
+}
+
+export function KanbanBoard({ refreshKey = 0 }: KanbanBoardProps) {
   const [columns, setColumns] = useState<Column[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -286,11 +422,7 @@ export function KanbanBoard() {
     }),
   )
 
-  useEffect(() => {
-    fetchPipelineData()
-  }, [])
-
-  const fetchPipelineData = async () => {
+  const fetchPipelineData = useCallback(async () => {
     setLoading(true)
     setError(null)
 
@@ -342,7 +474,11 @@ export function KanbanBoard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchPipelineData()
+  }, [fetchPipelineData, refreshKey])
 
   const totalOpportunities = columns.reduce((sum, col) => sum + col.opportunities.length, 0)
   const avgValue =

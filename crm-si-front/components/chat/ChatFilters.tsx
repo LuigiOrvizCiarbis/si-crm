@@ -1,6 +1,5 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
 import { PlatformIcon } from "./PlatformIcon"
 import { MessageSquare } from "lucide-react"
 import { FilterType } from "@/data/types"
@@ -81,19 +80,22 @@ export const ChatFilters = ({
     : allFilterButtons
 
   return (
-    <div className="p-4 border-b border-border">
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+    <div className="border-b border-border bg-card/80 px-4 py-3">
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide">
         {filterButtons.map((button) => (
-          <Button
+          <button
             key={button.key}
-            variant={activeFilter === button.key ? "default" : "outline"}
-            size="sm"
-            className="whitespace-nowrap text-xs gap-1 shrink-0"
+            type="button"
+            className={`inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.02em] transition-colors ${
+              activeFilter === button.key
+                ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                : "border-border bg-background/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+            }`}
             onClick={() => onFilterChange(button.key)}
           >
             {button.icon}
             {button.label}
-          </Button>
+          </button>
         ))}
       </div>
     </div>

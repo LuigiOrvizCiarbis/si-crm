@@ -16,7 +16,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 class OpportunityController extends Controller
 {
     private const EAGER_LOAD = [
-        'contact:id,name,phone,email',
+        'contact:id,name,phone,email,source',
         'conversation:id,contact_id,channel_id,last_message_content,last_message_at',
         'conversation.channel:id,name,type',
         'pipelineStage:id,name,sort_order,is_default',
@@ -32,7 +32,7 @@ class OpportunityController extends Controller
             ->orderByDesc('last_activity_at')
             ->orderByDesc('updated_at');
 
-        if (!$isAdmin) {
+        if (! $isAdmin) {
             $query->where(function ($builder) use ($user) {
                 $builder->whereNull('assigned_to')
                     ->orWhere('assigned_to', $user->id);
@@ -165,6 +165,37 @@ class OpportunityController extends Controller
         return response()->json(['data' => $opportunity]);
     }
 
+    public function summary(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $isAdmin = $user->role === null || $user->role === UserRole::ADMIN;
+
+        $base = Opportunity::query();
+
+        if (! $isAdmin) {
+            $base->where(function ($builder) use ($user): void {
+                $builder->whereNull('assigned_to')
+                    ->orWhere('assigned_to', $user->id);
+            });
+        }
+
+        $total = (clone $base)->count();
+        $pipelineValue = (float) (clone $base)->sum('value');
+        $wonValue = (float) (clone $base)->where('status', 'won')->sum('value');
+        $wonCount = (clone $base)->where('status', 'won')->count();
+        $weightedValue = $total > 0 ? $pipelineValue * ($wonCount / max($total, 1)) : 0.0;
+        $avgValue = $total > 0 ? $pipelineValue / $total : 0.0;
+
+        return response()->json([
+            'total_opportunities' => $total,
+            'pipeline_value' => round($pipelineValue, 2),
+            'weighted_value' => round($weightedValue, 2),
+            'avg_value' => round($avgValue, 2),
+            'won_value' => round($wonValue, 2),
+            'won_count' => $wonCount,
+        ]);
+    }
+
     private function rules(Request $request, ?Opportunity $opportunity = null): array
     {
         $tenantId = $request->user()->tenant_id;
@@ -186,7 +217,7 @@ class OpportunityController extends Controller
 
     private function resolveConversation(array $validated, int $contactId): ?Conversation
     {
-        if (!array_key_exists('conversation_id', $validated) || is_null($validated['conversation_id'])) {
+        if (! array_key_exists('conversation_id', $validated) || is_null($validated['conversation_id'])) {
             return null;
         }
 
@@ -201,7 +232,7 @@ class OpportunityController extends Controller
 
     private function resolveStage(array $validated): ?PipelineStage
     {
-        if (!array_key_exists('pipeline_stage_id', $validated) || is_null($validated['pipeline_stage_id'])) {
+        if (! array_key_exists('pipeline_stage_id', $validated) || is_null($validated['pipeline_stage_id'])) {
             return null;
         }
 
@@ -210,7 +241,7 @@ class OpportunityController extends Controller
 
     private function resolveAssignedUser(array $validated): ?User
     {
-        if (!array_key_exists('assigned_to', $validated) || is_null($validated['assigned_to'])) {
+        if (! array_key_exists('assigned_to', $validated) || is_null($validated['assigned_to'])) {
             return null;
         }
 

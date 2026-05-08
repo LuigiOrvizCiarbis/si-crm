@@ -4,26 +4,26 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ImportContactsRequest;
+use App\Models\Contact;
 use App\Services\ContactImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use App\Models\Contact;
 
 class ContactController extends Controller
 {
     public function index(Request $request)
     {
         $tenantId = $request->user()->tenant_id;
-        $search = trim($request->query('search',''));
+        $search = trim($request->query('search', ''));
 
         $q = Contact::query()
             ->where('tenant_id', $tenantId)
-            ->with(['conversations' => fn($c) => $c->latest('last_message_at')->limit(1)]);
+            ->with(['conversations' => fn ($c) => $c->latest('last_message_at')->limit(1)]);
 
         if ($search !== '') {
-            $q->where(function($w) use ($search) {
-                $w->where('name','like',"%$search%")
-                  ->orWhere('phone','like',"%$search%");
+            $q->where(function ($w) use ($search) {
+                $w->where('name', 'like', "%$search%")
+                    ->orWhere('phone', 'like', "%$search%");
             });
         }
 
@@ -37,7 +37,41 @@ class ContactController extends Controller
                 'total' => $contacts->total(),
                 'current_page' => $contacts->currentPage(),
                 'last_page' => $contacts->lastPage(),
-            ]
+            ],
+        ]);
+    }
+
+    public function summary(Request $request): JsonResponse
+    {
+        $tenantId = $request->user()->tenant_id;
+        $monthAgo = now()->subDays(30);
+
+        $total = Contact::where('tenant_id', $tenantId)->count();
+        $newThisMonth = Contact::where('tenant_id', $tenantId)
+            ->where('created_at', '>=', $monthAgo)
+            ->count();
+
+        $activeLeads = Contact::where('tenant_id', $tenantId)
+            ->whereHas('conversations', fn ($q) => $q->where('status', 'open'))
+            ->count();
+
+        $qualified = Contact::where('tenant_id', $tenantId)
+            ->whereHas('opportunities', fn ($q) => $q->whereIn('status', ['won', 'open'])->whereNotNull('pipeline_stage_id'))
+            ->count();
+
+        $won = Contact::where('tenant_id', $tenantId)
+            ->whereHas('opportunities', fn ($q) => $q->where('status', 'won'))
+            ->count();
+
+        $conversionRate = $total > 0 ? round(($won / $total) * 100, 1) : 0.0;
+
+        return response()->json([
+            'total_contacts' => $total,
+            'new_this_month' => $newThisMonth,
+            'active_leads' => $activeLeads,
+            'qualified' => $qualified,
+            'won' => $won,
+            'conversion_rate' => $conversionRate,
         ]);
     }
 
@@ -58,7 +92,8 @@ class ContactController extends Controller
     {
         $this->authorizeTenant($request, $contact->tenant_id);
 
-        $contact->load(['conversations' => fn($c) => $c->latest('last_message_at')->limit(5)]);
+        $contact->load(['conversations' => fn ($c) => $c->latest('last_message_at')->limit(5)]);
+
         return response()->json(['data' => $contact]);
     }
 
@@ -66,7 +101,7 @@ class ContactController extends Controller
     {
         $this->authorizeTenant($request, $contact->tenant_id);
 
-        $validated = $request->validate($this->contactRules());
+        $validated = $request->validate($this->contactRules(partial: true));
         $contact->update($validated);
 
         return response()->json(['data' => $contact]);
@@ -86,16 +121,18 @@ class ContactController extends Controller
         $mapping = $request->decodedMapping();
         $tenantId = $request->user()->tenant_id;
 
-        $service = new ContactImportService();
+        $service = new ContactImportService;
         $result = $service->import($request->file('file'), $mapping, $tenantId);
 
         return response()->json(['data' => $result]);
     }
 
-    private function contactRules(): array
+    private function contactRules(bool $partial = false): array
     {
+        $nameRule = $partial ? 'sometimes|required|string|max:255' : 'required|string|max:255';
+
         return [
-            'name' => 'required|string|max:255',
+            'name' => $nameRule,
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'source' => 'nullable|string|in:whatsapp,instagram,facebook,manual',

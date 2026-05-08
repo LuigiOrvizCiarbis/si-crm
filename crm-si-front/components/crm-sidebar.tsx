@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ChevronRight, LogOut, Menu, X } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, LogOut, Menu } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -141,7 +141,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
     <div
       className={cn(
         "flex h-full flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300",
-        isCollapsed ? "w-16" : "w-56",
+        isCollapsed ? "w-16" : "w-60",
         className,
       )}
     >
@@ -153,8 +153,8 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
       >
         {!isCollapsed && (
           <>
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <div className="w-4 h-4 bg-primary-foreground rounded-sm" />
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-400 shadow-sm">
+              <span className="text-xs font-bold text-white tracking-wide">SI</span>
             </div>
             <div className="flex-1">
               <h1 className="font-bold text-sidebar-foreground">SI CRM</h1>
@@ -163,7 +163,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
           </>
         )}
         <Button variant="ghost" size="sm" onClick={onToggle} className="p-2 hover:bg-sidebar-accent">
-          {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+          {isCollapsed ? <Menu className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
       </div>
 
@@ -174,7 +174,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
             className="w-full flex items-center gap-3 rounded-md p-2 hover:bg-sidebar-accent transition-colors"
           >
             <Avatar className="h-9 w-9">
-              <AvatarFallback className="bg-cyan-500/15 text-cyan-400 text-xs font-semibold">
+              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-violet-500 text-white text-xs font-semibold">
                 {user.tenant.name
                   .split(" ")
                   .map((part) => part[0])

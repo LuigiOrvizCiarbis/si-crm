@@ -10,10 +10,6 @@ import { useToast } from "@/components/Toast"
 import {
   CheckCircle,
   MessageSquare,
-  Instagram,
-  Facebook,
-  Globe,
-  Mail,
   ArrowRight,
   ArrowLeft,
   Zap,
@@ -27,7 +23,7 @@ interface WizardConnectChannelProps {
 }
 
 type Step = 1 | 2 | 3
-type Channel = "whatsapp" | "instagram" | "facebook" | "web" | "email"
+type Channel = "whatsapp"
 
 const channelInfo = {
   whatsapp: {
@@ -46,86 +42,6 @@ const channelInfo = {
       { key: "accessToken", label: "Token de acceso", placeholder: "EAAxxxxxxxxxx...", required: true },
       { key: "phoneNumberId", label: "Phone Number ID", placeholder: "123456789012345", required: true },
       { key: "businessName", label: "Nombre del negocio", placeholder: "Mi Empresa", required: false },
-    ],
-  },
-  instagram: {
-    name: "Instagram Business",
-    icon: Instagram,
-    color: "text-pink-500",
-    description: "Conecta tu cuenta de Instagram Business para gestionar mensajes directos",
-    requirements: [
-      "Cuenta de Instagram Business",
-      "Página de Facebook vinculada",
-      "Cuenta de Facebook Business Manager",
-      "Permisos de administrador",
-    ],
-    fields: [
-      { key: "instagramId", label: "Instagram Business ID", placeholder: "123456789", required: true },
-      { key: "accessToken", label: "Token de acceso", placeholder: "EAAxxxxxxxxxx...", required: true },
-      { key: "username", label: "Nombre de usuario", placeholder: "@miempresa", required: false },
-    ],
-  },
-  facebook: {
-    name: "Facebook Messenger",
-    icon: Facebook,
-    color: "text-blue-500",
-    description: "Conecta tu página de Facebook para recibir mensajes de Messenger",
-    requirements: [
-      "Página de Facebook Business",
-      "Cuenta de Facebook Business Manager",
-      "Permisos de administrador de página",
-      "Messenger habilitado en la página",
-    ],
-    fields: [
-      { key: "pageId", label: "Page ID", placeholder: "123456789012345", required: true },
-      { key: "accessToken", label: "Token de acceso", placeholder: "EAAxxxxxxxxxx...", required: true },
-      { key: "pageName", label: "Nombre de la página", placeholder: "Mi Empresa", required: false },
-    ],
-  },
-  web: {
-    name: "Chat Web",
-    icon: Globe,
-    color: "text-purple-500",
-    description: "Integra un widget de chat en tu sitio web",
-    requirements: [
-      "Sitio web activo",
-      "Acceso para instalar código JavaScript",
-      "Dominio verificado",
-      "Certificado SSL (HTTPS)",
-    ],
-    fields: [
-      { key: "websiteUrl", label: "URL del sitio web", placeholder: "https://miempresa.com", required: true },
-      { key: "widgetName", label: "Nombre del widget", placeholder: "Chat de Soporte", required: false },
-      {
-        key: "welcomeMessage",
-        label: "Mensaje de bienvenida",
-        placeholder: "¡Hola! ¿En qué podemos ayudarte?",
-        required: false,
-      },
-    ],
-  },
-  email: {
-    name: "Email",
-    icon: Mail,
-    color: "text-orange-500",
-    description: "Conecta tu cuenta de email para gestionar consultas",
-    requirements: [
-      "Cuenta de email empresarial",
-      "Servidor SMTP configurado",
-      "Credenciales de aplicación",
-      "Permisos IMAP/POP3",
-    ],
-    fields: [
-      { key: "emailAddress", label: "Dirección de email", placeholder: "soporte@miempresa.com", required: true },
-      { key: "smtpServer", label: "Servidor SMTP", placeholder: "smtp.gmail.com", required: true },
-      { key: "smtpPort", label: "Puerto SMTP", placeholder: "587", required: true },
-      {
-        key: "password",
-        label: "Contraseña de aplicación",
-        placeholder: "••••••••••••••••",
-        required: true,
-        type: "password",
-      },
     ],
   },
 }

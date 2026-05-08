@@ -61,12 +61,22 @@ export default function Dashboard() {
 
       <div className="px-4 md:px-6 lg:px-8 py-6 space-y-6">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
-          <TabsList>
-            <TabsTrigger value="general">{t("dashboard.tabs.general")}</TabsTrigger>
-            <TabsTrigger value="channels">{t("dashboard.tabs.channels")}</TabsTrigger>
-            <TabsTrigger value="salespeople">{t("dashboard.tabs.salespeople")}</TabsTrigger>
-            <TabsTrigger value="tasks">{t("dashboard.tabs.tasks")}</TabsTrigger>
-            <TabsTrigger value="finance">{t("dashboard.tabs.finance")}</TabsTrigger>
+          <TabsList className="h-11 p-1 gap-1 bg-muted/40">
+            <TabsTrigger value="general" className="text-sm font-medium px-6 py-2 h-9">
+              {t("dashboard.tabs.general")}
+            </TabsTrigger>
+            <TabsTrigger value="channels" className="text-sm font-medium px-6 py-2 h-9">
+              {t("dashboard.tabs.channels")}
+            </TabsTrigger>
+            <TabsTrigger value="salespeople" className="text-sm font-medium px-6 py-2 h-9">
+              {t("dashboard.tabs.salespeople")}
+            </TabsTrigger>
+            <TabsTrigger value="tasks" className="text-sm font-medium px-6 py-2 h-9">
+              {t("dashboard.tabs.tasks")}
+            </TabsTrigger>
+            <TabsTrigger value="finance" className="text-sm font-medium px-6 py-2 h-9">
+              {t("dashboard.tabs.finance")}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-6 mt-6">

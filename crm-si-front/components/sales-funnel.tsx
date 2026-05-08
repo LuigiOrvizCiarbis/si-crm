@@ -64,6 +64,8 @@ export function SalesFunnel({ stages, isLoading }: SalesFunnelProps) {
               const percentage = total > 0 ? Math.round((stage.count / total) * 100) : 0
               const color = STAGE_COLORS[idx % STAGE_COLORS.length]
               const leadsLabel = t("dashboard.funnel.leads").replace("{count}", String(stage.count))
+              const widthPercent = Math.max(percentage, 2)
+              const showInsideLabel = widthPercent >= 12 && stage.count > 0
 
               return (
                 <div key={stage.id} className="space-y-3">
@@ -77,9 +79,15 @@ export function SalesFunnel({ stages, isLoading }: SalesFunnelProps) {
                   </div>
                   <div className="w-full bg-muted rounded-full h-6 relative overflow-hidden">
                     <div
-                      className={`h-6 rounded-full ${color} transition-all duration-500`}
-                      style={{ width: `${Math.max(percentage, 2)}%` }}
-                    />
+                      className={`h-6 rounded-full ${color} transition-all duration-500 flex items-center justify-end pr-3`}
+                      style={{ width: `${widthPercent}%` }}
+                    >
+                      {showInsideLabel && (
+                        <span className="text-xs font-semibold text-white tabular-nums">
+                          {stage.count}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               )
