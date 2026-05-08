@@ -1,23 +1,31 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/store/useAuthStore"
+import { SidebarLayout } from "@/components/SidebarLayout"
+import { DashboardCompactHeader } from "@/components/dashboard-compact-header"
 import { MetricsCards } from "@/components/metrics-cards"
 import { SalesFunnel } from "@/components/sales-funnel"
-import { RecentActivity } from "@/components/recent-activity"
-import { OmnichannelStats } from "@/components/omnichannel-stats"
-import { SidebarLayout } from "@/components/SidebarLayout"
-import { Button } from "@/components/ui/button"
-import { Plus, FileSpreadsheet } from "lucide-react"
-import { AdvancedFunnelMetrics } from "@/components/advanced-funnel-metrics"
-import { ConversionAnalytics } from "@/components/conversion-analytics"
-import { ExecutiveDashboard } from "@/components/executive-dashboard"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics"
+import { useTranslation } from "@/hooks/useTranslation"
+import type { DashboardFilters, DashboardPeriodo } from "@/lib/api/dashboard"
+
+const TAB_KEYS = ["general", "channels", "salespeople", "tasks", "finance"] as const
+type TabKey = (typeof TAB_KEYS)[number]
 
 export default function Dashboard() {
   const router = useRouter()
   const { isAuthenticated } = useAuthStore()
+  const { t } = useTranslation()
+
+  const [activeTab, setActiveTab] = useState<TabKey>("general")
+  const [vista, setVista] = useState("dueno")
+  const [periodo, setPeriodo] = useState<DashboardPeriodo>("este-mes")
+  const [canal, setCanal] = useState("todos")
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -25,74 +33,89 @@ export default function Dashboard() {
     }
   }, [isAuthenticated, router])
 
+  const filters = useMemo<DashboardFilters>(
+    () => ({
+      periodo,
+      canal: canal === "todos" ? null : canal,
+      owner: vista === "dueno" ? null : vista,
+    }),
+    [periodo, canal, vista]
+  )
+
+  const { data, isLoading, error, refresh } = useDashboardMetrics(filters)
+
   if (!isAuthenticated) {
     return null
   }
 
   return (
     <SidebarLayout>
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="flex items-center justify-between p-6">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">CRM Multicuenta Omnicanal con IA</h1>
-            <p className="text-muted-foreground">Tablero principal</p>
-          </div>
-          <div className="flex gap-3">
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Nuevo lead
-            </Button>
-            <Button variant="outline" className="gap-2 bg-transparent">
-              <FileSpreadsheet className="w-4 h-4" />
-              Importar CSV
-            </Button>
-          </div>
-        </div>
-      </header>
+      <DashboardCompactHeader
+        vista={vista}
+        onVistaChange={setVista}
+        periodo={periodo}
+        onPeriodoChange={setPeriodo}
+        canal={canal}
+        onCanalChange={setCanal}
+      />
 
-      {/* Dashboard Content */}
-      <div className="p-6 space-y-6">
-        {/* Metrics */}
-        <MetricsCards />
+      <div className="px-4 md:px-6 lg:px-8 py-6 space-y-6">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
+          <TabsList className="h-11 p-1 gap-1 bg-muted/40">
+            <TabsTrigger value="general" className="text-sm font-medium px-6 py-2 h-9">
+              {t("dashboard.tabs.general")}
+            </TabsTrigger>
+            <TabsTrigger value="channels" className="text-sm font-medium px-6 py-2 h-9">
+              {t("dashboard.tabs.channels")}
+            </TabsTrigger>
+            <TabsTrigger value="salespeople" className="text-sm font-medium px-6 py-2 h-9">
+              {t("dashboard.tabs.salespeople")}
+            </TabsTrigger>
+            <TabsTrigger value="tasks" className="text-sm font-medium px-6 py-2 h-9">
+              {t("dashboard.tabs.tasks")}
+            </TabsTrigger>
+            <TabsTrigger value="finance" className="text-sm font-medium px-6 py-2 h-9">
+              {t("dashboard.tabs.finance")}
+            </TabsTrigger>
+          </TabsList>
 
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Estadísticas Omnicanal</h2>
-          <OmnichannelStats />
-        </div>
+          <TabsContent value="general" className="space-y-6 mt-6">
+            {error ? (
+              <Card>
+                <CardContent className="py-8 flex flex-col items-center gap-3">
+                  <p className="text-sm text-destructive">{t("dashboard.errors.loadFailed")}</p>
+                  <p className="text-xs text-muted-foreground">{error}</p>
+                  <Button variant="outline" size="sm" onClick={refresh}>
+                    {t("dashboard.errors.retry")}
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <MetricsCards
+                  kpis={data?.kpis}
+                  previous={data?.previous}
+                  trends={data?.trends as Record<string, number> | undefined}
+                  isLoading={isLoading}
+                />
+                <SalesFunnel stages={data?.stages} isLoading={isLoading} />
+              </>
+            )}
+          </TabsContent>
 
-        {/* Charts and Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <div className="lg:col-span-3">
-            <SalesFunnel />
-          </div>
-          <div className="lg:col-span-2">
-            <RecentActivity />
-          </div>
-        </div>
-
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold mb-4">Métricas Avanzadas</h2>
-          <Tabs defaultValue="funnel" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="funnel">Embudo Detallado</TabsTrigger>
-              <TabsTrigger value="conversion">Análisis de Conversión</TabsTrigger>
-              <TabsTrigger value="executive">Dashboard Ejecutivo</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="funnel" className="space-y-4">
-              <AdvancedFunnelMetrics />
+          {(["channels", "salespeople", "tasks", "finance"] as const).map((tab) => (
+            <TabsContent key={tab} value={tab} className="mt-6">
+              <Card>
+                <CardContent className="py-12 text-center space-y-2">
+                  <p className="text-base font-medium">{t("dashboard.placeholders.comingSoon")}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t("dashboard.placeholders.tabComingSoonDesc")}
+                  </p>
+                </CardContent>
+              </Card>
             </TabsContent>
-
-            <TabsContent value="conversion" className="space-y-4">
-              <ConversionAnalytics />
-            </TabsContent>
-
-            <TabsContent value="executive" className="space-y-4">
-              <ExecutiveDashboard />
-            </TabsContent>
-          </Tabs>
-        </div>
+          ))}
+        </Tabs>
       </div>
     </SidebarLayout>
   )

@@ -3,13 +3,161 @@
     "panel": "Dashboard",
     "chats": "Chats",
     "contacts": "Contacts",
-    "pipeline": "Sales Pipeline",
+    "pipeline": "Sales pipeline",
     "tasks": "Tasks",
     "automation": "Automation & AI",
     "admin": "Administration",
     "settings": "Settings",
     "logout": "Log out",
     "dashboard": "Main Dashboard"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "tabs": {
+      "general": "General",
+      "channels": "Channels",
+      "salespeople": "Salespeople",
+      "tasks": "Tasks",
+      "finance": "Finance"
+    },
+    "filters": {
+      "view": "View",
+      "period": "Period",
+      "channel": "Channel",
+      "owner": "Owner",
+      "branchCenter": "Center Branch",
+      "branchNorth": "North Branch",
+      "salesTeam": "Sales Team",
+      "marketingTeam": "Marketing Team",
+      "today": "Today",
+      "thisWeek": "This week",
+      "thisMonth": "This month",
+      "thisQuarter": "This quarter",
+      "thisYear": "This year",
+      "all": "All",
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "telegram": "Telegram",
+      "email": "Email",
+      "web": "Web"
+    },
+    "kpis": {
+      "totalConversations": "Total Conversations",
+      "totalRevenue": "Total Revenue",
+      "globalConversion": "Global Conversion Rate",
+      "avgRoi": "Average ROI",
+      "vsPrevious": "vs {value} previous period"
+    },
+    "funnel": {
+      "title": "Sales Funnel",
+      "realtime": "Real time",
+      "leads": "{count} leads",
+      "noStages": "No pipeline stages configured",
+      "configureStages": "Configure your pipeline stages in Settings"
+    },
+    "placeholders": {
+      "comingSoon": "Coming soon",
+      "tabComingSoonDesc": "This section will be available in a future iteration."
+    },
+    "errors": {
+      "loadFailed": "Failed to load metrics",
+      "retry": "Retry"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "viewAll": "View all",
+      "empty": "No new notifications",
+      "demoLead": "New lead: Ana Martínez from WhatsApp",
+      "demoLeadTime": "5 min ago",
+      "demoMessage": "New message from Carlos López",
+      "demoMessageTime": "12 min ago",
+      "demoTask": "Overdue task: Follow-up with Juan Pérez",
+      "demoTaskTime": "1 hour ago",
+      "demoAssignment": "Lead assigned: María García assigned you a lead",
+      "demoAssignmentTime": "2 hours ago"
+    }
+  },
+  "tenant": {
+    "activeClient": "Active client",
+    "selectAccount": "Select account",
+    "myAccount": "My account"
+  },
+  "contactsPage": {
+    "title": "Contacts",
+    "searchPlaceholder": "Search contacts...",
+    "filters": {
+      "status": "Status",
+      "all": "All",
+      "lead": "Lead",
+      "qualified": "Qualified",
+      "customer": "Customer",
+      "inactive": "Inactive"
+    },
+    "actions": {
+      "exportCsv": "Export CSV",
+      "newContact": "New contact"
+    },
+    "stats": {
+      "total": "Total Contacts",
+      "activeLeads": "Active Leads",
+      "qualified": "Qualified",
+      "conversionRate": "Conversion Rate",
+      "vsPrevious": "vs {value} last month"
+    },
+    "table": {
+      "contact": "Contact",
+      "phone": "Phone",
+      "email": "Email",
+      "source": "Source",
+      "lastContact": "Last contact",
+      "actions": "Actions"
+    }
+  },
+  "pipeline": {
+    "title": "Opportunity Pipeline",
+    "searchPlaceholder": "Search leads...",
+    "newOpportunity": "New opportunity",
+    "moreFilters": "More filters",
+    "filters": {
+      "channels": "Channels",
+      "allChannels": "All channels",
+      "salesperson": "Salesperson",
+      "allSalespeople": "All",
+      "advancedTitle": "Advanced filters",
+      "advancedDesc": "Configure additional pipeline filters",
+      "status": "Status",
+      "selectStatus": "Select status",
+      "statusAll": "All",
+      "statusNew": "New",
+      "statusContacted": "Contacted",
+      "statusQualified": "Qualified",
+      "valueRange": "Estimated value",
+      "selectValue": "Value range",
+      "valueLow": "Less than $10k",
+      "valueMid": "$10k - $50k",
+      "valueHigh": "More than $50k",
+      "date": "Date",
+      "datePeriod": "Period",
+      "dateToday": "Today",
+      "dateWeek": "This week",
+      "dateMonth": "This month",
+      "dateAll": "All time"
+    },
+    "kpis": {
+      "totalOpportunities": "Total opportunities",
+      "pipelineValue": "Total pipeline value",
+      "weightedValue": "Weighted value",
+      "avgValue": "Average value"
+    },
+    "column": {
+      "avgProbability": "Avg probability: {value}%",
+      "leadsCount": "{count} leads",
+      "dropHere": "Drop leads here"
+    },
+    "errors": {
+      "loadSummaryFailed": "Failed to load pipeline summary",
+      "retry": "Retry"
+    }
   },
   "auth": {
     "title": "Social Impulse",

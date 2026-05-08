@@ -4,15 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuthStore } from "@/store/useAuthStore"
 import { Loader2 } from "lucide-react"
-
-// Rutas que no requieren autenticación
-const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/pricing", "/email-verified", "/verify-email/confirm", "/privacy-policy", "/terms", "/data-deletion", "/invitation"]
-
-// Rutas que solo deben accederse sin autenticación
-const authOnlyRoutes = ["/login", "/register", "/forgot-password", "/reset-password"]
-
-// Rutas permitidas sin verificación de email
-const unverifiedAllowedRoutes = ["/verify-email", "/email-verified", "/pricing", "/verify-email/confirm"]
+import { authOnlyRoutes, isRouteMatch, publicRoutes, unverifiedAllowedRoutes } from "@/lib/routes"
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -23,6 +15,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const pathname = usePathname()
   const { isAuthenticated, emailVerified, token, _hasHydrated, setEmailVerified, updateUser } = useAuthStore()
   const [isChecking, setIsChecking] = useState(true)
+  const [hasCompletedInitialCheck, setHasCompletedInitialCheck] = useState(false)
+
+  const isPublicRoute = isRouteMatch(pathname, publicRoutes)
+  const isAuthOnlyRoute = isRouteMatch(pathname, authOnlyRoutes)
+  const isUnverifiedAllowed = isRouteMatch(pathname, unverifiedAllowedRoutes)
 
   useEffect(() => {
     // Esperar a que Zustand se hidrate desde localStorage
@@ -31,11 +28,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
     }
 
     const checkAuth = async () => {
-      setIsChecking(true)
-      
-      const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
-      const isAuthOnlyRoute = authOnlyRoutes.some(route => pathname.startsWith(route))
-      const isUnverifiedAllowed = unverifiedAllowedRoutes.some(route => pathname.startsWith(route))
+      if (!hasCompletedInitialCheck) {
+        setIsChecking(true)
+      }
       
       // Si está autenticado y trata de acceder a login/register, redirigir
       if (isAuthenticated && token && isAuthOnlyRoute) {
@@ -93,13 +88,27 @@ export function AuthGuard({ children }: AuthGuardProps) {
       }
       
       setIsChecking(false)
+      setHasCompletedInitialCheck(true)
     }
     
     checkAuth()
-  }, [pathname, isAuthenticated, emailVerified, token, router, _hasHydrated, setEmailVerified, updateUser])
+  }, [
+    pathname,
+    isAuthenticated,
+    emailVerified,
+    token,
+    router,
+    _hasHydrated,
+    setEmailVerified,
+    updateUser,
+    hasCompletedInitialCheck,
+    isPublicRoute,
+    isAuthOnlyRoute,
+    isUnverifiedAllowed,
+  ])
 
   // Mostrar loader mientras se hidrata o verifica autenticación
-  if (!_hasHydrated || isChecking) {
+  if (!_hasHydrated || (isChecking && !hasCompletedInitialCheck) || (!isAuthenticated && !isPublicRoute)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

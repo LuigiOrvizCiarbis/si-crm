@@ -9,6 +9,7 @@ import { MessageSquare } from "lucide-react"
 import { Conversation, Channel } from "@/data/types"
 import { channelTypeToFilterType } from "@/data/enums"
 import { useTranslation } from "@/hooks/useTranslation"
+import { TagChips } from "@/components/tags/TagChips"
 
 interface ConversationCardProps {
   conversation: Conversation
@@ -82,6 +83,9 @@ const ConversationCard = memo(function ConversationCard({
           <p className="text-xs text-muted-foreground truncate">
             {conversation.last_message}
           </p>
+          {conversation.tags && conversation.tags.length > 0 && (
+            <TagChips tags={conversation.tags} maxVisible={2} className="mt-2" />
+          )}
           {channel && (
             <p className="text-xs text-muted-foreground/70 truncate">
               {channel.name}

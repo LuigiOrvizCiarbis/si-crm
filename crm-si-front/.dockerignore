@@ -2,11 +2,20 @@
 node_modules/
 npm-debug.log
 yarn-debug.log
+.pnpm-store/
 
 # Build outputs
 dist/
 build/
 out/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# Source mirrors / scratch
+.mvp-source/
+.claude/
+.devcontainer/
 
 # Test and debug artifacts
 test/

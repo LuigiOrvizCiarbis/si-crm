@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Enums\UserRole;
 use Illuminate\Http\Request;
+use App\Models\Channel;
 use App\Models\Conversation;
 use App\Models\Opportunity;
 use App\Models\PipelineStage;
@@ -26,7 +27,7 @@ class ConversationController extends Controller
         $isAdmin = $roleValue === null || $roleValue === UserRole::ADMIN->value;
 
         $q = Conversation::query()
-            ->with(['contact:id,name,phone', 'channel:id,name,type', 'messages:id']);
+            ->with(['contact:id,name,phone', 'channel:id,name,type', 'messages:id', 'tags']);
 
         // Si admin pasa user_id, filtrar por ese usuario (para ver conversaciones de un vendedor)
         if ($isAdmin && $filterByUserId) {
@@ -61,27 +62,29 @@ class ConversationController extends Controller
             $q->where('contact_id', $contactId);
         }
         if ($channelId) {
-            // Obtener el dueño del canal consultado
-            $channel = \App\Models\Channel::find($channelId);
-            $channelOwnerId = $channel ? $channel->user_id : null;
+            $channel = Channel::with('users:id')->findOrFail($channelId);
+            $channelUserIds = $channel->users
+                ->pluck('id')
+                ->push($channel->user_id)
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
 
-            // Cuando se filtra por canal, mostrar:
-            // 1. Conversaciones propias del canal que NO fueron derivadas a otro usuario
-            // 2. Conversaciones derivadas AL DUEÑO de este canal desde cualquier canal
-            $q->where(function ($query) use ($channelId, $channelOwnerId) {
-                // Opción 1: Conversaciones del canal que no fueron derivadas a otro
-                $query->where(function ($q) use ($channelId) {
-                    $q->where('channel_id', $channelId)
-                      ->where(function ($subQ) {
-                          $subQ->whereNull('assigned_to')
-                               ->orWhereHas('channel', function ($channelQ) {
-                                   $channelQ->whereColumn('conversations.assigned_to', 'channels.user_id');
-                               });
-                      });
-                })
-                // Opción 2: Conversaciones derivadas al dueño de este canal
-                ->orWhere('assigned_to', $channelOwnerId);
+            $q->where(function ($query) use ($channelId, $channelUserIds) {
+                $query->where('channel_id', $channelId);
+
+                if ($channelUserIds !== []) {
+                    $query->orWhereIn('assigned_to', $channelUserIds)
+                        ->orWhereHas('users', function ($userQuery) use ($channelUserIds) {
+                            $userQuery->whereIn('users.id', $channelUserIds);
+                        });
+                }
             });
+        }
+
+        if ($request->filled('tags')) {
+            $q->withTagSlugs($this->parseTagSlugs((string) $request->query('tags')));
         }
 
 
@@ -107,6 +110,7 @@ class ConversationController extends Controller
                 'created_at' => $conversation->created_at,
                 'updated_at' => $conversation->updated_at,
                 'messages' => $conversation->messages,
+                'tags' => $conversation->tags,
             ];
         }, $data);
 
@@ -129,7 +133,8 @@ class ConversationController extends Controller
                 $q->orderBy('created_at', 'desc')->limit(20);
             },
             'contact:id,name,phone',
-            'channel:id,name,type'
+            'channel:id,name,type',
+            'tags'
         ])
             ->findOrFail($id);
 
@@ -265,5 +270,10 @@ class ConversationController extends Controller
             'message' => 'Usuario removido correctamente',
             'users' => $conversation->users
         ]);
+    }
+
+    private function parseTagSlugs(string $tags): array
+    {
+        return array_values(array_filter(array_map('trim', explode(',', $tags))));
     }
 }

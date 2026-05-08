@@ -2,12 +2,18 @@ import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
 import { disconnectPusher } from "@/lib/pusher"
 
+export interface UserTenant {
+  id: number
+  name: string
+}
+
 export interface User {
   id: number
   name: string
   email: string
   email_verified_at?: string | null
   tenant_id?: number
+  tenant?: UserTenant | null
   role?: string
   created_at?: string
   updated_at?: string

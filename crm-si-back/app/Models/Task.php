@@ -1,0 +1,72 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\TaskPriority;
+use App\Enums\TaskStatus;
+use App\Enums\TaskType;
+use App\Models\Concerns\BelongsToTenant;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class Task extends Model
+{
+    use BelongsToTenant;
+
+    protected $fillable = [
+        'tenant_id',
+        'contact_id',
+        'conversation_id',
+        'opportunity_id',
+        'assigned_to',
+        'name',
+        'status',
+        'priority',
+        'type',
+        'deadline',
+        'description',
+        'reminders',
+        'recurrence',
+        'depends_on',
+        'checklist',
+        'attachments',
+        'synced_calendars',
+        'completed_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'status' => TaskStatus::class,
+            'priority' => TaskPriority::class,
+            'type' => TaskType::class,
+            'deadline' => 'datetime',
+            'reminders' => 'array',
+            'depends_on' => 'array',
+            'checklist' => 'array',
+            'attachments' => 'array',
+            'synced_calendars' => 'array',
+            'completed_at' => 'datetime',
+        ];
+    }
+
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class);
+    }
+
+    public function conversation(): BelongsTo
+    {
+        return $this->belongsTo(Conversation::class);
+    }
+
+    public function opportunity(): BelongsTo
+    {
+        return $this->belongsTo(Opportunity::class);
+    }
+
+    public function assignedUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+}

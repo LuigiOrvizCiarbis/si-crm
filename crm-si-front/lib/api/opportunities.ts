@@ -18,6 +18,15 @@ interface GetOpportunitiesOptions {
   status?: "open" | "won" | "lost" | "archived"
 }
 
+export interface OpportunitySummary {
+  total_opportunities: number
+  pipeline_value: number
+  weighted_value: number
+  avg_value: number
+  won_value: number
+  won_count: number
+}
+
 function requireToken() {
   const token = getAuthToken();
   if (!token) throw new Error("No authentication token found");
@@ -71,6 +80,25 @@ export async function createOpportunity(body: OpportunityPayload) {
   }
 
   return payload.data;
+}
+
+export async function getOpportunitySummary(): Promise<OpportunitySummary> {
+  const token = requireToken();
+
+  const response = await fetch("/api/opportunities/summary", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwApiError(response.status, payload, "Error al cargar resumen de pipeline");
+  }
+
+  return payload as OpportunitySummary;
 }
 
 export async function updateOpportunityStage(opportunityId: number, stageId: number | null) {

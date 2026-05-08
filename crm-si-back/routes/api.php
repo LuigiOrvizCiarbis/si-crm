@@ -5,12 +5,16 @@ use App\Http\Controllers\Api\ChannelController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ContactHistoryController;
 use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\PipelineStageController;
+use App\Http\Controllers\Api\TagController;
+use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WhatsAppTemplateController;
+use App\Http\Controllers\FacebookDataDeletionController;
 use App\Http\Controllers\WhatsAppController;
 use App\Models\Invitation;
 use App\Models\Scopes\TenantScope;
@@ -42,7 +46,7 @@ Route::post('login', function (Request $request): JsonResponse {
 
     return response()->json([
         'token' => $token,
-        'user' => $user,
+        'user' => $user->load('tenant:id,name'),
         'email_verified' => $user->hasVerifiedEmail(),
     ]);
 });
@@ -93,7 +97,7 @@ Route::post('register', function (Request $request): JsonResponse {
     // El registro no debe fallar si el proveedor de email está caído.
     try {
         $user->sendEmailVerificationNotification();
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         Log::error('register-verification-email-failed', [
             'user_id' => $user->id,
             'email' => $user->email,
@@ -263,7 +267,7 @@ Route::post('reset-password', function (Request $request) {
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('user', function (Request $request): JsonResponse {
-        return response()->json($request->user());
+        return response()->json($request->user()->load('tenant:id,name'));
     });
 
     Route::post('logout', function (Request $request): JsonResponse {
@@ -272,19 +276,28 @@ Route::middleware('auth:sanctum')->group(function () {
         return response()->json(['message' => 'Sesión cerrada']);
     });
 
+    Route::get('dashboard/metrics', [DashboardController::class, 'metrics']);
+
+    Route::apiResource('tags', TagController::class);
+
     Route::get('users', [UserController::class, 'index']);
     Route::get('users/{user}', [ContactController::class, 'show']);
 
     Route::get('contacts', [ContactController::class, 'index']);
+    Route::get('contacts/summary', [ContactController::class, 'summary']);
     Route::post('contacts', [ContactController::class, 'store']);
     Route::post('contacts/import', [ContactController::class, 'import']);
     Route::get('contacts/{contact}', [ContactController::class, 'show']);
     Route::put('contacts/{contact}', [ContactController::class, 'update']);
     Route::delete('contacts/{contact}', [ContactController::class, 'destroy']);
     Route::get('contacts/{contact}/history', [ContactHistoryController::class, 'show']);
+    Route::post('contacts/{contact}/tags', [TagController::class, 'attachToContact']);
+    Route::delete('contacts/{contact}/tags/{tag}', [TagController::class, 'detachFromContact']);
 
     Route::get('conversations', [ConversationController::class, 'index']);
     Route::get('conversations/{conversation}', [ConversationController::class, 'show']);
+    Route::post('conversations/{conversation}/tags', [TagController::class, 'attachToConversation']);
+    Route::delete('conversations/{conversation}/tags/{tag}', [TagController::class, 'detachFromConversation']);
 
     Route::get('messages', [MessageController::class, 'index']);
     Route::post('messages', [MessageController::class, 'store']);
@@ -303,9 +316,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('pipeline-stages', PipelineStageController::class);
     Route::post('pipeline-stages/reorder', [PipelineStageController::class, 'reorder']);
+    Route::get('opportunities/summary', [OpportunityController::class, 'summary']);
     Route::apiResource('opportunities', OpportunityController::class);
     Route::patch('opportunities/{id}/stage', [OpportunityController::class, 'updateStage']);
     Route::patch('conversations/{id}/stage', [ConversationController::class, 'updateStage']);
+
+    Route::apiResource('tasks', TaskController::class);
 
     Route::post('conversations/{id}/users', [ConversationController::class, 'assignUsers']);
     Route::post('conversations/{id}/users/add', [ConversationController::class, 'addUser']);
@@ -326,4 +342,4 @@ Route::get('invitations/by-token/{token}', [InvitationController::class, 'showBy
 
 Route::match(['get', 'post'], 'whatsapp-webhook', [WhatsAppController::class, 'webhook']);
 
-Route::post('facebook/data-deletion', [\App\Http\Controllers\FacebookDataDeletionController::class, 'handle']);
+Route::post('facebook/data-deletion', [FacebookDataDeletionController::class, 'handle']);
