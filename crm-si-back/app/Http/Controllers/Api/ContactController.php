@@ -18,13 +18,20 @@ class ContactController extends Controller
 
         $q = Contact::query()
             ->where('tenant_id', $tenantId)
-            ->with(['conversations' => fn ($c) => $c->latest('last_message_at')->limit(1)]);
+            ->with([
+                'tags',
+                'conversations' => fn ($c) => $c->latest('last_message_at')->limit(1),
+            ]);
 
         if ($search !== '') {
             $q->where(function ($w) use ($search) {
                 $w->where('name', 'like', "%$search%")
                     ->orWhere('phone', 'like', "%$search%");
             });
+        }
+
+        if ($request->filled('tags')) {
+            $q->withTagSlugs($this->parseTagSlugs((string) $request->query('tags')));
         }
 
         $contacts = $q->orderByDesc('updated_at')->paginate(
@@ -85,6 +92,8 @@ class ContactController extends Controller
             'source' => $validated['source'] ?? 'manual',
         ]);
 
+        $contact->load('tags');
+
         return response()->json(['data' => $contact], 201);
     }
 
@@ -92,7 +101,10 @@ class ContactController extends Controller
     {
         $this->authorizeTenant($request, $contact->tenant_id);
 
-        $contact->load(['conversations' => fn ($c) => $c->latest('last_message_at')->limit(5)]);
+        $contact->load([
+            'tags',
+            'conversations' => fn ($c) => $c->latest('last_message_at')->limit(5),
+        ]);
 
         return response()->json(['data' => $contact]);
     }
@@ -103,6 +115,7 @@ class ContactController extends Controller
 
         $validated = $request->validate($this->contactRules(partial: true));
         $contact->update($validated);
+        $contact->load('tags');
 
         return response()->json(['data' => $contact]);
     }
@@ -144,5 +157,10 @@ class ContactController extends Controller
         if ($tenantId !== $request->user()->tenant_id) {
             abort(403);
         }
+    }
+
+    private function parseTagSlugs(string $tags): array
+    {
+        return array_values(array_filter(array_map('trim', explode(',', $tags))));
     }
 }

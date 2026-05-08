@@ -74,6 +74,11 @@ class Tenant extends Model
         return $this->hasMany(Conversation::class);
     }
 
+    public function tags(): HasMany
+    {
+        return $this->hasMany(Tag::class);
+    }
+
     /**
      * Relación con messages
      */

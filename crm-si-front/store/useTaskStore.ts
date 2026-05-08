@@ -1,0 +1,68 @@
+import { create } from "zustand"
+import type { Task } from "@/lib/types/task"
+import {
+  createTask as createTaskRequest,
+  deleteTask as deleteTaskRequest,
+  getTasks,
+  updateTask as updateTaskRequest,
+  type TaskPayload,
+} from "@/lib/api/tasks"
+
+interface TaskStore {
+  tasks: Task[]
+  isLoading: boolean
+  error: string | null
+  fetchTasks: () => Promise<void>
+  addTask: (task: TaskPayload) => Promise<Task>
+  updateTask: (id: string, updates: TaskPayload) => Promise<Task>
+  deleteTask: (id: string) => Promise<void>
+  getTasks: () => Task[]
+}
+
+export const useTaskStore = create<TaskStore>()((set, get) => ({
+  tasks: [],
+  isLoading: false,
+  error: null,
+
+  fetchTasks: async () => {
+    set({ isLoading: true, error: null })
+    try {
+      const tasks = await getTasks()
+      set({ tasks, isLoading: false })
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Error al cargar tareas", isLoading: false })
+    }
+  },
+
+  addTask: async (task: TaskPayload) => {
+    const created = await createTaskRequest(task)
+    set((state) => ({ tasks: [created, ...state.tasks] }))
+    return created
+  },
+
+  updateTask: async (id: string, updates: TaskPayload) => {
+    try {
+      const updated = await updateTaskRequest(id, updates)
+      set((state) => ({
+        tasks: state.tasks.map((task) => (task.id === id ? updated : task)),
+      }))
+      return updated
+    } catch (error) {
+      throw error
+    }
+  },
+
+  deleteTask: async (id: string) => {
+    const previousTasks = get().tasks
+    set((state) => ({ tasks: state.tasks.filter((task) => task.id !== id) }))
+
+    try {
+      await deleteTaskRequest(id)
+    } catch (error) {
+      set({ tasks: previousTasks })
+      throw error
+    }
+  },
+
+  getTasks: () => get().tasks,
+}))

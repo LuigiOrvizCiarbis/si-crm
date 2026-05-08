@@ -7,7 +7,7 @@ function mapConversation(c: any): Conversation {
     id: c.id,
     channelId: c.channel_id,
     contact: c.contact,
-    last_message: c.last_message_preview || "",
+    last_message: c.last_message_preview || c.last_message || "",
     timestamp: c.last_message_at || c.updated_at || c.created_at || "",
     unread: Boolean(c.unread_count && c.unread_count > 0),
     leadScore: c.lead_score ?? undefined,
@@ -20,6 +20,7 @@ function mapConversation(c: any): Conversation {
     created_at: c.created_at,
     unread_count: c.unread_count,
     messages: c.messages,
+    tags: c.tags,
   };
 }
 
@@ -29,10 +30,9 @@ function requireToken(): string {
   return token;
 }
 
-export async function getConversations(): Promise<Conversation[]> {
-  const token = requireToken();
-
-  const response = await fetch("/api/conversations", {
+async function fetchConversationsPage(params: URLSearchParams, token: string) {
+  const query = params.toString();
+  const response = await fetch(`/api/conversations${query ? `?${query}` : ""}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -47,47 +47,57 @@ export async function getConversations(): Promise<Conversation[]> {
   }
 
   const json = await response.json();
-  return (json.data || []).map(mapConversation);
+  return {
+    data: (json.data || []).map(mapConversation),
+    currentPage: Number(json.meta?.current_page ?? params.get("page") ?? 1),
+    lastPage: Number(json.meta?.last_page ?? 1),
+  };
 }
 
-export async function getChannelConversations(channelId: number, perPage = 50) {
+async function getAllConversations(params: URLSearchParams = new URLSearchParams()): Promise<Conversation[]> {
   const token = requireToken();
+  const perPage = params.get("per_page") || "100";
+  const firstPageParams = new URLSearchParams(params);
 
+  firstPageParams.set("page", firstPageParams.get("page") || "1");
+  firstPageParams.set("per_page", perPage);
+
+  const firstPage = await fetchConversationsPage(firstPageParams, token);
+  if (firstPage.lastPage <= firstPage.currentPage) return firstPage.data;
+
+  const remainingPages = Array.from(
+    { length: firstPage.lastPage - firstPage.currentPage },
+    (_, index) => firstPage.currentPage + index + 1
+  );
+
+  const remaining = await Promise.all(
+    remainingPages.map((page) => {
+      const pageParams = new URLSearchParams(params);
+      pageParams.set("page", String(page));
+      pageParams.set("per_page", perPage);
+      return fetchConversationsPage(pageParams, token);
+    })
+  );
+
+  return [firstPage, ...remaining].flatMap((page) => page.data);
+}
+
+export async function getConversations(): Promise<Conversation[]> {
+  return getAllConversations();
+}
+
+export async function getChannelConversations(channelId: number) {
   const params = new URLSearchParams();
   params.set("channel_id", String(channelId));
-  params.set("per_page", String(perPage));
 
-  const res = await fetch(`/api/conversations?${params.toString()}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-    },
-  });
-
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok) throwApiError(res.status, payload, "Error conversaciones");
-
-  return (payload.data || []).map(mapConversation);
+  return getAllConversations(params);
 }
 
-export async function getUserConversations(userId: number, perPage = 50) {
-  const token = requireToken();
-
+export async function getUserConversations(userId: number) {
   const params = new URLSearchParams();
   params.set("user_id", String(userId));
-  params.set("per_page", String(perPage));
 
-  const res = await fetch(`/api/conversations?${params.toString()}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-    },
-  });
-
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok) throwApiError(res.status, payload, "Error conversaciones");
-
-  return (payload.data || []).map(mapConversation);
+  return getAllConversations(params);
 }
 
 export async function getConversationWithMessages(conversationId: number): Promise<Conversation> {

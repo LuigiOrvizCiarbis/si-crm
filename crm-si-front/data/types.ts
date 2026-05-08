@@ -54,6 +54,7 @@ export interface Channel {
 export interface Conversation {
   id: number
   channelId: number
+  contact_id?: number
   contact: {id: string, name: string, phone?: string}
   last_message: string
   timestamp: string
@@ -69,7 +70,18 @@ export interface Conversation {
   created_at?: string,
   unread_count?: number,
   messages?: Message[]
+  tags?: Tag[]
 
+}
+
+export interface Tag {
+  id: number
+  name: string
+  slug: string
+  color: string
+  type: string | null
+  description: string | null
+  is_system: boolean
 }
 
 export type FilterType = 

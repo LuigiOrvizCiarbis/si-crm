@@ -6,7 +6,6 @@ import { ChatFilters } from "@/components/chat/ChatFilters"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { NotificationsBell } from "@/components/notifications-bell"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,7 +27,6 @@ import { getChannelConversations, getConversationMessages, getConversations, get
 
 import { sendMessage, editMessage, deleteMessage } from "@/lib/api/messages"
 import { ConversationHeader } from "@/components/chat/ConversationHeader"
-import { AISuggestions } from "@/components/chat/AISuggestions"
 import { MessageList } from "@/components/chat/MessageList"
 import { MessageInput } from "@/components/chat/MessageInput"
 import { ConversationList } from "@/components/chat/ConversationList"
@@ -37,6 +35,7 @@ import { ChannelsList } from "@/components/chat/ChannelsList"
 import { getChannels } from "@/lib/api/channels"
 import { ChannelHeader } from "@/components/chat/AccountHeader"
 import { useConversationFilters } from "@/hooks/useConversationFilters"
+import { TagFilterMenu } from "@/components/tags/TagFilterMenu"
 import { useSSEMessages } from "@/hooks/useSSEMessages"
 import { useTenantSSE } from "@/hooks/useTenantSSE"
 import { useTranslation } from "@/hooks/useTranslation"
@@ -125,7 +124,6 @@ function ChatsCompactHeader({
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Nueva conversación</span>
           </Button>
-          <NotificationsBell />
         </div>
       </div>
 
@@ -166,6 +164,7 @@ export default function ChatsPage() {
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null)
   const [isContactInfoOpen, setIsContactInfoOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState<FilterType>("todos")
+  const [tagFilterSlugs, setTagFilterSlugs] = useState<string[]>([])
   const [viewType, setViewType] = useState<ConversationView>("inbox")
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -176,8 +175,16 @@ export default function ChatsPage() {
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(chatIdNumber)
 
   const activeConversation = useMemo(() => conversations.find((c) => c.id === selectedConversationId), [conversations, selectedConversationId])
+
+  const handleConversationTagsChange = useCallback((tags: NonNullable<Conversation["tags"]>) => {
+    if (!selectedConversationId) return
+
+    setConversations((prev) => prev.map((conversation) => (
+      conversation.id === selectedConversationId ? { ...conversation, tags } : conversation
+    )))
+    setCurrentConversation((prev) => (prev ? { ...prev, tags } : prev))
+  }, [selectedConversationId])
   const activeChannel = useMemo(() => channels.find((channel) => channel.id === selectedChannelId), [channels, selectedChannelId])
-  const localizedAiSuggestions = [t("chats.aiSuggestion1"), t("chats.aiSuggestion2"), t("chats.aiSuggestion3")]
 
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
@@ -420,16 +427,25 @@ export default function ChatsPage() {
     selectedChannelId,
   })
 
+  const tagFilteredConversations = useMemo(() => {
+    if (tagFilterSlugs.length === 0) return filteredConversations
+
+    const selected = new Set(tagFilterSlugs)
+    return filteredConversations.filter((conversation) => (
+      conversation.tags?.some((tag) => selected.has(tag.slug))
+    ))
+  }, [filteredConversations, tagFilterSlugs])
+
   const conversationViewCounts = useMemo(() => ({
-    inbox: filteredConversations.filter((conversation) => !conversation.archived).length,
-    unread: filteredConversations.filter((conversation) => conversation.unread && !conversation.archived).length,
-    archived: filteredConversations.filter((conversation) => conversation.archived).length,
-  }), [filteredConversations])
+    inbox: tagFilteredConversations.filter((conversation) => !conversation.archived).length,
+    unread: tagFilteredConversations.filter((conversation) => conversation.unread && !conversation.archived).length,
+    archived: tagFilteredConversations.filter((conversation) => conversation.archived).length,
+  }), [tagFilteredConversations])
 
   const visibleConversations = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
 
-    return filteredConversations.filter((conversation) => {
+    return tagFilteredConversations.filter((conversation) => {
       const matchesView =
         viewType === "archived"
           ? conversation.archived
@@ -450,7 +466,7 @@ export default function ChatsPage() {
         channelName.includes(normalizedQuery)
       )
     })
-  }, [filteredConversations, searchQuery, viewType])
+  }, [tagFilteredConversations, searchQuery, viewType])
 
   // Parallel initial fetch: channels + conversations (independent — partial success OK)
   useEffect(() => {
@@ -605,15 +621,6 @@ export default function ChatsPage() {
     setSelectedConversationId(null)
     setSelectedChannelId(null)
     router.replace("/chats")
-  }
-
-  const handleSuggestionClick = (suggestion: string) => {
-    setMessage(suggestion)
-    addToast({
-      type: "info",
-      title: t("chats.aiSuggestionApplied"),
-      description: t("chats.aiSuggestionAppliedDesc"),
-    })
   }
 
   const handleConversationClick = (conversationId: number) => {
@@ -931,6 +938,15 @@ export default function ChatsPage() {
             availableChannelTypes={["whatsapp"]}
           />
 
+          <div className="border-b border-border bg-card/80 px-4 py-3">
+            <TagFilterMenu
+              selectedSlugs={tagFilterSlugs}
+              onChange={setTagFilterSlugs}
+              label="Tags"
+              align="start"
+            />
+          </div>
+
           <div className="flex-1 overflow-y-auto">
             <ChannelsList
               channels={connectedChannels.concat(disconnectedChannels)}
@@ -1022,12 +1038,9 @@ export default function ChatsPage() {
                 }}
                 onMarkRead={chatHandlers.handleMarkRead(selectedConversationId)}
                 onToggleArchive={chatHandlers.handleToggleArchive(selectedConversationId)}
+                tags={currentConversation?.tags || activeConversation?.tags || []}
+                onTagsChange={handleConversationTagsChange}
               />
-              <AISuggestions
-                suggestions={localizedAiSuggestions}
-                onSuggestionClick={handleSuggestionClick}
-              />
-
               <MessageList
                 messages={currentConversation?.messages || []}
                 onLoadMore={handleLoadMoreMessages}

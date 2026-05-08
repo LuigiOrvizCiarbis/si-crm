@@ -20,9 +20,13 @@ import { getAuthToken } from "@/lib/api/auth-token"
 import { getPipelineStages } from "@/lib/api/pipeline"
 import { createOpportunity, getOpportunities, updateOpportunityStage } from "@/lib/api/opportunities"
 import { updateContact, type ContactUpdate } from "@/lib/api/contacts"
+import type { Tag } from "@/lib/api/tags"
 import { useAutosave } from "@/lib/hooks/useAutosave"
 import { cn } from "@/lib/utils"
 import { EditableCell } from "@/components/editable-cell"
+import { TagFilterMenu } from "@/components/tags/TagFilterMenu"
+import { TagChips } from "@/components/tags/TagChips"
+import { TagPicker } from "@/components/tags/TagPicker"
 import { useToast } from "@/components/Toast"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useTranslation } from "@/hooks/useTranslation"
@@ -59,6 +63,7 @@ interface Contact {
     last_message_at: string
     last_message_content: string
   }>
+  tags?: Tag[]
 }
 
 const DEFAULT_FORM = { name: "", phone: "", email: "", source: "manual" }
@@ -94,7 +99,7 @@ const sourceLabels: Record<string, string> = {
   manual: "Manual",
 }
 
-type ColumnId = "select" | "contact" | "phone" | "email" | "source" | "lastContact" | "actions"
+type ColumnId = "select" | "contact" | "phone" | "email" | "source" | "tags" | "lastContact" | "actions"
 
 interface Column {
   id: ColumnId
@@ -110,6 +115,7 @@ const DEFAULT_COLUMNS: Column[] = [
   { id: "phone", labelKey: "contactsPage.table.phone", width: "180px", minWidth: "160px", draggable: true },
   { id: "email", labelKey: "contactsPage.table.email", width: "220px", minWidth: "180px", draggable: true },
   { id: "source", labelKey: "contactsPage.table.source", width: "140px", minWidth: "120px", draggable: true },
+  { id: "tags", labelKey: "Etiquetas", width: "210px", minWidth: "180px", draggable: true },
   { id: "lastContact", labelKey: "contactsPage.table.lastContact", width: "150px", minWidth: "130px", draggable: true },
   { id: "actions", labelKey: "contactsPage.table.actions", width: "150px", minWidth: "130px", draggable: true },
 ]
@@ -182,6 +188,7 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
   const { addToast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [sourceFilter, setSourceFilter] = useState<string>("all")
+  const [tagFilterSlugs, setTagFilterSlugs] = useState<string[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -269,7 +276,7 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => fetchContacts(), 300)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [searchTerm])
+  }, [searchTerm, tagFilterSlugs])
 
   useEffect(() => {
     return () => {
@@ -295,6 +302,7 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
     try {
       const queryParams = new URLSearchParams()
       if (searchTerm) queryParams.append("search", searchTerm)
+      if (tagFilterSlugs.length > 0) queryParams.append("tags", tagFilterSlugs.join(","))
       const token = getAuthToken()
       const response = await fetch(`/api/contacts?${queryParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -473,6 +481,11 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
     }
   }
 
+  const updateContactTags = (contactId: number, tags: Tag[]): void => {
+    setContacts((prev) => prev.map((contact) => (contact.id === contactId ? { ...contact, tags } : contact)))
+    setProfileContact((prev) => (prev?.id === contactId ? { ...prev, tags } : prev))
+  }
+
   const filteredContacts = contacts.filter((contact) => {
     const matchesSource = sourceFilter === "all" || contact.source === sourceFilter
     return matchesSource
@@ -585,6 +598,20 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
             )}
           />
         )
+      case "tags":
+        return (
+          <div className="flex items-center gap-2">
+            <TagChips tags={contact.tags} maxVisible={2} emptyLabel="Sin etiquetas" />
+            <TagPicker
+              target="contact"
+              targetId={contact.id}
+              value={contact.tags || []}
+              onChange={(tags) => updateContactTags(contact.id, tags)}
+              buttonLabel=""
+              compact
+            />
+          </div>
+        )
       case "lastContact":
         return <span className="text-sm text-muted-foreground tabular-nums">{getLastContact(contact)}</span>
       case "actions":
@@ -682,6 +709,10 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
               <Upload className="w-4 h-4 mr-2" />
               Importar CSV
             </Button>
+            <TagFilterMenu
+              selectedSlugs={tagFilterSlugs}
+              onChange={setTagFilterSlugs}
+            />
             <Button size="sm" onClick={() => setDialogOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               {t("contactsPage.actions.newContact")}
@@ -733,7 +764,7 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
                             <SortableHeader
                               key={column.id}
                               column={column}
-                              label={column.labelKey ? t(column.labelKey) : ""}
+                              label={column.id === "tags" ? "Etiquetas" : column.labelKey ? t(column.labelKey) : ""}
                             />
                           )
                         })}
@@ -896,6 +927,16 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
                     <p className="text-xs text-muted-foreground">ID</p>
                     <p className="text-sm">{profileContact.id}</p>
                   </div>
+                </div>
+                <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+                  <p className="text-xs text-muted-foreground">Etiquetas</p>
+                  <TagPicker
+                    target="contact"
+                    targetId={profileContact.id}
+                    value={profileContact.tags || []}
+                    onChange={(tags) => updateContactTags(profileContact.id, tags)}
+                    buttonLabel="Gestionar etiquetas"
+                  />
                 </div>
                 <div className="flex items-center gap-3">
                   <Calendar className="w-4 h-4 text-muted-foreground" />

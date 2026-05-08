@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\PipelineStageController;
+use App\Http\Controllers\Api\TagController;
+use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WhatsAppTemplateController;
 use App\Http\Controllers\FacebookDataDeletionController;
@@ -276,6 +278,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('dashboard/metrics', [DashboardController::class, 'metrics']);
 
+    Route::apiResource('tags', TagController::class);
+
     Route::get('users', [UserController::class, 'index']);
     Route::get('users/{user}', [ContactController::class, 'show']);
 
@@ -287,9 +291,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('contacts/{contact}', [ContactController::class, 'update']);
     Route::delete('contacts/{contact}', [ContactController::class, 'destroy']);
     Route::get('contacts/{contact}/history', [ContactHistoryController::class, 'show']);
+    Route::post('contacts/{contact}/tags', [TagController::class, 'attachToContact']);
+    Route::delete('contacts/{contact}/tags/{tag}', [TagController::class, 'detachFromContact']);
 
     Route::get('conversations', [ConversationController::class, 'index']);
     Route::get('conversations/{conversation}', [ConversationController::class, 'show']);
+    Route::post('conversations/{conversation}/tags', [TagController::class, 'attachToConversation']);
+    Route::delete('conversations/{conversation}/tags/{tag}', [TagController::class, 'detachFromConversation']);
 
     Route::get('messages', [MessageController::class, 'index']);
     Route::post('messages', [MessageController::class, 'store']);
@@ -312,6 +320,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('opportunities', OpportunityController::class);
     Route::patch('opportunities/{id}/stage', [OpportunityController::class, 'updateStage']);
     Route::patch('conversations/{id}/stage', [ConversationController::class, 'updateStage']);
+
+    Route::apiResource('tasks', TaskController::class);
 
     Route::post('conversations/{id}/users', [ConversationController::class, 'assignUsers']);
     Route::post('conversations/{id}/users/add', [ConversationController::class, 'addUser']);

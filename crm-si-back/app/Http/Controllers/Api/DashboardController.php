@@ -32,7 +32,7 @@ class DashboardController extends Controller
 
         $effectiveOwnerId = $isAdmin ? $ownerId : $user->id;
 
-        $stages = $this->stageBreakdown($rangeStart, $rangeEnd, $canalId, $effectiveOwnerId);
+        $stages = $this->stageBreakdown($canalId, $effectiveOwnerId);
         $kpis = $this->kpis($rangeStart, $rangeEnd, $canalId, $effectiveOwnerId);
         $previous = $this->kpis($previousStart, $previousEnd, $canalId, $effectiveOwnerId);
 
@@ -54,22 +54,32 @@ class DashboardController extends Controller
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function stageBreakdown(CarbonImmutable $from, CarbonImmutable $to, ?int $canalId, ?int $ownerId): array
+    private function stageBreakdown(?int $canalId, ?int $ownerId): array
     {
         $stages = PipelineStage::query()
             ->orderBy('sort_order')
             ->limit(self::KPI_STAGES_LIMIT)
             ->get();
 
-        return $stages->map(function (PipelineStage $stage) use ($from, $to, $canalId, $ownerId) {
+        return $stages->map(function (PipelineStage $stage) use ($canalId, $ownerId) {
             $opportunityQuery = Opportunity::query()
                 ->where('pipeline_stage_id', $stage->id);
 
             $this->applyOwner($opportunityQuery, $ownerId);
             $this->applyCanalToOpportunities($opportunityQuery, $canalId);
-            $this->applyOpportunityRange($opportunityQuery, $from, $to);
 
-            $count = (clone $opportunityQuery)->count();
+            $conversationQuery = Conversation::query()
+                ->where('pipeline_stage_id', $stage->id)
+                ->whereNotExists(function ($query): void {
+                    $query->selectRaw('1')
+                        ->from('opportunities')
+                        ->whereColumn('opportunities.conversation_id', 'conversations.id');
+                });
+
+            $this->applyConversationOwner($conversationQuery, $ownerId);
+            $this->applyConversationCanal($conversationQuery, $canalId);
+
+            $count = (clone $opportunityQuery)->count() + (clone $conversationQuery)->count();
             $value = (clone $opportunityQuery)->sum('value');
 
             return [

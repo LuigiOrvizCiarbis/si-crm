@@ -1,5 +1,6 @@
 import { getAuthToken } from "./auth-token";
 import { throwApiError } from "./api-error";
+import type { Tag } from "./tags";
 
 export interface ContactsSummary {
   total_contacts: number
@@ -25,6 +26,27 @@ export interface Contact {
   source: string
   created_at: string
   updated_at: string
+  tags?: Tag[]
+}
+
+export async function getContacts(): Promise<Contact[]> {
+  const token = getAuthToken();
+  if (!token) throw new Error("No authentication token found");
+
+  const response = await fetch("/api/contacts?per_page=100", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwApiError(response.status, payload, "Error al cargar contactos");
+  }
+
+  return (payload.data ?? payload) as Contact[];
 }
 
 export async function getContactsSummary(): Promise<ContactsSummary> {

@@ -25,6 +25,7 @@ interface SidebarProps {
 }
 
 export function CrmSidebar({ className, isCollapsed = false, onToggle }: SidebarProps) {
+  const showAutomationSection = false
   const pathname = usePathname()
   const router = useRouter()
   const [openSections, setOpenSections] = useState<string[]>([])
@@ -221,58 +222,59 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
           )
         })}
 
-        {/* Automatización & IA Section */}
-        <div>
-          <Button
-            variant="ghost"
-            onClick={() => toggleSection("automatizacion")}
-            className={cn(
-              isCollapsed ? "w-12 h-12 p-0 justify-center" : "w-full justify-start gap-3",
-              isAutomationActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            )}
-            title={isCollapsed ? t("nav.automation") : undefined}
-          >
-            <span className="text-base">🚀</span>
-            {!isCollapsed && (
-              <>
-                {t("nav.automation")}
-                {openSections.includes("automatizacion") ? (
-                  <ChevronDown className="w-4 h-4 ml-auto" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 ml-auto" />
-                )}
-              </>
-            )}
-          </Button>
+        {showAutomationSection && (
+          <div>
+            <Button
+              variant="ghost"
+              onClick={() => toggleSection("automatizacion")}
+              className={cn(
+                isCollapsed ? "w-12 h-12 p-0 justify-center" : "w-full justify-start gap-3",
+                isAutomationActive
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              )}
+              title={isCollapsed ? t("nav.automation") : undefined}
+            >
+              <span className="text-base">🚀</span>
+              {!isCollapsed && (
+                <>
+                  {t("nav.automation")}
+                  {openSections.includes("automatizacion") ? (
+                    <ChevronDown className="w-4 h-4 ml-auto" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 ml-auto" />
+                  )}
+                </>
+              )}
+            </Button>
 
-          {!isCollapsed && openSections.includes("automatizacion") && (
-            <div className="ml-4 mt-1 space-y-1">
-              {automationItems.map((item) => {
-                const isActive = pathname === item.href
+            {!isCollapsed && openSections.includes("automatizacion") && (
+              <div className="ml-4 mt-1 space-y-1">
+                {automationItems.map((item) => {
+                  const isActive = pathname === item.href
 
-                return (
-                  <Link key={item.href} href={item.href}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        "w-full justify-start gap-3",
-                        isActive
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                      )}
-                    >
-                      <span className="text-sm">{item.emoji}</span>
-                      {item.label}
-                    </Button>
-                  </Link>
-                )
-              })}
-            </div>
-          )}
-        </div>
+                  return (
+                    <Link key={item.href} href={item.href}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          "w-full justify-start gap-3",
+                          isActive
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                        )}
+                      >
+                        <span className="text-sm">{item.emoji}</span>
+                        {item.label}
+                      </Button>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Bottom items */}
         {bottomItems.map((item) => {

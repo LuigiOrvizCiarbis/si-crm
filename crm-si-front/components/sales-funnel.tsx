@@ -58,36 +58,32 @@ export function SalesFunnel({ stages, isLoading }: SalesFunnelProps) {
         )}
 
         {!isLoading && stages && stages.length > 0 && (
-          <div className="space-y-6">
+          <div className="space-y-5">
             {stages.map((stage, idx) => {
               const total = stages[0]?.count ?? 0
               const percentage = total > 0 ? Math.round((stage.count / total) * 100) : 0
               const color = STAGE_COLORS[idx % STAGE_COLORS.length]
               const leadsLabel = t("dashboard.funnel.leads").replace("{count}", String(stage.count))
               const widthPercent = Math.max(percentage, 2)
-              const showInsideLabel = widthPercent >= 12 && stage.count > 0
 
               return (
-                <div key={stage.id} className="space-y-3">
-                  <div className="flex justify-between text-sm font-medium">
-                    <span>{stage.name}</span>
-                    <span className="flex items-center gap-3">
-                      <span className="text-muted-foreground">{leadsLabel}</span>
-                      <span>{formatCurrency(stage.value)}</span>
-                      <span className="text-muted-foreground tabular-nums w-12 text-right">{percentage}%</span>
+                <div key={stage.id} className="space-y-2.5">
+                  <div className="grid gap-2 text-sm font-medium sm:grid-cols-[minmax(0,1fr)_7rem_7rem_4rem] sm:items-center">
+                    <span className="min-w-0 truncate text-foreground" title={stage.name}>
+                      {stage.name}
                     </span>
+                    <span className="text-muted-foreground tabular-nums sm:text-right">{leadsLabel}</span>
+                    <span className="tabular-nums sm:text-right">{formatCurrency(stage.value)}</span>
+                    <span className="text-muted-foreground tabular-nums sm:text-right">{percentage}%</span>
                   </div>
-                  <div className="w-full bg-muted rounded-full h-6 relative overflow-hidden">
+                  <div
+                    className="h-3 w-full overflow-hidden rounded-full bg-muted"
+                    aria-label={`${stage.name}: ${leadsLabel}, ${formatCurrency(stage.value)}, ${percentage}%`}
+                  >
                     <div
-                      className={`h-6 rounded-full ${color} transition-all duration-500 flex items-center justify-end pr-3`}
+                      className={`h-full rounded-full ${color} transition-all duration-500`}
                       style={{ width: `${widthPercent}%` }}
-                    >
-                      {showInsideLabel && (
-                        <span className="text-xs font-semibold text-white tabular-nums">
-                          {stage.count}
-                        </span>
-                      )}
-                    </div>
+                    />
                   </div>
                 </div>
               )
