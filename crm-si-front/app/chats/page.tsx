@@ -2,18 +2,21 @@
 
 import dynamic from "next/dynamic"
 import { SidebarLayout } from "@/components/SidebarLayout"
-import { ChatHeader } from "@/components/chat/ChatHeader"
 import { ChatFilters } from "@/components/chat/ChatFilters"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
-const WizardConnectChannel = dynamic(
-  () => import("@/components/WizardConnectChannel").then(m => m.WizardConnectChannel),
-  { loading: () => null }
-)
 const ContactInfoPanel = dynamic(
   () => import("@/components/ContactInfoPanel").then(m => m.ContactInfoPanel),
   { loading: () => null }
 )
-import { useFacebookSDK } from "@/hooks/useFacebookSDK"
 import { useChatState } from "@/hooks/useChatState"
 import { useToast } from "@/components/Toast"
 import { FilterType, Channel, Conversation, Message } from "@/data/types"
@@ -24,7 +27,6 @@ import { getChannelConversations, getConversationMessages, getConversations, get
 
 import { sendMessage, editMessage, deleteMessage } from "@/lib/api/messages"
 import { ConversationHeader } from "@/components/chat/ConversationHeader"
-import { AISuggestions } from "@/components/chat/AISuggestions"
 import { MessageList } from "@/components/chat/MessageList"
 import { MessageInput } from "@/components/chat/MessageInput"
 import { ConversationList } from "@/components/chat/ConversationList"
@@ -33,19 +35,121 @@ import { ChannelsList } from "@/components/chat/ChannelsList"
 import { getChannels } from "@/lib/api/channels"
 import { ChannelHeader } from "@/components/chat/AccountHeader"
 import { useConversationFilters } from "@/hooks/useConversationFilters"
+import { TagFilterMenu } from "@/components/tags/TagFilterMenu"
 import { useSSEMessages } from "@/hooks/useSSEMessages"
 import { useTenantSSE } from "@/hooks/useTenantSSE"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useAuthStore } from "@/store/useAuthStore"
+import { useFacebookSDK } from "@/hooks/useFacebookSDK"
+import {
+  FileText,
+  MoreHorizontal,
+  Plus,
+  Search,
+  Sparkles,
+  Zap,
+} from "lucide-react"
+
+type ConversationView = "inbox" | "unread" | "archived"
+
+interface ChatsCompactHeaderProps {
+  searchQuery: string
+  onSearchChange: (query: string) => void
+  onNewConversation: () => void
+  onConnectChannel: () => void
+  onTemplates: () => void
+}
+
+function ChatsCompactHeader({
+  searchQuery,
+  onSearchChange,
+  onNewConversation,
+  onConnectChannel,
+  onTemplates,
+}: ChatsCompactHeaderProps) {
+  return (
+    <div className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/90">
+      <div className="flex h-[75px] items-center gap-3 px-4 md:px-6">
+        <div className="flex shrink-0 items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight text-foreground">Chats</h1>
+            <p className="hidden text-xs text-muted-foreground sm:block">Bandeja omnicanal</p>
+          </div>
+        </div>
+
+        <div className="relative hidden max-w-md flex-1 md:block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            placeholder="Buscar conversaciones..."
+            className="h-9 border-border bg-muted/40 pl-9 shadow-none focus-visible:ring-primary/30"
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+        </div>
+
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="hidden items-center gap-2 lg:flex">
+            <Button variant="outline" size="sm" onClick={onConnectChannel} className="gap-2 bg-transparent">
+              <Zap className="h-4 w-4" />
+              Conectar canal
+            </Button>
+            <Button variant="outline" size="sm" onClick={onTemplates} className="gap-2 bg-transparent">
+              <FileText className="h-4 w-4" />
+              Plantillas
+            </Button>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild className="lg:hidden">
+              <Button variant="ghost" size="icon" aria-label="Abrir acciones de chats">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onConnectChannel}>
+                <Zap className="mr-2 h-4 w-4" />
+                Conectar canal
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onTemplates}>
+                <FileText className="mr-2 h-4 w-4" />
+                Plantillas
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button size="sm" onClick={onNewConversation} className="gap-2">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Nueva conversación</span>
+          </Button>
+        </div>
+      </div>
+
+      <div className="border-t border-border px-4 pb-3 md:hidden">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            placeholder="Buscar conversaciones..."
+            className="h-9 border-border bg-muted/40 pl-9 shadow-none"
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function ChatsPage() {
   const { addToast, removeToast } = useToast()
   const { t } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { launchWhatsAppSignup } = useFacebookSDK()
   const { chatStates, ...chatHandlers } = useChatState()
   const { user } = useAuthStore()
+  const { launchWhatsAppSignup, isFacebookSDKLoaded } = useFacebookSDK()
   const currentUserId = user?.id
   const isAdmin = String(user?.role) === "1" || user?.role === "admin"
 
@@ -60,17 +164,27 @@ export default function ChatsPage() {
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null)
   const [isContactInfoOpen, setIsContactInfoOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState<FilterType>("todos")
+  const [tagFilterSlugs, setTagFilterSlugs] = useState<string[]>([])
+  const [viewType, setViewType] = useState<ConversationView>("inbox")
+  const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState("")
-  const [wizardOpen, setWizardOpen] = useState(false)
   const [channels, setChannels] = useState<Channel[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(chatIdNumber)
 
   const activeConversation = useMemo(() => conversations.find((c) => c.id === selectedConversationId), [conversations, selectedConversationId])
+
+  const handleConversationTagsChange = useCallback((tags: NonNullable<Conversation["tags"]>) => {
+    if (!selectedConversationId) return
+
+    setConversations((prev) => prev.map((conversation) => (
+      conversation.id === selectedConversationId ? { ...conversation, tags } : conversation
+    )))
+    setCurrentConversation((prev) => (prev ? { ...prev, tags } : prev))
+  }, [selectedConversationId])
   const activeChannel = useMemo(() => channels.find((channel) => channel.id === selectedChannelId), [channels, selectedChannelId])
-  const localizedAiSuggestions = [t("chats.aiSuggestion1"), t("chats.aiSuggestion2"), t("chats.aiSuggestion3")]
 
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
@@ -304,7 +418,6 @@ export default function ChatsPage() {
 
   const {
     filteredConversations,
-    filteredChannels,
     connectedChannels,
     disconnectedChannels,
   } = useConversationFilters({
@@ -313,6 +426,47 @@ export default function ChatsPage() {
     activeFilter,
     selectedChannelId,
   })
+
+  const tagFilteredConversations = useMemo(() => {
+    if (tagFilterSlugs.length === 0) return filteredConversations
+
+    const selected = new Set(tagFilterSlugs)
+    return filteredConversations.filter((conversation) => (
+      conversation.tags?.some((tag) => selected.has(tag.slug))
+    ))
+  }, [filteredConversations, tagFilterSlugs])
+
+  const conversationViewCounts = useMemo(() => ({
+    inbox: tagFilteredConversations.filter((conversation) => !conversation.archived).length,
+    unread: tagFilteredConversations.filter((conversation) => conversation.unread && !conversation.archived).length,
+    archived: tagFilteredConversations.filter((conversation) => conversation.archived).length,
+  }), [tagFilteredConversations])
+
+  const visibleConversations = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase()
+
+    return tagFilteredConversations.filter((conversation) => {
+      const matchesView =
+        viewType === "archived"
+          ? conversation.archived
+          : viewType === "unread"
+            ? conversation.unread && !conversation.archived
+            : !conversation.archived
+
+      if (!matchesView) return false
+      if (!normalizedQuery) return true
+
+      const contactName = conversation.contact?.name?.toLowerCase() ?? ""
+      const lastMessage = conversation.last_message?.toLowerCase() ?? ""
+      const channelName = conversation.channel?.name?.toLowerCase() ?? ""
+
+      return (
+        contactName.includes(normalizedQuery) ||
+        lastMessage.includes(normalizedQuery) ||
+        channelName.includes(normalizedQuery)
+      )
+    })
+  }, [tagFilteredConversations, searchQuery, viewType])
 
   // Parallel initial fetch: channels + conversations (independent — partial success OK)
   useEffect(() => {
@@ -434,47 +588,39 @@ export default function ChatsPage() {
   }, [selectedConversationId]);
 
 
-  // Handlers de eventos
   const handleConnectChannel = () => {
-    if (activeFilter === "whatsapp") {
-      launchWhatsAppSignup()
-    } else {
-      setWizardOpen(true)
+    if (!isFacebookSDKLoaded) {
+      addToast({
+        type: "loading",
+        title: "Preparando Facebook",
+        description: "El onboarding se está cargando. Intentá nuevamente en unos segundos.",
+      })
+      return
     }
+
+    launchWhatsAppSignup()
   }
 
-  const handleImportTemplates = () => {
-    addToast({
-      type: "success",
-      title: t("chats.templatesImported"),
-      description: t("chats.templatesImportedDesc"),
-    })
+  const handleOpenTemplates = () => {
+    router.push("/plantillas-wa")
   }
 
-  const handleNewChat = () => {
+  const handleNewConversation = () => {
     addToast({
-      type: "success",
-      title: t("chats.newChatStarted"),
-      description: t("chats.newChatStartedDesc"),
+      type: "info",
+      title: "Nueva conversación",
+      description: "Selecciona un canal conectado para iniciar o continuar un chat.",
     })
   }
 
   const handleFilterChange = (filter: FilterType) => {
     tenantRefreshVersionRef.current++
     setActiveFilter(filter)
+    setViewType("inbox")
     setSelectedChannel(null)
     setSelectedConversationId(null)
     setSelectedChannelId(null)
     router.replace("/chats")
-  }
-
-  const handleSuggestionClick = (suggestion: string) => {
-    setMessage(suggestion)
-    addToast({
-      type: "info",
-      title: t("chats.aiSuggestionApplied"),
-      description: t("chats.aiSuggestionAppliedDesc"),
-    })
   }
 
   const handleConversationClick = (conversationId: number) => {
@@ -489,6 +635,7 @@ export default function ChatsPage() {
 
   const handleBackToChannels = useCallback(() => {
     tenantRefreshVersionRef.current++
+    setSelectedChannel(null)
     setSelectedChannelId(null)
     setSelectedConversationId(null)
     router.replace("/chats")
@@ -496,6 +643,7 @@ export default function ChatsPage() {
 
   const handleChannelSelect = useCallback((channelId: number) => {
     tenantRefreshVersionRef.current++
+    setSelectedChannel(channelId)
     setSelectedChannelId(channelId)
 
     setSelectedConversationId(null)
@@ -730,20 +878,74 @@ export default function ChatsPage() {
 
   return (
     <SidebarLayout>
-      {/* Header */}
-      <ChatHeader
-        activeFilter={activeFilter}
+      <ChatsCompactHeader
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onNewConversation={handleNewConversation}
         onConnectChannel={handleConnectChannel}
-        onImportTemplates={handleImportTemplates}
-        onNewChat={handleNewChat}
+        onTemplates={handleOpenTemplates}
       />
 
-      <div className="flex flex-1 overflow-hidden min-h-0">
-        <div className="w-80 border-r border-border bg-card flex flex-col">
+      <div className="flex h-[calc(100vh-75px)] flex-1 overflow-hidden bg-background">
+        <div className="hidden w-[360px] flex-col border-r border-border bg-card md:flex lg:w-[380px]">
+          <div className="grid h-[70px] grid-cols-[0.86fr_1.12fr_1.34fr] border-b border-border bg-card/95">
+            {([
+              { key: "inbox", label: "Inbox", count: conversationViewCounts.inbox },
+              { key: "unread", label: "No leídos", count: conversationViewCounts.unread },
+              { key: "archived", label: "Archivados", count: conversationViewCounts.archived },
+            ] as const).map((item) => {
+              const isActive = viewType === item.key
+              const hasUnreadCount = item.key === "unread" && item.count > 0
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setViewType(item.key)}
+                  className={`relative flex min-w-0 items-center justify-center gap-2 px-2 pb-1 pt-0 text-[15px] font-medium tracking-[-0.01em] transition-colors ${
+                    isActive
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span className={`whitespace-nowrap ${isActive ? "text-primary" : ""}`}>
+                    {item.label}
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={`h-8 w-8 shrink-0 justify-center rounded-full p-0 text-sm font-medium shadow-inner transition-colors ${
+                      isActive
+                        ? "border-primary/35 bg-primary/10 text-primary"
+                        : hasUnreadCount
+                          ? "border-blue-500/25 bg-blue-500/15 text-blue-300"
+                          : "border-border bg-background/80 text-muted-foreground"
+                    }`}
+                  >
+                    {item.count}
+                  </Badge>
+                  <span
+                    className={`absolute bottom-0 left-0 h-0.5 transition-all ${
+                      isActive ? "w-full bg-primary" : "w-0 bg-transparent"
+                    }`}
+                  />
+                </button>
+              )
+            })}
+          </div>
+
           <ChatFilters
             activeFilter={activeFilter}
             onFilterChange={handleFilterChange}
+            availableChannelTypes={["whatsapp"]}
           />
+
+          <div className="border-b border-border bg-card/80 px-4 py-3">
+            <TagFilterMenu
+              selectedSlugs={tagFilterSlugs}
+              onChange={setTagFilterSlugs}
+              label="Tags"
+              align="start"
+            />
+          </div>
 
           <div className="flex-1 overflow-y-auto">
             <ChannelsList
@@ -753,8 +955,14 @@ export default function ChatsPage() {
               isLoading={isLoading}
               error={null}
               onChannelSelect={handleChannelSelect}
-              onConnectChannel={handleConnectChannel}
             />
+          </div>
+
+          <div className="border-t border-border p-4">
+            <Button variant="outline" className="w-full justify-center gap-2 bg-transparent" onClick={handleConnectChannel}>
+              <Zap className="h-4 w-4 text-primary" />
+              + Connect chat
+            </Button>
           </div>
         </div>
 
@@ -778,14 +986,16 @@ export default function ChatsPage() {
             <>
 
               <ConversationList
-                conversations={filteredConversations}
+                conversations={visibleConversations}
                 channels={channels}
                 isLoading={isLoading}
                 selectedConversationId={selectedConversationId}
                 onConversationClick={handleConversationClick}
                 emptyState={{
-                  title: t("chats.noConversations"),
-                  description: selectedChannelId
+                  title: searchQuery ? "Sin resultados" : t("chats.noConversations"),
+                  description: searchQuery
+                    ? "No hay conversaciones que coincidan con la búsqueda."
+                    : selectedChannelId
                     ? `${activeChannel?.name}`
                     : t("chats.noConversationsDesc"),
                 }}
@@ -828,12 +1038,9 @@ export default function ChatsPage() {
                 }}
                 onMarkRead={chatHandlers.handleMarkRead(selectedConversationId)}
                 onToggleArchive={chatHandlers.handleToggleArchive(selectedConversationId)}
+                tags={currentConversation?.tags || activeConversation?.tags || []}
+                onTagsChange={handleConversationTagsChange}
               />
-              <AISuggestions
-                suggestions={localizedAiSuggestions}
-                onSuggestionClick={handleSuggestionClick}
-              />
-
               <MessageList
                 messages={currentConversation?.messages || []}
                 onLoadMore={handleLoadMoreMessages}
@@ -871,9 +1078,6 @@ export default function ChatsPage() {
           />
         )}
       </div>
-
-      {/* Wizard de conexión */}
-      <WizardConnectChannel open={wizardOpen} onOpenChange={setWizardOpen} />
     </SidebarLayout>
   )
 }

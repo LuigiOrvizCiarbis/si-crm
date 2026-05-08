@@ -1,11 +1,10 @@
 'use client'
 
 import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PlatformIcon } from '@/components/chat/PlatformIcon'
 import { EmptyState } from '@/components/EmptyState'
-import { MessageSquare, Plus, Wifi, WifiOff } from 'lucide-react'
+import { MessageSquare, Wifi, WifiOff } from 'lucide-react'
 import { Channel, FilterType } from '@/data/types'
 import { ChannelType, channelTypeToFilterType, getChannelDisplayName, filterTypeToChannelType } from '@/data/enums'
 import {
@@ -24,7 +23,6 @@ interface ChannelsListProps {
   isLoading: boolean
   error: Error | null
   onChannelSelect: (channelId: number) => void
-  onConnectChannel: () => void
   onRetry?: () => void
 }
 
@@ -35,23 +33,9 @@ export function ChannelsList({
   isLoading,
   error,
   onChannelSelect,
-  onConnectChannel,
   onRetry,
 }: ChannelsListProps) {
   const { t } = useTranslation()
-
-  const connectLabels: Record<FilterType, string> = {
-    whatsapp: t("chats.connectWhatsApp"),
-    instagram: t("chats.connectInstagram"),
-    facebook: t("chats.connectFacebook"),
-    linkedin: t("chats.connectLinkedIn"),
-    telegram: t("chats.connectTelegram"),
-    web: t("chats.connectWebChat"),
-    mail: t("chats.connectMail"),
-    manual: t("chats.connectManual"),
-    todos: t("chats.connectChannel"),
-    "no-leidos": t("chats.connectChannel"),
-  }
 
   const { connected, disconnected } = useMemo(() => ({
     connected: channels.filter(isChannelConnected),
@@ -195,15 +179,6 @@ export function ChannelsList({
         </div>
       )}
 
-      {/* Botón conectar */}
-      <Button
-        variant="outline"
-        className="w-full gap-2 bg-transparent"
-        onClick={onConnectChannel}
-      >
-        <Plus className="w-4 h-4" />
-        {connectLabels[activeFilter]}
-      </Button>
     </div>
   )
 }

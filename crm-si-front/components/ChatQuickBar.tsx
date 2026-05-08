@@ -8,7 +8,10 @@ import { MailOpen, Archive, Settings, Loader2 } from "lucide-react"
 import { getPipelineStages, PipelineStage } from "@/lib/api/pipeline"
 import { getUsers } from "@/lib/api/users"
 import { updateConversationStage, assignConversationUser } from "@/lib/api/conversations"
+import type { Tag } from "@/lib/api/tags"
 import { useTranslation } from "@/hooks/useTranslation"
+import { TagChips } from "@/components/tags/TagChips"
+import { TagPicker } from "@/components/tags/TagPicker"
 import {
   Select,
   SelectContent,
@@ -43,6 +46,8 @@ interface ChatQuickBarProps {
   onChangeAssignee: (id: number) => void
   onMarkRead: () => void
   onToggleArchive: () => void
+  tags?: Tag[]
+  onTagsChange?: (tags: Tag[]) => void
 }
 
 // Eliminado TEAM fijo: ahora se cargan usuarios reales desde API. Se mantiene posibilidad de pasar prop "team" como override.
@@ -56,6 +61,8 @@ export function ChatQuickBar({
   onChangeAssignee,
   onMarkRead,
   onToggleArchive,
+  tags = [],
+  onTagsChange,
 }: ChatQuickBarProps) {
   const { addToast } = useToast()
   const { t } = useTranslation()
@@ -376,6 +383,19 @@ export function ChatQuickBar({
         </div>
 
         {/* Action Buttons */}
+        <div className="flex min-w-0 max-w-[280px] items-center gap-2 rounded-xl border border-[#1e2533] bg-[#131722] px-3 py-1.5">
+          <TagChips tags={tags} maxVisible={2} />
+          <TagPicker
+            target="conversation"
+            targetId={chatId}
+            value={tags}
+            onChange={onTagsChange}
+            buttonLabel="Tags"
+            compact
+          />
+        </div>
+
+        {/* Action Buttons */}
         <div className="flex items-center gap-1 ml-auto">
           <Button
             variant="ghost"
@@ -501,6 +521,19 @@ export function ChatQuickBar({
                       </SelectContent>
                     </Select>
                   )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[#9AA4B2] mb-2">Etiquetas</label>
+                  <div className="rounded-xl border border-[#1e2533] bg-[#131722] p-3">
+                    <TagPicker
+                      target="conversation"
+                      targetId={chatId}
+                      value={tags}
+                      onChange={onTagsChange}
+                      buttonLabel="Gestionar etiquetas"
+                    />
+                  </div>
                 </div>
 
                 {/* Buttons */}
