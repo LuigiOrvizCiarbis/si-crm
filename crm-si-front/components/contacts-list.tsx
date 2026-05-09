@@ -570,6 +570,7 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
   }
 
   const filteredContacts = contacts
+  const isInitialLoading = loading && contacts.length === 0 && !error
 
   const getLastContact = (contact: Contact): string => {
     if (contact.conversations && contact.conversations.length > 0) {
@@ -865,7 +866,7 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
         </div>
       )}
 
-      {loading ? (
+      {isInitialLoading ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
@@ -906,29 +907,40 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredContacts.map((contact, idx) => (
-                      <TableRow
-                        key={contact.id}
-                        className={`${idx % 2 === 0 ? "bg-muted/30" : ""} hover:bg-muted/50 transition-colors`}
-                      >
-                        {columns.map((column) => (
-                          <TableCell
-                            key={column.id}
-                            className={`py-3 ${column.id === "select" ? "px-4" : ""} ${column.id === "actions" ? "text-right" : ""}`}
-                            style={{ width: column.width, minWidth: column.minWidth, maxWidth: column.width }}
-                          >
-                            {renderCell(contact, column.id)}
-                          </TableCell>
-                        ))}
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={columns.length} className="h-40">
+                          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            Cargando contactos
+                          </div>
+                        </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      filteredContacts.map((contact, idx) => (
+                        <TableRow
+                          key={contact.id}
+                          className={`${idx % 2 === 0 ? "bg-muted/30" : ""} hover:bg-muted/50 transition-colors`}
+                        >
+                          {columns.map((column) => (
+                            <TableCell
+                              key={column.id}
+                              className={`py-3 ${column.id === "select" ? "px-4" : ""} ${column.id === "actions" ? "text-right" : ""}`}
+                              style={{ width: column.width, minWidth: column.minWidth, maxWidth: column.width }}
+                            >
+                              {renderCell(contact, column.id)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </DndContext>
             </div>
           </div>
 
-          {filteredContacts.length === 0 && (
+          {!loading && filteredContacts.length === 0 && (
             <div className="text-center py-12">
               <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium text-foreground mb-2">No se encontraron contactos</h3>
