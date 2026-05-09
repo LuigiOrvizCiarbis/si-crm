@@ -30,11 +30,23 @@ class ContactController extends Controller
             });
         }
 
+        if ($request->filled('source')) {
+            $q->where('source', $request->query('source'));
+        }
+
         if ($request->filled('tags')) {
             $q->withTagSlugs($this->parseTagSlugs((string) $request->query('tags')));
         }
 
-        $contacts = $q->orderByDesc('updated_at')->paginate(
+        $sortBy = (string) $request->query('sort_by', 'updated_at');
+        $sortDir = strtolower((string) $request->query('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $sortableColumns = ['name', 'phone', 'email', 'source', 'created_at', 'updated_at'];
+
+        if (! in_array($sortBy, $sortableColumns, true)) {
+            $sortBy = 'updated_at';
+        }
+
+        $contacts = $q->orderBy($sortBy, $sortDir)->paginate(
             (int) $request->query('per_page', 20)
         );
 
@@ -44,6 +56,9 @@ class ContactController extends Controller
                 'total' => $contacts->total(),
                 'current_page' => $contacts->currentPage(),
                 'last_page' => $contacts->lastPage(),
+                'per_page' => $contacts->perPage(),
+                'from' => $contacts->firstItem(),
+                'to' => $contacts->lastItem(),
             ],
         ]);
     }

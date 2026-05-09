@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Search, Filter, Plus, Upload, MoreVertical, Phone, Mail, MessageSquare, Users, Loader2, Calendar, Hash, X, GripVertical } from "lucide-react"
+import { Search, Filter, Plus, Upload, MoreVertical, Phone, Mail, MessageSquare, Users, Loader2, Calendar, Hash, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { ImportContactsDialog } from "./import-contacts-dialog"
 import { getAuthToken } from "@/lib/api/auth-token"
 import { getPipelineStages } from "@/lib/api/pipeline"
@@ -100,6 +100,8 @@ const sourceLabels: Record<string, string> = {
 }
 
 type ColumnId = "select" | "contact" | "phone" | "email" | "source" | "tags" | "lastContact" | "actions"
+type SortField = "name" | "phone" | "email" | "source" | "updated_at"
+type SortDirection = "asc" | "desc"
 
 interface Column {
   id: ColumnId
@@ -121,6 +123,13 @@ const DEFAULT_COLUMNS: Column[] = [
 ]
 
 const COLUMN_ORDER_KEY = "contacts-column-order"
+const COLUMN_SORT_FIELDS: Partial<Record<ColumnId, SortField>> = {
+  contact: "name",
+  phone: "phone",
+  email: "email",
+  source: "source",
+  lastContact: "updated_at",
+}
 
 function loadColumnOrder(): Column[] {
   if (typeof window === "undefined") return DEFAULT_COLUMNS
@@ -138,7 +147,19 @@ function loadColumnOrder(): Column[] {
   }
 }
 
-function SortableHeader({ column, label }: { column: Column; label: string }) {
+function SortableHeader({
+  column,
+  label,
+  sortField,
+  sortDirection,
+  onSort,
+}: {
+  column: Column
+  label: string
+  sortField: SortField
+  sortDirection: SortDirection
+  onSort: (columnId: ColumnId) => void
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: column.id,
     disabled: !column.draggable,
@@ -160,6 +181,10 @@ function SortableHeader({ column, label }: { column: Column; label: string }) {
     )
   }
 
+  const columnSortField = COLUMN_SORT_FIELDS[column.id]
+  const isSorted = columnSortField === sortField
+  const SortIcon = isSorted ? (sortDirection === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown
+
   return (
     <TableHead
       ref={setNodeRef}
@@ -173,7 +198,25 @@ function SortableHeader({ column, label }: { column: Column; label: string }) {
     >
       <div className={cn("flex items-center gap-2", column.id === "actions" ? "justify-end" : "")}>
         <GripVertical className="w-3.5 h-3.5 text-muted-foreground/60" />
-        <span>{label}</span>
+        {columnSortField ? (
+          <button
+            type="button"
+            className={cn(
+              "inline-flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 text-left hover:bg-muted",
+              isSorted && "text-primary",
+            )}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation()
+              onSort(column.id)
+            }}
+          >
+            <span className="truncate">{label}</span>
+            <SortIcon className="h-3.5 w-3.5 shrink-0" />
+          </button>
+        ) : (
+          <span>{label}</span>
+        )}
       </div>
     </TableHead>
   )
@@ -190,6 +233,17 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
   const [sourceFilter, setSourceFilter] = useState<string>("all")
   const [tagFilterSlugs, setTagFilterSlugs] = useState<string[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+  const [sortField, setSortField] = useState<SortField>("updated_at")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
+  const [paginationMeta, setPaginationMeta] = useState({
+    total: 0,
+    current_page: 1,
+    last_page: 1,
+    from: 0,
+    to: 0,
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -242,6 +296,19 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
     })
   }
 
+  const handleSort = (columnId: ColumnId): void => {
+    const nextSortField = COLUMN_SORT_FIELDS[columnId]
+    if (!nextSortField) return
+
+    if (nextSortField === sortField) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"))
+      return
+    }
+
+    setSortField(nextSortField)
+    setSortDirection(nextSortField === "updated_at" ? "desc" : "asc")
+  }
+
   const { save: saveAutosave } = useAutosave<{ id: number; updates: ContactUpdate }>({
     onSave: async ({ id, updates }) => {
       await updateContact(id, updates)
@@ -273,10 +340,14 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
   }
 
   useEffect(() => {
+    setPage(1)
+  }, [searchTerm, sourceFilter, tagFilterSlugs, perPage, sortField, sortDirection])
+
+  useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => fetchContacts(), 300)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [searchTerm, tagFilterSlugs])
+  }, [searchTerm, sourceFilter, tagFilterSlugs, page, perPage, sortField, sortDirection])
 
   useEffect(() => {
     return () => {
@@ -302,7 +373,12 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
     try {
       const queryParams = new URLSearchParams()
       if (searchTerm) queryParams.append("search", searchTerm)
+      if (sourceFilter !== "all") queryParams.append("source", sourceFilter)
       if (tagFilterSlugs.length > 0) queryParams.append("tags", tagFilterSlugs.join(","))
+      queryParams.append("page", String(page))
+      queryParams.append("per_page", String(perPage))
+      queryParams.append("sort_by", sortField)
+      queryParams.append("sort_dir", sortDirection)
       const token = getAuthToken()
       const response = await fetch(`/api/contacts?${queryParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -310,6 +386,13 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
       if (!response.ok) throw new Error("Error al cargar contactos")
       const result = await response.json()
       setContacts(result.data || [])
+      setPaginationMeta({
+        total: result.meta?.total ?? 0,
+        current_page: result.meta?.current_page ?? page,
+        last_page: result.meta?.last_page ?? 1,
+        from: result.meta?.from ?? 0,
+        to: result.meta?.to ?? 0,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido")
     } finally {
@@ -486,10 +569,7 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
     setProfileContact((prev) => (prev?.id === contactId ? { ...prev, tags } : prev))
   }
 
-  const filteredContacts = contacts.filter((contact) => {
-    const matchesSource = sourceFilter === "all" || contact.source === sourceFilter
-    return matchesSource
-  })
+  const filteredContacts = contacts
 
   const getLastContact = (contact: Contact): string => {
     if (contact.conversations && contact.conversations.length > 0) {
@@ -721,6 +801,57 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
         </div>
       )}
 
+      <div className="flex flex-col gap-3 rounded-lg border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          {paginationMeta.total > 0 ? (
+            <>
+              Mostrando{" "}
+              <span className="font-medium text-foreground">{paginationMeta.from}</span>
+              {"-"}
+              <span className="font-medium text-foreground">{paginationMeta.to}</span>
+              {" de "}
+              <span className="font-medium text-foreground">{paginationMeta.total}</span>
+              {" contactos"}
+            </>
+          ) : (
+            "Sin contactos para mostrar"
+          )}
+        </p>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Por página</span>
+          <Select value={String(perPage)} onValueChange={(value) => setPerPage(Number(value))}>
+            <SelectTrigger className="h-8 w-24">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="20">20</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={loading || paginationMeta.current_page <= 1}
+            onClick={() => setPage((current) => Math.max(current - 1, 1))}
+          >
+            Anterior
+          </Button>
+          <span className="min-w-20 text-center text-sm text-muted-foreground">
+            {paginationMeta.current_page} / {paginationMeta.last_page}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={loading || paginationMeta.current_page >= paginationMeta.last_page}
+            onClick={() => setPage((current) => Math.min(current + 1, paginationMeta.last_page))}
+          >
+            Siguiente
+          </Button>
+        </div>
+      </div>
+
       {/* Bulk selection bar */}
       {selectedIds.size > 0 && (
         <div className="flex items-center justify-between px-4 py-3 bg-primary/10 border border-primary/20 rounded-lg">
@@ -765,6 +896,9 @@ export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
                               key={column.id}
                               column={column}
                               label={column.id === "tags" ? "Etiquetas" : column.labelKey ? t(column.labelKey) : ""}
+                              sortField={sortField}
+                              sortDirection={sortDirection}
+                              onSort={handleSort}
                             />
                           )
                         })}
