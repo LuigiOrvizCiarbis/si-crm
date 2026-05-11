@@ -61,23 +61,25 @@ export default function Dashboard() {
 
       <div className="px-4 md:px-6 lg:px-8 py-6 space-y-6">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
-          <TabsList className="h-11 p-1 gap-1 bg-muted/40">
-            <TabsTrigger value="general" className="text-sm font-medium px-6 py-2 h-9">
-              {t("dashboard.tabs.general")}
-            </TabsTrigger>
-            <TabsTrigger value="channels" className="text-sm font-medium px-6 py-2 h-9">
-              {t("dashboard.tabs.channels")}
-            </TabsTrigger>
-            <TabsTrigger value="salespeople" className="text-sm font-medium px-6 py-2 h-9">
-              {t("dashboard.tabs.salespeople")}
-            </TabsTrigger>
-            <TabsTrigger value="tasks" className="text-sm font-medium px-6 py-2 h-9">
-              {t("dashboard.tabs.tasks")}
-            </TabsTrigger>
-            <TabsTrigger value="finance" className="text-sm font-medium px-6 py-2 h-9">
-              {t("dashboard.tabs.finance")}
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-1">
+            <TabsList className="h-11 min-w-full w-max p-1 gap-1 bg-muted/40">
+              <TabsTrigger value="general" className="shrink-0 text-sm font-medium px-4 sm:px-6 py-2 h-9">
+                {t("dashboard.tabs.general")}
+              </TabsTrigger>
+              <TabsTrigger value="channels" className="shrink-0 text-sm font-medium px-4 sm:px-6 py-2 h-9">
+                {t("dashboard.tabs.channels")}
+              </TabsTrigger>
+              <TabsTrigger value="salespeople" className="shrink-0 text-sm font-medium px-4 sm:px-6 py-2 h-9">
+                {t("dashboard.tabs.salespeople")}
+              </TabsTrigger>
+              <TabsTrigger value="tasks" className="shrink-0 text-sm font-medium px-4 sm:px-6 py-2 h-9">
+                {t("dashboard.tabs.tasks")}
+              </TabsTrigger>
+              <TabsTrigger value="finance" className="shrink-0 text-sm font-medium px-4 sm:px-6 py-2 h-9">
+                {t("dashboard.tabs.finance")}
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="general" className="space-y-6 mt-6">
             {error ? (

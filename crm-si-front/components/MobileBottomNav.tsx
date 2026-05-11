@@ -2,12 +2,15 @@
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
+import { getConversationUnreadCount } from "@/lib/api/conversations"
+import { useAuthStore } from "@/store/useAuthStore"
+import { useTaskStore } from "@/store/useTaskStore"
 import { MessageSquare, Users, Target, CheckSquare, BarChart3, Menu, Settings, HelpCircle, Shield } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 interface MobileBottomNavProps {
   className?: string
@@ -16,10 +19,69 @@ interface MobileBottomNavProps {
 export function MobileBottomNav({ className }: MobileBottomNavProps) {
   const pathname = usePathname()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isMobileViewport, setIsMobileViewport] = useState(false)
+  const [unreadChats, setUnreadChats] = useState(0)
+  const hasRequestedTasks = useRef(false)
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const tasks = useTaskStore((state) => state.tasks)
+  const isTasksLoading = useTaskStore((state) => state.isLoading)
+  const fetchTasks = useTaskStore((state) => state.fetchTasks)
 
-  // Mock counters - in real app these would come from store/context
-  const unreadChats = 3
-  const pendingTasks = 5
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)")
+    const updateViewport = () => setIsMobileViewport(mediaQuery.matches)
+
+    updateViewport()
+    mediaQuery.addEventListener("change", updateViewport)
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateViewport)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isAuthenticated || !isMobileViewport) {
+      setUnreadChats(0)
+      return
+    }
+
+    let cancelled = false
+
+    getConversationUnreadCount()
+      .then((unreadCount) => {
+        if (cancelled) return
+
+        setUnreadChats(unreadCount)
+      })
+      .catch(() => {
+        if (!cancelled) setUnreadChats(0)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, isMobileViewport])
+
+  useEffect(() => {
+    if (!isAuthenticated || !isMobileViewport) {
+      hasRequestedTasks.current = false
+      return
+    }
+
+    if (isTasksLoading || tasks.length > 0 || hasRequestedTasks.current) return
+
+    hasRequestedTasks.current = true
+
+    fetchTasks().catch(() => {
+      // Task fetch errors are handled in the task store; the nav simply hides the badge.
+    })
+  }, [fetchTasks, isAuthenticated, isMobileViewport, isTasksLoading, tasks.length])
+
+  const pendingTasks = useMemo(() => {
+    return tasks.filter((task) => task.status !== "hecho" && task.status !== "cancelado").length
+  }, [tasks])
+
+  const formatBadgeCount = (count: number) => (count > 99 ? "99+" : String(count))
 
   const mainNavItems = [
     {
@@ -33,7 +95,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
       icon: MessageSquare,
       label: "Chats",
       isActive: pathname === "/chats",
-      badge: unreadChats > 0 ? unreadChats : undefined,
+      badge: unreadChats,
     },
     {
       href: "/contactos",
@@ -52,7 +114,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
       icon: CheckSquare,
       label: "Tareas",
       isActive: pathname === "/tareas",
-      badge: pendingTasks > 0 ? pendingTasks : undefined,
+      badge: pendingTasks,
     },
   ]
 
@@ -104,14 +166,14 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
             >
               <item.icon className="w-5 h-5" />
               <span className="text-xs font-medium">{item.label}</span>
-              {item.badge && (
+              {item.badge ? (
                 <Badge
                   variant="destructive"
-                  className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center"
+                  className="absolute -top-1 -right-1 h-5 min-w-5 px-1 text-xs flex items-center justify-center"
                 >
-                  {item.badge}
+                  {formatBadgeCount(item.badge)}
                 </Badge>
-              )}
+              ) : null}
             </Button>
           </Link>
         ))}
@@ -129,7 +191,9 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
           </SheetTrigger>
           <SheetContent side="bottom" className="h-auto">
             <div className="py-4">
-              <h3 className="text-lg font-semibold mb-4">Menú</h3>
+              <SheetHeader className="px-0 pt-0">
+                <SheetTitle>Menú</SheetTitle>
+              </SheetHeader>
               <div className="grid grid-cols-2 gap-2">
                 {menuItems.map((item) => (
                   <Link
