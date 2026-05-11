@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { NotificationsBell } from "@/components/notifications-bell"
 import { useTranslation } from "@/hooks/useTranslation"
 
 interface ContactsCompactHeaderProps {
@@ -90,8 +89,6 @@ export function ContactsCompactHeader({
             <Plus className="w-4 h-4 mr-1" />
             <span className="hidden sm:inline">{t("contactsPage.actions.newContact")}</span>
           </Button>
-
-          <NotificationsBell />
         </div>
       </div>
     </div>

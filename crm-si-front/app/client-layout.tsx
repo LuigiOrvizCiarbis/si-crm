@@ -4,12 +4,14 @@ import type React from "react"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Suspense } from "react"
+import { usePathname } from "next/navigation"
 import { ThemeProvider } from "@/components/theme-provider"
 import { CommandPalette } from "@/components/CommandPalette"
 import { MobileBottomNav } from "@/components/MobileBottomNav"
 import { useToast } from "@/components/Toast"
 import { AuthGuard } from "@/components/AuthGuard"
 import { AppShell } from "@/components/AppShell"
+import { isRouteMatch, routesWithoutAppShell } from "@/lib/routes"
 import "./globals.css"
 
 function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -28,6 +30,9 @@ export default function ClientLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const pathname = usePathname()
+  const shouldSkipShell = isRouteMatch(pathname, routesWithoutAppShell)
+
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
@@ -43,8 +48,12 @@ export default function ClientLayout({
               <AppShell>
                 <Suspense fallback={null}>{children}</Suspense>
               </AppShell>
-              <CommandPalette />
-              <MobileBottomNav />
+              {!shouldSkipShell ? (
+                <>
+                  <CommandPalette />
+                  <MobileBottomNav />
+                </>
+              ) : null}
             </AuthGuard>
           </ToastProvider>
         </ThemeProvider>

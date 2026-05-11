@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Enums\UserRole;
+use App\Enums\MessageDirection;
 use Illuminate\Http\Request;
 use App\Models\Channel;
 use App\Models\Conversation;
@@ -87,6 +88,21 @@ class ConversationController extends Controller
             $q->withTagSlugs($this->parseTagSlugs((string) $request->query('tags')));
         }
 
+        if ($request->query('summary') === 'unread_count') {
+            $unreadCount = (clone $q)
+                ->reorder()
+                ->join('messages', 'messages.conversation_id', '=', 'conversations.id')
+                ->where('messages.direction', MessageDirection::INBOUND->value)
+                ->whereNull('messages.read_at')
+                ->whereNull('messages.deleted_at')
+                ->count('messages.id');
+
+            return response()->json([
+                'data' => [
+                    'unread_count' => $unreadCount,
+                ],
+            ]);
+        }
 
         $q->orderByDesc('last_message_at');
 

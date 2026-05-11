@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { NotificationsBell } from "@/components/notifications-bell"
 import { useTranslation } from "@/hooks/useTranslation"
 
 interface PipelineCompactHeaderProps {
@@ -166,7 +165,6 @@ export function PipelineCompactHeader({
           <Plus className="h-4 w-4 mr-2" />
           {t("pipeline.newOpportunity")}
         </Button>
-        <NotificationsBell />
       </div>
     </header>
   )
