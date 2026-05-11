@@ -8,7 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { NotificationsBell } from "@/components/notifications-bell"
 import { useTranslation } from "@/hooks/useTranslation"
 import type { DashboardPeriodo } from "@/lib/api/dashboard"
 
@@ -39,7 +38,6 @@ export function DashboardCompactHeader({
             <LayoutDashboard className="w-5 h-5 text-primary" />
             <h1 className="text-xl font-semibold">{t("dashboard.title")}</h1>
           </div>
-          <NotificationsBell />
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

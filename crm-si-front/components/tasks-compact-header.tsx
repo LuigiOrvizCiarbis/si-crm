@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { NotificationsBell } from "@/components/notifications-bell"
 import { Search, Filter, List, LayoutGrid, GanttChart, CalendarIcon } from "lucide-react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
@@ -58,7 +57,7 @@ export function TasksCompactHeader({
           </ToggleGroup>
         </div>
 
-        {/* Right: Filters + CTA + Notifications */}
+        {/* Right: Filters + CTA */}
         <div className="flex items-center gap-2 ml-auto shrink-0">
           {/* Filters button */}
           <Button variant="outline" size="sm" onClick={onFilterClick} className="gap-2 bg-transparent" type="button">
@@ -73,9 +72,6 @@ export function TasksCompactHeader({
               N
             </kbd>
           </Button>
-
-          {/* Notifications bell */}
-          <NotificationsBell />
         </div>
       </div>
     </div>

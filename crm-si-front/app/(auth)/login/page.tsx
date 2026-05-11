@@ -70,7 +70,7 @@ export default function LoginPage() {
   }
 
   return (
-    <Card className="border-border/50 shadow-xl">
+    <Card className="w-full max-w-full overflow-hidden border-border/50 shadow-xl">
       <CardHeader className="text-center space-y-4">
         <div className="mx-auto w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
           <MessageSquare className="w-6 h-6 text-primary" />
@@ -137,7 +137,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="remember"

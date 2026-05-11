@@ -86,6 +86,25 @@ export async function getConversations(): Promise<Conversation[]> {
   return getAllConversations();
 }
 
+export async function getConversationUnreadCount(): Promise<number> {
+  const token = requireToken();
+  const response = await fetch("/api/conversations?summary=unread_count", {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwApiError(response.status, payload, "Error al cargar conversaciones no leídas");
+  }
+
+  return Number(payload.data?.unread_count ?? 0);
+}
+
 export async function getChannelConversations(channelId: number) {
   const params = new URLSearchParams();
   params.set("channel_id", String(channelId));
