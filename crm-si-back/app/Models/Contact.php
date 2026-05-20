@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\HasTags;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -72,6 +73,22 @@ class Contact extends Model
         return $query->whereNotNull('phone');
     }
 
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->can('contacts.view_any')) {
+            return $query;
+        }
+
+        if (! $user->can('contacts.view_assigned')) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function (Builder $q) use ($user) {
+            $q->whereHas('conversations', fn (Builder $sub) => $sub->where('assigned_to', $user->id))
+                ->orWhereHas('opportunities', fn (Builder $sub) => $sub->where('assigned_to', $user->id));
+        });
+    }
+
     public function activeConversation()
     {
         return $this->conversations()->where('status', 'open')->latest()->first();
@@ -79,12 +96,12 @@ class Contact extends Model
 
     public function hasEmail(): bool
     {
-        return !is_null($this->email);
+        return ! is_null($this->email);
     }
 
     public function hasPhone(): bool
     {
-        return !is_null($this->phone);
+        return ! is_null($this->phone);
     }
 
     public function getDisplayNameAttribute(): string

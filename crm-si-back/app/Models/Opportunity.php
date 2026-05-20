@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\HasTags;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -58,5 +59,18 @@ class Opportunity extends Model
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
+    }
+
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->can('opportunities.view_any')) {
+            return $query;
+        }
+
+        if (! $user->can('opportunities.view_assigned')) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where('assigned_to', $user->id);
     }
 }

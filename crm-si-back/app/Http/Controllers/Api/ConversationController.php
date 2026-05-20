@@ -2,60 +2,40 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Enums\UserRole;
 use App\Enums\MessageDirection;
-use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
 use App\Models\Channel;
 use App\Models\Conversation;
 use App\Models\Opportunity;
 use App\Models\PipelineStage;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class ConversationController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Conversation::class);
+
         $contactId = $request->query('contact_id');
         $channelId = $request->query('channel_id');
-        $filterByUserId = $request->query('user_id'); // Nuevo: filtrar por usuario asignado
+        $filterByUserId = $request->query('user_id');
 
-        $user = auth()->user();
-        $userId = $user->id;
-        // Admin (role=1 o role=null para compatibilidad) ve todo
-        $roleValue = $user->role instanceof UserRole ? $user->role->value : $user->role;
-        $isAdmin = $roleValue === null || $roleValue === UserRole::ADMIN->value;
+        $user = $request->user();
+        $canViewAny = $user->can('conversations.view_any');
 
         $q = Conversation::query()
-            ->with(['contact:id,name,phone', 'channel:id,name,type', 'messages:id', 'tags']);
+            ->with(['contact:id,name,phone', 'channel:id,name,type', 'messages:id', 'tags'])
+            ->visibleTo($user);
 
-        // Si admin pasa user_id, filtrar por ese usuario (para ver conversaciones de un vendedor)
-        if ($isAdmin && $filterByUserId) {
+        if ($canViewAny && $filterByUserId) {
             $q->where(function ($query) use ($filterByUserId) {
-                // Conversaciones asignadas a ese usuario
                 $query->whereHas('users', function ($q) use ($filterByUserId) {
                     $q->where('users.id', $filterByUserId);
                 })
-                // O conversaciones en canales de ese usuario
-                ->orWhereHas('channel', function ($q) use ($filterByUserId) {
-                    $q->where('user_id', $filterByUserId);
-                });
-            });
-        }
-        // Filtrar por visibilidad de conversaciones
-        // Admin ve todo, otros usuarios ven: asignadas a ellos o sin asignar
-        elseif (!$isAdmin) {
-            $q->where(function ($query) use ($userId) {
-                // Conversaciones sin asignar (assigned_to = null Y sin usuarios en pivot)
-                $query->where(function ($q) {
-                    $q->whereNull('assigned_to')
-                      ->whereDoesntHave('users');
-                })
-                // O conversaciones donde el usuario está asignado en la tabla pivot
-                ->orWhereHas('users', function ($q) use ($userId) {
-                    $q->where('users.id', $userId);
-                });
+                    ->orWhereHas('channel', function ($q) use ($filterByUserId) {
+                        $q->where('user_id', $filterByUserId);
+                    });
             });
         }
 
@@ -136,7 +116,7 @@ class ConversationController extends Controller
                 'total' => $conversations->total(),
                 'current_page' => $conversations->currentPage(),
                 'last_page' => $conversations->lastPage(),
-            ]
+            ],
         ]);
     }
 
@@ -150,9 +130,11 @@ class ConversationController extends Controller
             },
             'contact:id,name,phone',
             'channel:id,name,type',
-            'tags'
+            'tags',
         ])
             ->findOrFail($id);
+
+        $this->authorize('view', $conversation);
 
         $conversation->setRelation('messages', $conversation->messages->sortBy('created_at')->values());
 
@@ -163,12 +145,11 @@ class ConversationController extends Controller
         return response()->json(['data' => $data]);
     }
 
-
-
     // NUEVO MÉTODO: Obtener mensajes paginados (Infinite Scroll)
     public function fetchMessages(Request $request, $id)
     {
         $conversation = Conversation::findOrFail($id);
+        $this->authorize('view', $conversation);
 
         $perPage = (int) $request->query('per_page', 20);
 
@@ -183,11 +164,12 @@ class ConversationController extends Controller
 
     public function updateStage(Request $request, $id)
     {
+        $conversation = Conversation::where('id', $id)->firstOrFail();
+        $this->authorize('changeStage', $conversation);
+
         $request->validate([
             'pipeline_stage_id' => 'required|exists:pipeline_stages,id',
         ]);
-
-        $conversation = Conversation::where('id', $id)->firstOrFail();
 
         // Validar que la etapa destino pertenezca al mismo tenant (seguridad extra)
         $stage = PipelineStage::where('id', $request->pipeline_stage_id)->firstOrFail();
@@ -209,7 +191,7 @@ class ConversationController extends Controller
                 'conversation_id' => $conversation->id,
                 'contact_id' => $conversation->contact_id,
                 'pipeline_stage_id' => $stage->id,
-                'title' => 'Oportunidad - ' . ($conversation->contact?->name ?? 'Sin nombre'),
+                'title' => 'Oportunidad - '.($conversation->contact?->name ?? 'Sin nombre'),
                 'status' => 'open',
                 'source_type' => 'conversation',
                 'last_activity_at' => now(),
@@ -224,12 +206,13 @@ class ConversationController extends Controller
      */
     public function assignUsers(Request $request, $id)
     {
+        $conversation = Conversation::where('id', $id)->firstOrFail();
+        $this->authorize('assign', $conversation);
+
         $request->validate([
             'user_ids' => 'required|array',
             'user_ids.*' => 'exists:users,id',
         ]);
-
-        $conversation = Conversation::where('id', $id)->firstOrFail();
         $currentUserId = auth()->id();
 
         // Sincronizar usuarios con pivot data
@@ -242,7 +225,7 @@ class ConversationController extends Controller
 
         return response()->json([
             'message' => 'Usuarios asignados correctamente',
-            'users' => $conversation->users
+            'users' => $conversation->users,
         ]);
     }
 
@@ -251,11 +234,12 @@ class ConversationController extends Controller
      */
     public function addUser(Request $request, $id)
     {
+        $conversation = Conversation::where('id', $id)->firstOrFail();
+        $this->authorize('assign', $conversation);
+
         $request->validate([
             'user_id' => 'required|exists:users,id',
         ]);
-
-        $conversation = Conversation::where('id', $id)->firstOrFail();
         $currentUserId = auth()->id();
 
         // Actualizar el responsable principal
@@ -263,13 +247,13 @@ class ConversationController extends Controller
 
         // Attach sin eliminar existentes (para historial many-to-many)
         $conversation->users()->syncWithoutDetaching([
-            $request->user_id => ['assigned_by' => $currentUserId]
+            $request->user_id => ['assigned_by' => $currentUserId],
         ]);
 
         return response()->json([
             'message' => 'Usuario asignado correctamente',
             'assigned_to' => $conversation->assigned_to,
-            'users' => $conversation->users
+            'users' => $conversation->users,
         ]);
     }
 
@@ -279,12 +263,13 @@ class ConversationController extends Controller
     public function removeUser(Request $request, $id, $userId)
     {
         $conversation = Conversation::where('id', $id)->firstOrFail();
+        $this->authorize('assign', $conversation);
 
         $conversation->users()->detach($userId);
 
         return response()->json([
             'message' => 'Usuario removido correctamente',
-            'users' => $conversation->users
+            'users' => $conversation->users,
         ]);
     }
 

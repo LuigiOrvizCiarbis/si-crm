@@ -148,10 +148,10 @@ export default function ChatsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { chatStates, ...chatHandlers } = useChatState()
-  const { user } = useAuthStore()
+  const { user, permissions } = useAuthStore()
   const { launchWhatsAppSignup, isFacebookSDKLoaded } = useFacebookSDK()
   const currentUserId = user?.id
-  const isAdmin = String(user?.role) === "1" || user?.role === "admin"
+  const isAdmin = (permissions ?? []).includes("conversations.view_any")
 
   const chatIdFromUrl = searchParams.get("chat")
 

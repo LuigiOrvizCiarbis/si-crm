@@ -27,7 +27,7 @@ class ContactHistoryController extends Controller
             $channelName = $conversation->channel->name;
             $channelId = $conversation->channel->id;
 
-            if (!isset($historyByChannel[$channelId])) {
+            if (! isset($historyByChannel[$channelId])) {
                 $historyByChannel[$channelId] = [
                     'channel_id' => $channelId,
                     'channel_name' => $channelName,

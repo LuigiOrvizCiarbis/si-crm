@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\DashboardMetricsRequest;
 use App\Models\Contact;
@@ -22,7 +21,8 @@ class DashboardController extends Controller
     public function metrics(DashboardMetricsRequest $request): JsonResponse
     {
         $user = $request->user();
-        $isAdmin = $user->role === null || $user->role === UserRole::ADMIN;
+        abort_unless($user->can('analytics.view'), 403);
+        $canViewTeam = $user->can('analytics.view_team');
 
         [$rangeStart, $rangeEnd] = $this->resolveRange($request->periodo());
         [$previousStart, $previousEnd] = $this->resolvePreviousRange($rangeStart, $rangeEnd);
@@ -30,7 +30,7 @@ class DashboardController extends Controller
         $canalId = $request->canalId();
         $ownerId = $request->ownerId();
 
-        $effectiveOwnerId = $isAdmin ? $ownerId : $user->id;
+        $effectiveOwnerId = $canViewTeam ? $ownerId : $user->id;
 
         $stages = $this->stageBreakdown($canalId, $effectiveOwnerId);
         $kpis = $this->kpis($rangeStart, $rangeEnd, $canalId, $effectiveOwnerId);

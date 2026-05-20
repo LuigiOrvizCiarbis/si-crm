@@ -17,7 +17,10 @@ export async function GET(request: NextRequest) {
     })
 
     if (status === 200) {
-      return NextResponse.json({ authenticated: true, user: data })
+      const user = data?.user ?? data
+      const role = data?.role ?? null
+      const permissions = data?.permissions ?? []
+      return NextResponse.json({ authenticated: true, user, role, permissions })
     }
 
     return NextResponse.json(

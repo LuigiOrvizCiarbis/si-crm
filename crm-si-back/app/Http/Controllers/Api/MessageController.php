@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\SenderType;
-use App\Enums\UserRole;
 use App\Events\MessageDeleted;
 use App\Events\MessageEdited;
 use App\Http\Controllers\Controller;
@@ -23,6 +21,8 @@ class MessageController extends Controller
 
     public function index(Request $request, Conversation $conversation): JsonResponse
     {
+        $this->authorize('view', $conversation);
+
         $messages = Message::query()
             ->withTrashed()
             ->where('conversation_id', $conversation->id)
@@ -55,6 +55,8 @@ class MessageController extends Controller
             ->where('tenant_id', $request->user()->tenant_id)
             ->firstOrFail();
 
+        $this->authorize('sendMessage', $conversation);
+
         $type = $data['type'] ?? 'text';
         $tenantId = $request->user()->tenant_id;
 
@@ -66,7 +68,7 @@ class MessageController extends Controller
                 $message = $this->messageService->sendImageMessageFromCRM(
                     $conversation,
                     $path,
-                    '/storage/' . $path,
+                    '/storage/'.$path,
                     $file->getMimeType(),
                     $data['content'] ?? null,
                     $request->user()
@@ -78,7 +80,7 @@ class MessageController extends Controller
                 $message = $this->messageService->sendAudioMessageFromCRM(
                     $conversation,
                     $path,
-                    '/storage/' . $path,
+                    '/storage/'.$path,
                     $file->getMimeType() ?: 'audio/mpeg',
                     $request->user()
                 );
@@ -109,6 +111,8 @@ class MessageController extends Controller
 
     public function update(UpdateMessageRequest $request, Message $message): JsonResponse
     {
+        $this->authorize('update', $message);
+
         if ($message->original_content === null) {
             $message->original_content = $message->content;
         }
@@ -122,7 +126,7 @@ class MessageController extends Controller
         try {
             broadcast(new MessageEdited($message->fresh()));
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error broadcasting message edited: ' . $e->getMessage());
+            Log::error('Error broadcasting message edited: '.$e->getMessage());
         }
 
         return response()->json(['data' => $message->fresh()]);
@@ -130,18 +134,7 @@ class MessageController extends Controller
 
     public function destroy(Request $request, Message $message): JsonResponse
     {
-        $user = $request->user();
-
-        if ($message->tenant_id !== $user->tenant_id) {
-            abort(403, 'No autorizado');
-        }
-
-        $isOwner = $message->sender_type === SenderType::USER && $message->sender_id === $user->id;
-        $isAdmin = $user->role === UserRole::ADMIN;
-
-        if (! $isOwner && ! $isAdmin) {
-            abort(403, 'No autorizado');
-        }
+        $this->authorize('delete', $message);
 
         $conversationId = $message->conversation_id;
         $message->delete();
@@ -149,7 +142,7 @@ class MessageController extends Controller
         try {
             broadcast(new MessageDeleted($message, $conversationId));
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error broadcasting message deleted: ' . $e->getMessage());
+            Log::error('Error broadcasting message deleted: '.$e->getMessage());
         }
 
         return response()->json(['message' => 'Mensaje eliminado']);

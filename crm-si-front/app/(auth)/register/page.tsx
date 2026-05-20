@@ -84,7 +84,7 @@ export default function RegisterPage() {
       }
 
       // Email no verificado al registrar
-      setAuth(data.user, data.token, false, false)
+      setAuth(data.user, data.token, false, false, data.role ?? null, data.permissions ?? [])
       router.push("/verify-email?registered=true")
     } catch (err: any) {
       setError(err.message || t("auth.error"))

@@ -1,12 +1,13 @@
 <?php
 
+use App\Http\Middleware\SetSpatieTeamId;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
@@ -27,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/*',
             'webhooks/*',
         ]);
+        $middleware->appendToGroup('api', SetSpatieTeamId::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (Throwable $e, Request $request) {

@@ -50,6 +50,7 @@ class AssignDefaultPipelineStage extends Command
 
         if ($totalConversations === 0) {
             $this->info('✅ No hay conversaciones sin stage asignado');
+
             return Command::SUCCESS;
         }
 
@@ -67,22 +68,23 @@ class AssignDefaultPipelineStage extends Command
 
             // Buscar el stage por defecto para este tenant
             $defaultStage = PipelineStage::where('tenant_id', $tenantId)
-                ->where(function($query) {
+                ->where(function ($query) {
                     $query->where('is_default', true)
-                          ->orWhereNotNull('id');
+                        ->orWhereNotNull('id');
                 })
                 ->orderByDesc('is_default')
                 ->orderBy('sort_order', 'asc')
                 ->first();
 
-            if (!$defaultStage) {
+            if (! $defaultStage) {
                 $this->error("\n⚠️  No se encontró stage para tenant {$tenantId}");
                 $errorCount++;
                 $progressBar->advance();
+
                 continue;
             }
 
-            if (!$dryRun) {
+            if (! $dryRun) {
                 $conversation->update(['pipeline_stage_id' => $defaultStage->id]);
             }
 
@@ -94,9 +96,9 @@ class AssignDefaultPipelineStage extends Command
         $this->newLine(2);
 
         if ($dryRun) {
-            $this->info("📊 Resumen (DRY RUN):");
+            $this->info('📊 Resumen (DRY RUN):');
         } else {
-            $this->info("✅ Proceso completado:");
+            $this->info('✅ Proceso completado:');
         }
 
         $this->table(

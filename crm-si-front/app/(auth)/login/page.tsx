@@ -53,7 +53,7 @@ export default function LoginPage() {
       }
 
       const emailVerified = data.email_verified || !!data.user?.email_verified_at
-      setAuth(data.user, data.token, rememberMe, emailVerified)
+      setAuth(data.user, data.token, rememberMe, emailVerified, data.role ?? null, data.permissions ?? [])
 
       if (redirectTo && redirectTo.startsWith("/")) {
         router.push(redirectTo)

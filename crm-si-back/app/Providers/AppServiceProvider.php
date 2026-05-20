@@ -2,11 +2,33 @@
 
 namespace App\Providers;
 
+use App\Models\Channel;
+use App\Models\Contact;
+use App\Models\Conversation;
+use App\Models\Invitation;
 use App\Models\Message;
+use App\Models\Opportunity;
+use App\Models\PipelineStage;
+use App\Models\Tag;
+use App\Models\Task;
 use App\Models\User;
+use App\Models\WhatsAppTemplate;
 use App\Observers\MessageObserver;
+use App\Policies\ChannelPolicy;
+use App\Policies\ContactPolicy;
+use App\Policies\ConversationPolicy;
+use App\Policies\InvitationPolicy;
+use App\Policies\MessagePolicy;
+use App\Policies\OpportunityPolicy;
+use App\Policies\PipelineStagePolicy;
+use App\Policies\RolePolicy;
+use App\Policies\TagPolicy;
+use App\Policies\TaskPolicy;
+use App\Policies\UserPolicy;
+use App\Policies\WhatsAppTemplatePolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,6 +46,43 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Message::observe(MessageObserver::class);
+
+        Gate::policy(Channel::class, ChannelPolicy::class);
+        Gate::policy(Contact::class, ContactPolicy::class);
+        Gate::policy(Conversation::class, ConversationPolicy::class);
+        Gate::policy(Invitation::class, InvitationPolicy::class);
+        Gate::policy(Message::class, MessagePolicy::class);
+        Gate::policy(Opportunity::class, OpportunityPolicy::class);
+        Gate::policy(PipelineStage::class, PipelineStagePolicy::class);
+        Gate::policy(Role::class, RolePolicy::class);
+        Gate::policy(Tag::class, TagPolicy::class);
+        Gate::policy(Task::class, TaskPolicy::class);
+        Gate::policy(User::class, UserPolicy::class);
+        Gate::policy(WhatsAppTemplate::class, WhatsAppTemplatePolicy::class);
+
+        // Owner bypasses every gate within their tenant.
+        //
+        // We must keep the bypass scoped to the owner's tenant; otherwise an Owner
+        // could touch tenant-scoped resources (e.g. Spatie roles, which are not
+        // covered by the BelongsToTenant global scope) that belong to other tenants
+        // simply by guessing their primary key.
+        Gate::before(function (?User $user, string $ability, array $arguments = []) {
+            if ($user === null || ! $user->hasRole('Owner')) {
+                return null;
+            }
+
+            foreach ($arguments as $argument) {
+                if (is_object($argument) && property_exists($argument, 'tenant_id') === false && ! isset($argument->tenant_id)) {
+                    continue;
+                }
+
+                if (is_object($argument) && isset($argument->tenant_id) && (int) $argument->tenant_id !== (int) $user->tenant_id) {
+                    return null;
+                }
+            }
+
+            return true;
+        });
 
         Gate::define('viewPulse', function (?User $user) {
             if (app()->environment('local')) {

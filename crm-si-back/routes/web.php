@@ -10,6 +10,5 @@ Route::get('/', function () {
     ]);
 });
 
-
 // Webhooks públicos
 Route::match(['get', 'post'], 'whatsapp-webhook', [WhatsappController::class, 'webhook']);

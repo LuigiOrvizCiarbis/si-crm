@@ -7,6 +7,12 @@ export interface UserTenant {
   name: string
 }
 
+export interface UserRole {
+  id: number
+  name: string
+  is_system: boolean
+}
+
 export interface User {
   id: number
   name: string
@@ -14,7 +20,6 @@ export interface User {
   email_verified_at?: string | null
   tenant_id?: number
   tenant?: UserTenant | null
-  role?: string
   created_at?: string
   updated_at?: string
 }
@@ -22,16 +27,26 @@ export interface User {
 interface AuthState {
   user: User | null
   token: string | null
+  role: UserRole | null
+  permissions: string[]
   isAuthenticated: boolean
   emailVerified: boolean
   isLoading: boolean
   rememberMe: boolean
   _hasHydrated: boolean
-  
+
   // Actions
-  setAuth: (user: User, token: string, rememberMe?: boolean, emailVerified?: boolean) => void
+  setAuth: (
+    user: User,
+    token: string,
+    rememberMe?: boolean,
+    emailVerified?: boolean,
+    role?: UserRole | null,
+    permissions?: string[],
+  ) => void
   setEmailVerified: (verified: boolean) => void
   updateUser: (user: Partial<User>) => void
+  setRoleAndPermissions: (role: UserRole | null, permissions: string[]) => void
   logout: () => void
   setLoading: (loading: boolean) => void
   checkAuth: () => boolean
@@ -43,20 +58,28 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       token: null,
+      role: null,
+      permissions: [],
       isAuthenticated: false,
       emailVerified: false,
       isLoading: false,
       rememberMe: false,
       _hasHydrated: false,
 
-      setAuth: (user, token, rememberMe = false, emailVerified = false) => {
+      setAuth: (user, token, rememberMe = false, emailVerified = false, role = null, permissions = []) => {
         set({
           user,
           token,
+          role,
+          permissions,
           isAuthenticated: true,
           emailVerified: emailVerified || !!user.email_verified_at,
           rememberMe,
         })
+      },
+
+      setRoleAndPermissions: (role, permissions) => {
+        set({ role, permissions })
       },
 
       setEmailVerified: (verified) => {
@@ -78,6 +101,8 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: null,
           token: null,
+          role: null,
+          permissions: [],
           isAuthenticated: false,
           emailVerified: false,
           rememberMe: false,
@@ -104,6 +129,8 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.user,
         token: state.token,
+        role: state.role,
+        permissions: state.permissions,
         isAuthenticated: state.isAuthenticated,
         emailVerified: state.emailVerified,
         rememberMe: state.rememberMe,

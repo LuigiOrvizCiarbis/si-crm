@@ -3,23 +3,23 @@
 namespace App\Services;
 
 use App\Enums\ChannelType;
-use App\Models\Message;
-use App\Models\Contact;
-use App\Models\Channel;
-use App\Models\PipelineStage;
 use App\Enums\MessageDirection;
+use App\Enums\MessageType;
 use App\Enums\SenderType;
+use App\Events\MessageDeleted;
+use App\Events\MessageEdited;
+use App\Events\MessageSent;
+use App\Events\TenantMessageReceived;
+use App\Models\Channel;
+use App\Models\Contact;
 use App\Models\Conversation;
+use App\Models\Message;
+use App\Models\PipelineStage;
 use App\Models\User;
 use App\Models\WhatsAppConfig;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
-use App\Events\MessageDeleted;
-use App\Events\MessageEdited;
-use App\Events\MessageSent;
-use App\Events\TenantMessageReceived;
-use App\Enums\MessageType;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -31,19 +31,21 @@ class WhatsAppMessageService
     {
         try {
             $value = $webhookData['value'] ?? null;
-            if (!is_array($value)) {
+            if (! is_array($value)) {
                 Log::warning('Payload sin value válido');
+
                 return null;
             }
 
             $messages = $value['messages'] ?? [];
             if (empty($messages)) {
                 Log::info('Webhook sin messages, nada que procesar');
+
                 return null;
             }
 
             $channel = $this->resolveChannelFromWebhook($value, 'processIncomingMessage');
-            if (!$channel) {
+            if (! $channel) {
                 return null;
             }
 
@@ -54,14 +56,14 @@ class WhatsAppMessageService
             $messageId = $messageData['id'] ?? null;
 
             Log::info('WhatsApp incoming message', [
-                'type'        => $messageType,
-                'id'          => $messageId,
-                'keys'        => array_keys($messageData),
+                'type' => $messageType,
+                'id' => $messageId,
+                'keys' => array_keys($messageData),
                 'has_context' => isset($messageData['context']),
-                'context'     => $messageData['context'] ?? null,
-                'has_errors'  => isset($messageData['errors']),
-                'errors'      => $messageData['errors'] ?? null,
-                'tenant_id'   => $tenantId,
+                'context' => $messageData['context'] ?? null,
+                'has_errors' => isset($messageData['errors']),
+                'errors' => $messageData['errors'] ?? null,
+                'tenant_id' => $tenantId,
             ]);
 
             // Mensaje eliminado por el contacto desde su celular ("delete for everyone").
@@ -72,6 +74,7 @@ class WhatsAppMessageService
                     ?? $messageData['context']['id']
                     ?? $messageId;
                 $this->handleIncomingMessageDeleted($deletedId, $tenantId);
+
                 return null;
             }
 
@@ -84,12 +87,13 @@ class WhatsAppMessageService
                 return $this->handleIncomingMessageEdited($messageData, $originalEditedId, $tenantId);
             }
 
-            if (!$this->isSupportedMessageType($messageType)) {
+            if (! $this->isSupportedMessageType($messageType)) {
                 Log::warning('WhatsApp message type no soportado, payload ignorado', [
-                    'type'         => $messageType,
+                    'type' => $messageType,
                     'message_data' => $messageData,
-                    'tenant_id'    => $tenantId,
+                    'tenant_id' => $tenantId,
                 ]);
+
                 return null;
             }
 
@@ -132,9 +136,10 @@ class WhatsAppMessageService
                 'delivered_at' => $this->parseWebhookTimestamp($messageData['timestamp'] ?? null),
             ]);
         } catch (\Exception $e) {
-            Log::error('Error procesando mensaje de WhatsApp: ' . $e->getMessage(), [
-                'exception' => $e->getTraceAsString()
+            Log::error('Error procesando mensaje de WhatsApp: '.$e->getMessage(), [
+                'exception' => $e->getTraceAsString(),
             ]);
+
             return null;
         }
     }
@@ -149,11 +154,11 @@ class WhatsAppMessageService
         return Contact::firstOrCreate(
             [
                 'tenant_id' => $tenantId,
-                'phone' => $phoneNumber
+                'phone' => $phoneNumber,
             ],
             [
                 'name' => $name,
-                'source' => 'whatsapp'
+                'source' => 'whatsapp',
             ]
         );
     }
@@ -162,22 +167,22 @@ class WhatsAppMessageService
     {
         $conversation = Conversation::firstOrCreate(
             [
-                'tenant_id'   => $channel->tenant_id,
-                'contact_id'  => $contact->id,
-                'channel_id'  => $channel->id,
+                'tenant_id' => $channel->tenant_id,
+                'contact_id' => $contact->id,
+                'channel_id' => $channel->id,
             ],
             [
                 'status' => 'open',
-                'last_message_at' => now()
+                'last_message_at' => now(),
             ]
         );
 
         // Si es una conversación nueva sin stage, asignar el stage por defecto
-        if (!$conversation->pipeline_stage_id) {
+        if (! $conversation->pipeline_stage_id) {
             $defaultStage = PipelineStage::where('tenant_id', $channel->tenant_id)
-                ->where(function($query) {
+                ->where(function ($query) {
                     $query->where('is_default', true)
-                          ->orWhereNotNull('id');
+                        ->orWhereNotNull('id');
                 })
                 ->orderByDesc('is_default')
                 ->orderBy('sort_order', 'asc')
@@ -195,8 +200,9 @@ class WhatsAppMessageService
     {
         $phoneNumberId = $value['metadata']['phone_number_id'] ?? null;
 
-        if (!$phoneNumberId) {
+        if (! $phoneNumberId) {
             Log::warning("{$context}: phone_number_id ausente en metadata");
+
             return null;
         }
 
@@ -204,8 +210,9 @@ class WhatsAppMessageService
             ->where('phone_number_id', $phoneNumberId)
             ->first();
 
-        if (!$whatsappConfig || $whatsappConfig->channels->isEmpty()) {
+        if (! $whatsappConfig || $whatsappConfig->channels->isEmpty()) {
             Log::warning("{$context}: canal no encontrado para phone_number_id: {$phoneNumberId}");
+
             return null;
         }
 
@@ -234,17 +241,16 @@ class WhatsAppMessageService
 
         $uploadResponse = Http::withToken($businessToken)
             ->attach('file', Storage::disk('public')->get($localMediaPath), basename($localMediaPath), ['Content-Type' => $mimeType])
-            ->post("https://graph.facebook.com/".self::GRAPH_VERSION."/{$businessPhoneId}/media", [
+            ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$businessPhoneId}/media", [
                 'messaging_product' => 'whatsapp',
                 'type' => $mimeType,
             ]);
 
         if (! $uploadResponse->successful()) {
-            throw new \RuntimeException('Error subiendo imagen a WhatsApp: ' . $uploadResponse->body());
+            throw new \RuntimeException('Error subiendo imagen a WhatsApp: '.$uploadResponse->body());
         }
 
         $whatsappMediaId = $uploadResponse->json('id');
-
 
         $messagePayload = [
             'messaging_product' => 'whatsapp',
@@ -261,10 +267,10 @@ class WhatsAppMessageService
         }
 
         $sendResponse = Http::withToken($businessToken)
-            ->post("https://graph.facebook.com/".self::GRAPH_VERSION."/{$businessPhoneId}/messages", $messagePayload);
+            ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$businessPhoneId}/messages", $messagePayload);
 
         if (! $sendResponse->successful()) {
-            throw new \RuntimeException('Error enviando imagen por WhatsApp: ' . $sendResponse->body());
+            throw new \RuntimeException('Error enviando imagen por WhatsApp: '.$sendResponse->body());
         }
 
         $externalId = $sendResponse->json('messages.0.id');
@@ -288,14 +294,14 @@ class WhatsAppMessageService
 
         $conversation->update([
             'last_message_at' => $message->created_at,
-            'last_message_content' => '📷 ' . ($caption ?: 'Imagen'),
+            'last_message_content' => '📷 '.($caption ?: 'Imagen'),
         ]);
 
         try {
             broadcast(new MessageSent($message));
             broadcast(new TenantMessageReceived($message, $conversation->tenant_id));
         } catch (\Exception $e) {
-            Log::error("Error broadcasting outbound image message: " . $e->getMessage());
+            Log::error('Error broadcasting outbound image message: '.$e->getMessage());
         }
 
         return $message;
@@ -313,19 +319,19 @@ class WhatsAppMessageService
 
         $uploadResponse = Http::withToken($businessToken)
             ->attach('file', Storage::disk('public')->get($localMediaPath), basename($localMediaPath), ['Content-Type' => $mimeType])
-            ->post("https://graph.facebook.com/".self::GRAPH_VERSION."/{$businessPhoneId}/media", [
+            ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$businessPhoneId}/media", [
                 'messaging_product' => 'whatsapp',
                 'type' => $mimeType,
             ]);
 
         if (! $uploadResponse->successful()) {
-            throw new \RuntimeException('Error subiendo audio a WhatsApp: ' . $uploadResponse->body());
+            throw new \RuntimeException('Error subiendo audio a WhatsApp: '.$uploadResponse->body());
         }
 
         $whatsappMediaId = $uploadResponse->json('id');
 
         $sendResponse = Http::withToken($businessToken)
-            ->post("https://graph.facebook.com/".self::GRAPH_VERSION."/{$businessPhoneId}/messages", [
+            ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$businessPhoneId}/messages", [
                 'messaging_product' => 'whatsapp',
                 'recipient_type' => 'individual',
                 'to' => $to,
@@ -336,7 +342,7 @@ class WhatsAppMessageService
             ]);
 
         if (! $sendResponse->successful()) {
-            throw new \RuntimeException('Error enviando audio por WhatsApp: ' . $sendResponse->body());
+            throw new \RuntimeException('Error enviando audio por WhatsApp: '.$sendResponse->body());
         }
 
         $externalId = $sendResponse->json('messages.0.id');
@@ -365,7 +371,7 @@ class WhatsAppMessageService
             broadcast(new MessageSent($message));
             broadcast(new TenantMessageReceived($message, $conversation->tenant_id));
         } catch (\Exception $e) {
-            Log::error("Error broadcasting outbound audio message: " . $e->getMessage());
+            Log::error('Error broadcasting outbound audio message: '.$e->getMessage());
         }
 
         return $message;
@@ -403,7 +409,7 @@ class WhatsAppMessageService
         $type = $messageData['type'] ?? null;
 
         if ($type === 'revoke') {
-            return !empty($messageData['revoke']['original_message_id']);
+            return ! empty($messageData['revoke']['original_message_id']);
         }
 
         if ($type !== 'unsupported') {
@@ -411,7 +417,7 @@ class WhatsAppMessageService
         }
 
         $errors = $messageData['errors'] ?? [];
-        if (!is_array($errors)) {
+        if (! is_array($errors)) {
             return true;
         }
 
@@ -443,11 +449,11 @@ class WhatsAppMessageService
         $context = $messageData['context'] ?? [];
         $originalId = $context['id'] ?? null;
 
-        if (!empty($context['edited']) && $originalId) {
+        if (! empty($context['edited']) && $originalId) {
             return $originalId;
         }
 
-        if (!empty($messageData['edited']) && $originalId) {
+        if (! empty($messageData['edited']) && $originalId) {
             return $originalId;
         }
 
@@ -546,7 +552,6 @@ class WhatsAppMessageService
         $mediaUrl = $metaResponse->json('url');
         $mimeType = $metaResponse->json('mime_type', 'application/octet-stream');
 
-
         $fileResponse = Http::withToken($accessToken)->get($mediaUrl);
 
         if (! $fileResponse->successful()) {
@@ -555,15 +560,14 @@ class WhatsAppMessageService
             return ['url' => '', 'mime_type' => '', 'filename' => ''];
         }
 
-
         $extension = $this->mimeToExtension($mimeType);
-        $filename = uniqid('wa_') . '.' . $extension;
+        $filename = uniqid('wa_').'.'.$extension;
         $path = "messages/{$tenantId}/{$filename}";
 
         Storage::disk('public')->put($path, $fileResponse->body());
 
         return [
-            'url' => '/storage/' . $path,
+            'url' => '/storage/'.$path,
             'mime_type' => $mimeType,
             'filename' => $filename,
         ];
@@ -572,7 +576,7 @@ class WhatsAppMessageService
     private function normalizePhoneForWhatsApp(string $phone): string
     {
         if (strpos($phone, '549') === 0) {
-            return '54' . substr($phone, 3);
+            return '54'.substr($phone, 3);
         }
 
         return $phone;
@@ -642,11 +646,11 @@ class WhatsAppMessageService
         if (isset($messageData['conversation_id'])) {
             $type = $messageData['message_type'] ?? 'text';
             $lastContent = match ($type) {
-                'image' => '📷 ' . ($messageData['content'] ?: 'Imagen'),
+                'image' => '📷 '.($messageData['content'] ?: 'Imagen'),
                 'sticker' => '🏷️ Sticker',
-                'video' => '🎥 ' . ($messageData['content'] ?: 'Video'),
+                'video' => '🎥 '.($messageData['content'] ?: 'Video'),
                 'audio' => '🎵 Audio',
-                'document' => '📄 ' . ($messageData['content'] ?: 'Documento'),
+                'document' => '📄 '.($messageData['content'] ?: 'Documento'),
                 default => $messageData['content'] ?? '',
             };
 
@@ -661,7 +665,7 @@ class WhatsAppMessageService
             broadcast(new MessageSent($message));
             broadcast(new TenantMessageReceived($message, $messageData['tenant_id']));
         } catch (\Exception $e) {
-            Log::error("Error broadcasting message: " . $e->getMessage());
+            Log::error('Error broadcasting message: '.$e->getMessage());
         }
 
         return $message;
@@ -695,15 +699,16 @@ class WhatsAppMessageService
             }
 
             $contactData = $syncItem['contact'] ?? [];
-            $action      = strtolower(trim($syncItem['action'] ?? 'add'));
+            $action = strtolower(trim($syncItem['action'] ?? 'add'));
             $phoneNumber = $contactData['phone_number'] ?? null;
-            $bsuid       = $contactData['user_id'] ?? null;
-            $fullName    = $contactData['full_name'] ?? $contactData['first_name'] ?? 'Sin nombre';
+            $bsuid = $contactData['user_id'] ?? null;
+            $fullName = $contactData['full_name'] ?? $contactData['first_name'] ?? 'Sin nombre';
 
-            if (!$phoneNumber && !$bsuid) {
+            if (! $phoneNumber && ! $bsuid) {
                 Log::warning('smb_app_state_sync: contacto sin phone_number ni user_id, ignorado', [
                     'action' => $action,
                 ]);
+
                 continue;
             }
 
@@ -721,8 +726,9 @@ class WhatsAppMessageService
                         if ($existingByBsuid) {
                             $existingByBsuid->update([
                                 'phone' => $phoneNumber,
-                                'name'  => $fullName,
+                                'name' => $fullName,
                             ]);
+
                             continue;
                         }
                     }
@@ -741,6 +747,7 @@ class WhatsAppMessageService
 
                     if ($existingByBsuid) {
                         $existingByBsuid->update(['name' => $fullName]);
+
                         continue;
                     }
 
@@ -752,15 +759,15 @@ class WhatsAppMessageService
             } elseif (in_array($action, $removeActions, true)) {
                 // Preservamos el contacto y su historial; solo lo logueamos.
                 Log::info('smb_app_state_sync: contacto removido de WA Business App (no se elimina del CRM)', [
-                    'tenant_id'   => $tenantId,
-                    'phone'       => $phoneNumber,
+                    'tenant_id' => $tenantId,
+                    'phone' => $phoneNumber,
                     'external_id' => $bsuid,
-                    'name'        => $fullName,
+                    'name' => $fullName,
                 ]);
             } else {
                 Log::warning('smb_app_state_sync: action desconocida ignorada', [
-                    'action'      => $action,
-                    'phone'       => $phoneNumber,
+                    'action' => $action,
+                    'phone' => $phoneNumber,
                     'external_id' => $bsuid,
                 ]);
             }
@@ -775,7 +782,7 @@ class WhatsAppMessageService
     public function processSmbMessageEchoes(array $webhookData): void
     {
         $value = $webhookData['value'] ?? null;
-        if (!is_array($value)) {
+        if (! is_array($value)) {
             return;
         }
 
@@ -785,7 +792,7 @@ class WhatsAppMessageService
         }
 
         $channel = $this->resolveChannelFromWebhook($value, 'smb_message_echoes');
-        if (!$channel) {
+        if (! $channel) {
             return;
         }
 
@@ -793,7 +800,7 @@ class WhatsAppMessageService
 
         foreach ($echoes as $echo) {
             $customerPhone = $echo['to'] ?? null;
-            if (!$customerPhone) {
+            if (! $customerPhone) {
                 continue;
             }
 
@@ -803,12 +810,13 @@ class WhatsAppMessageService
             }
 
             $echoType = $echo['type'] ?? 'unknown';
-            if (!$this->isSupportedMessageType($echoType)) {
+            if (! $this->isSupportedMessageType($echoType)) {
                 Log::warning('smb_message_echoes: tipo no soportado, echo ignorado', [
-                    'type'      => $echoType,
-                    'echo'      => $echo,
+                    'type' => $echoType,
+                    'echo' => $echo,
                     'tenant_id' => $tenantId,
                 ]);
+
                 continue;
             }
 
@@ -852,7 +860,7 @@ class WhatsAppMessageService
             $this->resolveOutboundWhatsAppContext($conversation);
 
         $response = Http::withToken($businessToken)
-            ->post("https://graph.facebook.com/".self::GRAPH_VERSION."/{$businessPhoneId}/messages", [
+            ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$businessPhoneId}/messages", [
                 'messaging_product' => 'whatsapp',
                 'recipient_type' => 'individual',
                 'to' => $to,
@@ -863,7 +871,7 @@ class WhatsAppMessageService
             ]);
 
         if (! $response->successful()) {
-            throw new \RuntimeException('Error enviando mensaje a WhatsApp: ' . $response->body());
+            throw new \RuntimeException('Error enviando mensaje a WhatsApp: '.$response->body());
         }
 
         $externalId = $response->json('messages.0.id');
@@ -889,7 +897,7 @@ class WhatsAppMessageService
             broadcast(new MessageSent($message));
             broadcast(new TenantMessageReceived($message, $conversation->tenant_id));
         } catch (\Exception $e) {
-            Log::error("Error broadcasting outbound message: " . $e->getMessage());
+            Log::error('Error broadcasting outbound message: '.$e->getMessage());
         }
 
         return $message;
@@ -901,7 +909,7 @@ class WhatsAppMessageService
      */
     private function handleIncomingMessageDeleted(?string $externalId, int $tenantId): void
     {
-        if (!$externalId) {
+        if (! $externalId) {
             return;
         }
 
@@ -910,11 +918,12 @@ class WhatsAppMessageService
             ->where('external_id', $externalId)
             ->first();
 
-        if (!$message) {
+        if (! $message) {
             Log::info('handleIncomingMessageDeleted: mensaje no encontrado en CRM', [
                 'external_id' => $externalId,
-                'tenant_id'   => $tenantId,
+                'tenant_id' => $tenantId,
             ]);
+
             return;
         }
 
@@ -933,7 +942,7 @@ class WhatsAppMessageService
             broadcast(new MessageDeleted($message, $conversationId));
             broadcast(new TenantMessageReceived($message, $tenantId));
         } catch (\Exception $e) {
-            Log::error('Error broadcasting message deleted from webhook: ' . $e->getMessage());
+            Log::error('Error broadcasting message deleted from webhook: '.$e->getMessage());
         }
     }
 
@@ -947,11 +956,12 @@ class WhatsAppMessageService
             ->where('external_id', $originalExternalId)
             ->first();
 
-        if (!$existingMessage) {
+        if (! $existingMessage) {
             Log::info('handleIncomingMessageEdited: mensaje original no encontrado en CRM', [
                 'original_external_id' => $originalExternalId,
-                'tenant_id'            => $tenantId,
+                'tenant_id' => $tenantId,
             ]);
+
             return null;
         }
 
@@ -959,8 +969,8 @@ class WhatsAppMessageService
 
         $existingMessage->update([
             'original_content' => $existingMessage->original_content ?? $existingMessage->content,
-            'content'          => $extracted['content'],
-            'edited_at'        => now(),
+            'content' => $extracted['content'],
+            'edited_at' => now(),
         ]);
 
         $freshMessage = $existingMessage->fresh();
@@ -971,7 +981,7 @@ class WhatsAppMessageService
             broadcast(new MessageEdited($freshMessage));
             broadcast(new TenantMessageReceived($freshMessage, $tenantId));
         } catch (\Exception $e) {
-            Log::error('Error broadcasting message edited from webhook: ' . $e->getMessage());
+            Log::error('Error broadcasting message edited from webhook: '.$e->getMessage());
         }
 
         return $freshMessage;

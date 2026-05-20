@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Contact;
 use App\Models\Conversation;
@@ -24,20 +23,15 @@ class OpportunityController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Opportunity::class);
+
         $user = $request->user();
-        $isAdmin = $user->role === null || $user->role === UserRole::ADMIN;
 
         $query = Opportunity::query()
             ->with(self::EAGER_LOAD)
+            ->visibleTo($user)
             ->orderByDesc('last_activity_at')
             ->orderByDesc('updated_at');
-
-        if (! $isAdmin) {
-            $query->where(function ($builder) use ($user) {
-                $builder->whereNull('assigned_to')
-                    ->orWhere('assigned_to', $user->id);
-            });
-        }
 
         if ($request->filled('contact_id')) {
             $query->where('contact_id', $request->integer('contact_id'));
@@ -61,6 +55,7 @@ class OpportunityController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorize('create', Opportunity::class);
         $validated = $request->validate($this->rules($request));
         $contact = Contact::findOrFail($validated['contact_id']);
         $conversation = $this->resolveConversation($validated, $contact->id);
@@ -88,6 +83,7 @@ class OpportunityController extends Controller
     public function show($id): JsonResponse
     {
         $opportunity = Opportunity::with(self::EAGER_LOAD)->findOrFail($id);
+        $this->authorize('view', $opportunity);
 
         return response()->json(['data' => $opportunity]);
     }
@@ -95,6 +91,7 @@ class OpportunityController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         $opportunity = Opportunity::findOrFail($id);
+        $this->authorize('update', $opportunity);
         $validated = $request->validate($this->rules($request, $opportunity));
 
         $contactId = $validated['contact_id'] ?? $opportunity->contact_id;
@@ -132,6 +129,7 @@ class OpportunityController extends Controller
     public function destroy($id): JsonResponse
     {
         $opportunity = Opportunity::findOrFail($id);
+        $this->authorize('delete', $opportunity);
         $opportunity->delete();
 
         return response()->json(['message' => 'Oportunidad eliminada']);
@@ -139,14 +137,15 @@ class OpportunityController extends Controller
 
     public function updateStage(Request $request, $id): JsonResponse
     {
+        $opportunity = Opportunity::findOrFail($id);
+        $this->authorize('changeStage', $opportunity);
+
         $validated = $request->validate([
             'pipeline_stage_id' => [
                 'nullable',
                 Rule::exists('pipeline_stages', 'id')->where(fn ($query) => $query->where('tenant_id', $request->user()->tenant_id)),
             ],
         ]);
-
-        $opportunity = Opportunity::findOrFail($id);
 
         $stageId = $this->resolveStage($validated)?->id;
 
@@ -167,17 +166,10 @@ class OpportunityController extends Controller
 
     public function summary(Request $request): JsonResponse
     {
+        $this->authorize('viewSummary', Opportunity::class);
+
         $user = $request->user();
-        $isAdmin = $user->role === null || $user->role === UserRole::ADMIN;
-
-        $base = Opportunity::query();
-
-        if (! $isAdmin) {
-            $base->where(function ($builder) use ($user): void {
-                $builder->whereNull('assigned_to')
-                    ->orWhere('assigned_to', $user->id);
-            });
-        }
+        $base = Opportunity::query()->visibleTo($user);
 
         $total = (clone $base)->count();
         $pipelineValue = (float) (clone $base)->sum('value');
