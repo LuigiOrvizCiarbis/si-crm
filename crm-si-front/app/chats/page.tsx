@@ -168,6 +168,7 @@ export default function ChatsPage() {
   const [viewType, setViewType] = useState<ConversationView>("inbox")
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isChannelsLoading, setIsChannelsLoading] = useState(false)
   const [message, setMessage] = useState("")
   const [channels, setChannels] = useState<Channel[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -368,6 +369,8 @@ export default function ChatsPage() {
         if (selectedChannelIdRef.current !== channelId) return;
         setConversations(data);
       }).catch(() => {});
+      // Refresh channel list so conversations_count stays in sync after a new chat lands
+      getChannels().then(setChannels).catch(() => {});
       return prev;
     });
   }, [getRealtimeMessagePreview]);
@@ -475,6 +478,7 @@ export default function ChatsPage() {
     let cancelled = false;
     (async () => {
       setIsLoading(true)
+      setIsChannelsLoading(true)
       const [channelsResult, conversationsResult] = await Promise.allSettled([
         getChannels(),
         getConversations(),
@@ -494,6 +498,7 @@ export default function ChatsPage() {
       }
 
       setIsLoading(false)
+      setIsChannelsLoading(false)
     })()
     return () => { cancelled = true }
   }, [])
@@ -541,15 +546,21 @@ export default function ChatsPage() {
     }
   }, [chatIdFromUrl])
 
-  // Fetch channel conversations when a channel is selected
+  // Fetch conversations when channel selection changes (or clears to "all")
+  const isInitialMountRef = useRef(true);
   useEffect(() => {
-    if (!selectedChannelId) return;
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
 
     let cancelled = false;
     (async () => {
       try {
         setIsLoading(true);
-        const data = await getChannelConversations(selectedChannelId);
+        const data = selectedChannelId
+          ? await getChannelConversations(selectedChannelId)
+          : await getConversations();
         if (!cancelled) setConversations(data);
       } catch (e) {
         addToast({ type: "error", title: t("chats.loadConversationsError") });
@@ -954,7 +965,7 @@ export default function ChatsPage() {
               channels={connectedChannels.concat(disconnectedChannels)}
               selectedChannel={selectedChannel}
               activeFilter={activeFilter}
-              isLoading={isLoading}
+              isLoading={isChannelsLoading}
               error={null}
               onChannelSelect={handleChannelSelect}
             />
