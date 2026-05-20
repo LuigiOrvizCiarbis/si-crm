@@ -124,16 +124,19 @@ importers:
         version: 8.5.1(react@19.2.4)
       geist:
         specifier: latest
-        version: 1.7.0(next@16.2.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
+        version: 1.7.1(next@16.2.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
       i18next:
         specifier: ^25.8.11
         version: 25.10.10(typescript@5.9.3)
       immer:
         specifier: latest
-        version: 11.1.4
+        version: 11.1.8
       input-otp:
         specifier: 1.4.1
         version: 1.4.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      libphonenumber-js:
+        specifier: ^1.13.2
+        version: 1.13.2
       lucide-react:
         specifier: ^0.454.0
         version: 0.454.0(react@19.2.4)
@@ -187,7 +190,7 @@ importers:
         version: 3.25.67
       zustand:
         specifier: latest
-        version: 5.0.12(@types/react@18.3.28)(immer@11.1.4)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
+        version: 5.0.13(@types/react@18.3.28)(immer@11.1.8)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.1.16
@@ -1693,8 +1696,8 @@ packages:
   fraction.js@5.3.4:
     resolution: {integrity: sha512-1X1NTtiJphryn/uLQz3whtY6jK3fTqoE3ohKs0tT+Ujr1W59oopxmoEh7Lu5p6vBaPbgoM0bzveAW4Qi5RyWDQ==}
 
-  geist@1.7.0:
-    resolution: {integrity: sha512-ZaoiZwkSf0DwwB1ncdLKp+ggAldqxl5L1+SXaNIBGkPAqcu+xjVJLxlf3/S8vLt9UHx1xu5fz3lbzKCj5iOVdQ==}
+  geist@1.7.1:
+    resolution: {integrity: sha512-XF8DM30ODhDu0Ng5S2kOS8j4ZkG/6z2fKWAiFJA7wG0Hc92ZXgjYLrwbD9bVU4nGVzwboPtG+QtaPGsfgnXLaA==}
     peerDependencies:
       next: '>=13.2.0'
 
@@ -1716,8 +1719,8 @@ packages:
       typescript:
         optional: true
 
-  immer@11.1.4:
-    resolution: {integrity: sha512-XREFCPo6ksxVzP4E0ekD5aMdf8WMwmdNaz6vuvxgI40UaEiu6q3p8X52aU6GdyvLY3XXX/8R7JOTXStz/nBbRw==}
+  immer@11.1.8:
+    resolution: {integrity: sha512-/tbkHMW7y10Lx6i1crLjD4/OhNkRG+Fo7byZHtah0547nIeXYcpIXaUh0IAQY6gO5459qpGGYapcEOHtFXkIuA==}
 
   input-otp@1.4.1:
     resolution: {integrity: sha512-+yvpmKYKHi9jIGngxagY9oWiiblPB7+nEO75F2l2o4vs+6vpPZZmUl4tBNYuTCvQjhvEIbdNeJu70bhfYP2nbw==}
@@ -1735,6 +1738,9 @@ packages:
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
+
+  libphonenumber-js@1.13.2:
+    resolution: {integrity: sha512-S3kmBrptp3yRTm83NUcHy9g1vbwiWMzI8WvY22+koBJ6zkRteLnedBL2VX0MIAGwx2yiyxX4J85pceZyQ6ffgg==}
 
   lightningcss-android-arm64@1.32.0:
     resolution: {integrity: sha512-YK7/ClTt4kAK0vo6w3X+Pnm0D2cf2vPHbhOXdoNti1Ga0al1P4TBZhwjATvjNwLEBCnKvjJc2jQgHXH0NEwlAg==}
@@ -2129,8 +2135,8 @@ packages:
   zod@3.25.67:
     resolution: {integrity: sha512-idA2YXwpCdqUSKRCACDE6ItZD9TZzy3OZMtpfLoh6oPR47lipysRrJfjzMqFxQ3uJuUPyUeWe1r9vLH33xO/Qw==}
 
-  zustand@5.0.12:
-    resolution: {integrity: sha512-i77ae3aZq4dhMlRhJVCYgMLKuSiZAaUPAct2AksxQ+gOtimhGMdXljRT21P5BNpeT4kXlLIckvkPM029OljD7g==}
+  zustand@5.0.13:
+    resolution: {integrity: sha512-efI2tVaVQPqtOh114loML/Z80Y4NP3yc+Ff0fYiZJPauNeWZeIp/bRFD7I9bfmCOYBh/PHxlglQ9+wvlwnPikQ==}
     engines: {node: '>=12.20.0'}
     peerDependencies:
       '@types/react': '>=18.0.0'
@@ -3507,7 +3513,7 @@ snapshots:
 
   fraction.js@5.3.4: {}
 
-  geist@1.7.0(next@16.2.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)):
+  geist@1.7.1(next@16.2.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)):
     dependencies:
       next: 16.2.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
 
@@ -3525,7 +3531,7 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.3
 
-  immer@11.1.4: {}
+  immer@11.1.8: {}
 
   input-otp@1.4.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
@@ -3537,6 +3543,8 @@ snapshots:
   jiti@2.6.1: {}
 
   js-tokens@4.0.0: {}
+
+  libphonenumber-js@1.13.2: {}
 
   lightningcss-android-arm64@1.32.0:
     optional: true
@@ -3911,9 +3919,9 @@ snapshots:
 
   zod@3.25.67: {}
 
-  zustand@5.0.12(@types/react@18.3.28)(immer@11.1.4)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)):
+  zustand@5.0.13(@types/react@18.3.28)(immer@11.1.8)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)):
     optionalDependencies:
       '@types/react': 18.3.28
-      immer: 11.1.4
+      immer: 11.1.8
       react: 19.2.4
       use-sync-external-store: 1.6.0(react@19.2.4)
