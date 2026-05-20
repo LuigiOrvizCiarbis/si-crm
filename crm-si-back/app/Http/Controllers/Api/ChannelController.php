@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Channel;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class ChannelController extends Controller
@@ -16,6 +17,31 @@ class ChannelController extends Controller
 
         $channels = Channel::query()
             ->with('whatsappConfig', 'user', 'users')
+            ->withCount(['conversations as conversations_count' => function (Builder $query) use ($user): void {
+                $query->visibleTo($user)
+                    ->where(function (Builder $inner): void {
+                        $inner->whereColumn('conversations.channel_id', 'channels.id')
+                            ->orWhereIn('conversations.assigned_to', function ($sub): void {
+                                $sub->from('channel_user')
+                                    ->select('user_id')
+                                    ->whereColumn('channel_user.channel_id', 'channels.id');
+                            })
+                            ->orWhereIn('conversations.assigned_to', function ($sub): void {
+                                $sub->from('channels as owner_channels')
+                                    ->select('user_id')
+                                    ->whereColumn('owner_channels.id', 'channels.id');
+                            })
+                            ->orWhereExists(function ($sub): void {
+                                $sub->from('conversation_user')
+                                    ->whereColumn('conversation_user.conversation_id', 'conversations.id')
+                                    ->whereIn('conversation_user.user_id', function ($inner): void {
+                                        $inner->from('channel_user')
+                                            ->select('user_id')
+                                            ->whereColumn('channel_user.channel_id', 'channels.id');
+                                    });
+                            });
+                    });
+            }])
             ->visibleTo($user)
             ->orderBy('name')
             ->get();

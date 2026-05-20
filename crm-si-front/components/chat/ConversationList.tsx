@@ -10,6 +10,7 @@ import { Conversation, Channel } from "@/data/types"
 import { channelTypeToFilterType } from "@/data/enums"
 import { useTranslation } from "@/hooks/useTranslation"
 import { TagChips } from "@/components/tags/TagChips"
+import { formatPhoneNumber } from "@/lib/utils/channelHelpers"
 
 interface ConversationCardProps {
   conversation: Conversation
@@ -27,7 +28,7 @@ const ConversationCard = memo(function ConversationCard({
   const { t } = useTranslation()
 
   const contactName = conversation.contact?.name || t("chats.unnamedContact")
-  const contactPhone = conversation.contact?.phone
+  const contactPhone = formatPhoneNumber(conversation.contact?.phone)
   const leadScore = conversation.leadScore ?? null
 
   const formatLastMessageAt = (iso?: string | null) => {
@@ -106,7 +107,7 @@ const ConversationCard = memo(function ConversationCard({
             </span>
           </div>
           {contactPhone && (
-            <p className="text-xs text-muted-foreground/80 truncate">
+            <p className="text-xs text-muted-foreground/80 truncate tabular-nums tracking-tight">
               {contactPhone}
             </p>
           )}

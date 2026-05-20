@@ -89,7 +89,9 @@ export function ChannelsList({
             </p>
           </div>
 
-          {connected.map((channel) => (
+          {connected.map((channel) => {
+            const count = getChannelConversationsCount(channel)
+            return (
             <Card
               key={channel.id}
               className={`p-3 cursor-pointer hover:bg-accent transition-colors ${selectedChannel === channel.id ? 'bg-accent border-primary' : ''
@@ -103,13 +105,18 @@ export function ChannelsList({
                 />
 
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{channel.user.name}</p>
+                  <p className="font-medium text-sm truncate">
+                    {channel.user.name}
+                    {count > 0 && (
+                      <span className="ml-1 text-muted-foreground font-normal">({count})</span>
+                    )}
+                  </p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{getChannelDisplayName(channel.type)}</span>
                     {getChannelIdentifier(channel) && (
                       <>
                         <span>•</span>
-                         <span className="truncate">{getChannelIdentifier(channel)}</span>
+                         <span className="truncate tabular-nums tracking-tight">{getChannelIdentifier(channel)}</span>
                       </>
                     )}
                   </div>
@@ -121,16 +128,10 @@ export function ChannelsList({
                       {t("chats.readOnly")}
                     </Badge>
                   )}
-
-                  {getChannelConversationsCount(channel) > 0 && (
-                    <Badge className="text-xs bg-blue-500">
-                      {getChannelConversationsCount(channel)}
-                    </Badge>
-                  )}
                 </div>
               </div>
             </Card>
-          ))}
+          )})}
         </div>
       )}
 

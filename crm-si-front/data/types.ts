@@ -46,7 +46,7 @@ export interface Channel {
     created_at: string
     updated_at: string
   }
-  conversationsCount: number
+  conversations_count?: number
   phone?: string
 
 }
