@@ -457,11 +457,13 @@ export default function ChatsPage() {
       if (!normalizedQuery) return true
 
       const contactName = conversation.contact?.name?.toLowerCase() ?? ""
+      const contactPhone = conversation.contact?.phone?.toLowerCase() ?? ""
       const lastMessage = conversation.last_message?.toLowerCase() ?? ""
       const channelName = conversation.channel?.name?.toLowerCase() ?? ""
 
       return (
         contactName.includes(normalizedQuery) ||
+        contactPhone.includes(normalizedQuery) ||
         lastMessage.includes(normalizedQuery) ||
         channelName.includes(normalizedQuery)
       )

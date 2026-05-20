@@ -250,6 +250,7 @@
     "online": "En línea",
     "viewFullHistory": "Ver historial completo",
     "unnamedContact": "Sin nombre",
+    "yesterday": "Ayer",
     "loadHistoryError": "Error cargando historial",
     "loadAccountsError": "Error al cargar cuentas",
     "loadAccountsErrorDesc": "No se pudieron cargar las cuentas conectadas",

@@ -27,7 +27,38 @@ const ConversationCard = memo(function ConversationCard({
   const { t } = useTranslation()
 
   const contactName = conversation.contact?.name || t("chats.unnamedContact")
+  const contactPhone = conversation.contact?.phone
   const leadScore = conversation.leadScore ?? null
+
+  const formatLastMessageAt = (iso?: string | null) => {
+    if (!iso) return "--:--"
+    const date = new Date(iso)
+    const now = new Date()
+    const isSameDay =
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate()
+
+    if (isSameDay) {
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })
+    }
+
+    const yesterday = new Date(now)
+    yesterday.setDate(now.getDate() - 1)
+    const isYesterday =
+      date.getFullYear() === yesterday.getFullYear() &&
+      date.getMonth() === yesterday.getMonth() &&
+      date.getDate() === yesterday.getDate()
+
+    if (isYesterday) return t("chats.yesterday")
+
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+    if (diffDays < 7) {
+      return date.toLocaleDateString([], { weekday: "short" })
+    }
+
+    return date.toLocaleDateString([], { day: "2-digit", month: "2-digit" })
+  }
 
   const initials = contactName
     .split(" ")
@@ -71,15 +102,14 @@ const ConversationCard = memo(function ConversationCard({
               )}
             </div>
             <span className="text-xs text-muted-foreground">
-              {conversation.last_message_at
-                ? new Date(conversation.last_message_at).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: true,
-                  })
-                : "--:--"}
+              {formatLastMessageAt(conversation.last_message_at)}
             </span>
           </div>
+          {contactPhone && (
+            <p className="text-xs text-muted-foreground/80 truncate">
+              {contactPhone}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground truncate">
             {conversation.last_message}
           </p>
