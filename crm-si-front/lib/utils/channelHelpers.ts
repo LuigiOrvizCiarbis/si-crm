@@ -1,5 +1,6 @@
 import { Channel, FilterType } from "@/data/types";
 import { ChannelType } from "@/data/enums";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 /**
  * Extrae el identificador del canal según su tipo.
@@ -7,30 +8,12 @@ import { ChannelType } from "@/data/enums";
  */
 export function formatPhoneNumber(raw?: string | null): string | undefined {
   if (!raw) return undefined;
-  const digits = raw.replace(/\D/g, "");
-  if (!digits) return raw;
-
-  if (digits.startsWith("54") && digits.length >= 12) {
-    const cc = digits.slice(0, 2);
-    const mobile = digits.charAt(2) === "9" ? "9 " : "";
-    const rest = digits.slice(mobile ? 3 : 2);
-    const area = rest.slice(0, 3);
-    const part1 = rest.slice(3, 6);
-    const part2 = rest.slice(6);
-    return `+${cc} ${mobile}${area} ${part1}-${part2}`;
+  const normalized = raw.trim().startsWith("+") ? raw.trim() : `+${raw.replace(/\D/g, "")}`;
+  const parsed = parsePhoneNumberFromString(normalized);
+  if (parsed?.isValid()) {
+    return parsed.formatInternational();
   }
-
-  if (digits.length === 11 && digits.startsWith("1")) {
-    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
-  }
-
-  if (digits.length >= 10) {
-    const cc = digits.length > 10 ? digits.slice(0, digits.length - 10) : "";
-    const local = digits.slice(-10);
-    return `${cc ? `+${cc} ` : ""}${local.slice(0, 3)} ${local.slice(3, 6)}-${local.slice(6)}`;
-  }
-
-  return `+${digits}`;
+  return raw;
 }
 
 export function getChannelIdentifier(channel: Channel): string | undefined {

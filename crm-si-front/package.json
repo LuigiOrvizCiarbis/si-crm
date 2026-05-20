@@ -52,6 +52,7 @@
     "i18next": "^25.8.11",
     "immer": "latest",
     "input-otp": "1.4.1",
+    "libphonenumber-js": "^1.13.2",
     "lucide-react": "^0.454.0",
     "next": "^16.0.3",
     "next-themes": "latest",
