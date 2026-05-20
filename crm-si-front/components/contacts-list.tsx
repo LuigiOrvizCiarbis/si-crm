@@ -224,12 +224,23 @@ function SortableHeader({
 
 interface ContactsListProps {
   hideToolbar?: boolean
+  searchTerm?: string
+  onSearchTermChange?: (value: string) => void
 }
 
-export function ContactsList({ hideToolbar = false }: ContactsListProps = {}) {
+export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, onSearchTermChange }: ContactsListProps = {}) {
   const { t } = useTranslation()
   const { addToast } = useToast()
-  const [searchTerm, setSearchTerm] = useState("")
+  const [searchTermInternal, setSearchTermInternal] = useState("")
+  const isSearchControlled = searchTermProp !== undefined
+  const searchTerm = isSearchControlled ? searchTermProp : searchTermInternal
+  const setSearchTerm = (value: string) => {
+    if (isSearchControlled) {
+      onSearchTermChange?.(value)
+    } else {
+      setSearchTermInternal(value)
+    }
+  }
   const [sourceFilter, setSourceFilter] = useState<string>("all")
   const [tagFilterSlugs, setTagFilterSlugs] = useState<string[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])

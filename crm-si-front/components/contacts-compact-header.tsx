@@ -14,6 +14,7 @@ import {
 import { useTranslation } from "@/hooks/useTranslation"
 
 interface ContactsCompactHeaderProps {
+  searchQuery?: string
   onSearch?: (query: string) => void
   onStatusFilter?: (status: string) => void
   onExportCSV?: () => void
@@ -21,17 +22,20 @@ interface ContactsCompactHeaderProps {
 }
 
 export function ContactsCompactHeader({
+  searchQuery: searchQueryProp,
   onSearch,
   onStatusFilter,
   onExportCSV,
   onNewContact,
 }: ContactsCompactHeaderProps) {
   const { t } = useTranslation()
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQueryInternal, setSearchQueryInternal] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const isSearchControlled = searchQueryProp !== undefined
+  const searchQuery = isSearchControlled ? searchQueryProp : searchQueryInternal
 
   const handleSearchChange = (value: string): void => {
-    setSearchQuery(value)
+    if (!isSearchControlled) setSearchQueryInternal(value)
     onSearch?.(value)
   }
 

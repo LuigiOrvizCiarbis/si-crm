@@ -8,6 +8,7 @@ import { SidebarLayout } from "@/components/SidebarLayout"
 
 export default function ContactosPage() {
   const [refreshKey, setRefreshKey] = useState(0)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const handleNewContact = (): void => {
     window.dispatchEvent(new CustomEvent("contacts-new-contact"))
@@ -20,6 +21,8 @@ export default function ContactosPage() {
   return (
     <SidebarLayout>
       <ContactsCompactHeader
+        searchQuery={searchQuery}
+        onSearch={setSearchQuery}
         onExportCSV={handleExportCSV}
         onNewContact={handleNewContact}
       />
@@ -27,7 +30,7 @@ export default function ContactosPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="px-4 md:px-6 lg:px-8 py-6 space-y-6">
           <ContactsStats refreshKey={refreshKey} />
-          <ContactsList hideToolbar />
+          <ContactsList hideToolbar searchTerm={searchQuery} onSearchTermChange={setSearchQuery} />
         </div>
       </div>
     </SidebarLayout>
