@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
 use App\Enums\TaskType;
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Task;
 use Illuminate\Database\Eloquent\Builder;
@@ -25,13 +24,17 @@ class TaskController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Task::class);
+
+        $user = $request->user();
+
         $query = Task::query()
             ->with(self::EAGER_LOAD)
+            ->visibleTo($user)
             ->orderByRaw('deadline IS NULL')
             ->orderBy('deadline')
             ->orderByDesc('updated_at');
 
-        $this->applyVisibility($query, $request);
         $this->applyFilters($query, $request);
 
         $tasks = $query->paginate((int) $request->query('per_page', 100));
@@ -48,6 +51,7 @@ class TaskController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->authorize('create', Task::class);
         $validated = $request->validate($this->rules($request));
 
         $task = Task::create($this->payload($validated));
@@ -58,14 +62,14 @@ class TaskController extends Controller
 
     public function show(Request $request, Task $task): JsonResponse
     {
-        $this->authorizeTaskAccess($request, $task);
+        $this->authorize('view', $task);
 
         return response()->json(['data' => $task->load(self::EAGER_LOAD)]);
     }
 
     public function update(Request $request, Task $task): JsonResponse
     {
-        $this->authorizeTaskAccess($request, $task);
+        $this->authorize('update', $task);
 
         $validated = $request->validate($this->rules($request, $task));
         $task->fill($this->payload($validated, true));
@@ -86,23 +90,11 @@ class TaskController extends Controller
 
     public function destroy(Request $request, Task $task): JsonResponse
     {
-        $this->authorizeTaskAccess($request, $task);
+        $this->authorize('delete', $task);
 
         $task->delete();
 
         return response()->json(['message' => 'Tarea eliminada']);
-    }
-
-    private function applyVisibility(Builder $query, Request $request): void
-    {
-        $user = $request->user();
-
-        if ($user->role === UserRole::EMPLOYEE) {
-            $query->where(function (Builder $builder) use ($user): void {
-                $builder->whereNull('assigned_to')
-                    ->orWhere('assigned_to', $user->id);
-            });
-        }
     }
 
     private function applyFilters(Builder $query, Request $request): void
@@ -178,14 +170,5 @@ class TaskController extends Controller
         }
 
         return $payload;
-    }
-
-    private function authorizeTaskAccess(Request $request, Task $task): void
-    {
-        $user = $request->user();
-
-        if ($user->role === UserRole::EMPLOYEE && $task->assigned_to !== null && (int) $task->assigned_to !== (int) $user->id) {
-            abort(404);
-        }
     }
 }

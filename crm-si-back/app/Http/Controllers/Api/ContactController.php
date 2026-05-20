@@ -13,11 +13,13 @@ class ContactController extends Controller
 {
     public function index(Request $request)
     {
-        $tenantId = $request->user()->tenant_id;
+        $this->authorize('viewAny', Contact::class);
+
+        $user = $request->user();
         $search = trim($request->query('search', ''));
 
         $q = Contact::query()
-            ->where('tenant_id', $tenantId)
+            ->visibleTo($user)
             ->with([
                 'tags',
                 'conversations' => fn ($c) => $c->latest('last_message_at')->limit(1),
@@ -65,23 +67,27 @@ class ContactController extends Controller
 
     public function summary(Request $request): JsonResponse
     {
-        $tenantId = $request->user()->tenant_id;
+        $this->authorize('viewAny', Contact::class);
+
+        $user = $request->user();
         $monthAgo = now()->subDays(30);
 
-        $total = Contact::where('tenant_id', $tenantId)->count();
-        $newThisMonth = Contact::where('tenant_id', $tenantId)
+        $base = fn () => Contact::query()->visibleTo($user);
+
+        $total = $base()->count();
+        $newThisMonth = $base()
             ->where('created_at', '>=', $monthAgo)
             ->count();
 
-        $activeLeads = Contact::where('tenant_id', $tenantId)
+        $activeLeads = $base()
             ->whereHas('conversations', fn ($q) => $q->where('status', 'open'))
             ->count();
 
-        $qualified = Contact::where('tenant_id', $tenantId)
+        $qualified = $base()
             ->whereHas('opportunities', fn ($q) => $q->whereIn('status', ['won', 'open'])->whereNotNull('pipeline_stage_id'))
             ->count();
 
-        $won = Contact::where('tenant_id', $tenantId)
+        $won = $base()
             ->whereHas('opportunities', fn ($q) => $q->where('status', 'won'))
             ->count();
 
@@ -99,6 +105,7 @@ class ContactController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', Contact::class);
         $validated = $request->validate($this->contactRules());
 
         $contact = Contact::create([
@@ -114,7 +121,7 @@ class ContactController extends Controller
 
     public function show(Request $request, Contact $contact)
     {
-        $this->authorizeTenant($request, $contact->tenant_id);
+        $this->authorize('view', $contact);
 
         $contact->load([
             'tags',
@@ -126,7 +133,7 @@ class ContactController extends Controller
 
     public function update(Request $request, Contact $contact)
     {
-        $this->authorizeTenant($request, $contact->tenant_id);
+        $this->authorize('update', $contact);
 
         $validated = $request->validate($this->contactRules(partial: true));
         $contact->update($validated);
@@ -137,7 +144,7 @@ class ContactController extends Controller
 
     public function destroy(Request $request, Contact $contact)
     {
-        $this->authorizeTenant($request, $contact->tenant_id);
+        $this->authorize('delete', $contact);
 
         $contact->delete();
 
@@ -146,6 +153,7 @@ class ContactController extends Controller
 
     public function import(ImportContactsRequest $request): JsonResponse
     {
+        $this->authorize('import', Contact::class);
         $mapping = $request->decodedMapping();
         $tenantId = $request->user()->tenant_id;
 
@@ -165,13 +173,6 @@ class ContactController extends Controller
             'email' => 'nullable|email|max:255',
             'source' => 'nullable|string|in:whatsapp,instagram,facebook,manual',
         ];
-    }
-
-    private function authorizeTenant(Request $request, int $tenantId): void
-    {
-        if ($tenantId !== $request->user()->tenant_id) {
-            abort(403);
-        }
     }
 
     private function parseTagSlugs(string $tags): array

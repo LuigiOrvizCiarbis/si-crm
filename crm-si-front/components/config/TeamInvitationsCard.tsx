@@ -10,19 +10,22 @@ import { UserPlus, Loader2, X, Mail, Clock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/useTranslation"
 import { getInvitations, createInvitation, deleteInvitation, type Invitation } from "@/lib/api/invitations"
+import { getRoles, type Role } from "@/lib/api/roles"
 
 export function TeamInvitationsCard() {
   const { toast } = useToast()
   const { t } = useTranslation()
 
   const [invitations, setInvitations] = useState<Invitation[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
   const [email, setEmail] = useState("")
-  const [role, setRole] = useState("2") // EMPLOYEE default
+  const [roleName, setRoleName] = useState<string>("Admin")
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadInvitations()
+    loadRoles()
   }, [])
 
   const loadInvitations = async () => {
@@ -32,12 +35,21 @@ export function TeamInvitationsCard() {
     setLoading(false)
   }
 
+  const loadRoles = async () => {
+    const data = await getRoles()
+    setRoles(data)
+    const fallback = data.find((r) => r.name === "Admin") ?? data[0]
+    if (fallback) {
+      setRoleName(fallback.name)
+    }
+  }
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim()) return
 
     setSending(true)
-    const { data, error } = await createInvitation(email.trim(), parseInt(role))
+    const { error } = await createInvitation(email.trim(), roleName)
     setSending(false)
 
     if (error) {
@@ -86,16 +98,19 @@ export function TeamInvitationsCard() {
             disabled={sending}
             className="flex-1"
           />
-          <Select value={role} onValueChange={setRole}>
-            <SelectTrigger className="w-32">
+          <Select value={roleName} onValueChange={setRoleName}>
+            <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1">{t("team.roleAdmin")}</SelectItem>
-              <SelectItem value="2">{t("team.roleEmployee")}</SelectItem>
+              {roles.map((r) => (
+                <SelectItem key={r.id} value={r.name}>
+                  {r.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <Button type="submit" disabled={sending} size="sm">
+          <Button type="submit" disabled={sending || roles.length === 0} size="sm">
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : t("team.sendInvitation")}
           </Button>
         </form>
@@ -115,9 +130,7 @@ export function TeamInvitationsCard() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{inv.email}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Badge variant="outline" className="text-xs">
-                        {inv.role === 1 ? t("team.roleAdmin") : t("team.roleEmployee")}
-                      </Badge>
+                      <Badge variant="outline" className="text-xs">{inv.role_name}</Badge>
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {t("team.expires")} {new Date(inv.expires_at).toLocaleDateString()}

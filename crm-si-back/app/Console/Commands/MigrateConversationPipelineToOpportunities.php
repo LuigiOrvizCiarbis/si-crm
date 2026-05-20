@@ -35,10 +35,11 @@ class MigrateConversationPipelineToOpportunities extends Command
 
                     if (isset($existingConversationIds[$conversation->id])) {
                         $skipped++;
+
                         continue;
                     }
 
-                    if (!$dryRun) {
+                    if (! $dryRun) {
                         Opportunity::withoutGlobalScopes()->create([
                             'tenant_id' => $conversation->tenant_id,
                             'contact_id' => $conversation->contact_id,

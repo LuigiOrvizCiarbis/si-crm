@@ -52,6 +52,7 @@ class PipelineStageController extends Controller
         // o dejar que se pongan en null (según la migración)
 
         $stage->delete();
+
         return response()->noContent();
     }
 

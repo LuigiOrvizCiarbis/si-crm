@@ -2,17 +2,18 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Enums\SenderType;
 use App\Enums\MessageDirection;
 use App\Enums\MessageType;
+use App\Enums\SenderType;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Message extends Model
 {
     use SoftDeletes;
+
     protected $fillable = [
         'tenant_id',
         'conversation_id',
@@ -54,7 +55,7 @@ class Message extends Model
             return $this->media_url;
         }
 
-        return rtrim(config('app.url'), '/') . $this->media_url;
+        return rtrim(config('app.url'), '/').$this->media_url;
     }
 
     public function sender(): MorphTo
@@ -77,7 +78,6 @@ class Message extends Model
     {
         return $this->belongsTo(Conversation::class);
     }
-
 
     /**
      * Scope para mensajes entrantes
@@ -132,7 +132,7 @@ class Message extends Model
      */
     public function isDelivered(): bool
     {
-        return !is_null($this->delivered_at);
+        return ! is_null($this->delivered_at);
     }
 
     /**
@@ -140,22 +140,22 @@ class Message extends Model
      */
     public function isRead(): bool
     {
-        return !is_null($this->read_at);
+        return ! is_null($this->read_at);
     }
 
     public function isEdited(): bool
     {
-        return !is_null($this->edited_at);
+        return ! is_null($this->edited_at);
     }
 
     public function conversationPreviewContent(): string
     {
         return match ($this->message_type) {
-            MessageType::Image => '📷 ' . ($this->content ?: 'Imagen'),
+            MessageType::Image => '📷 '.($this->content ?: 'Imagen'),
             MessageType::Sticker => '🏷️ Sticker',
-            MessageType::Video => '🎥 ' . ($this->content ?: 'Video'),
+            MessageType::Video => '🎥 '.($this->content ?: 'Video'),
             MessageType::Audio => '🎵 Audio',
-            MessageType::Document => '📄 ' . ($this->content ?: 'Documento'),
+            MessageType::Document => '📄 '.($this->content ?: 'Documento'),
             default => $this->content ?? '',
         };
     }

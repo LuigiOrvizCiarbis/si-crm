@@ -4,10 +4,12 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\HasTags;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -16,13 +18,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $contact_id
  * @property int|null $assigned_to
  * @property string $status
- * @property \Illuminate\Support\Carbon|null $last_message_at
+ * @property Carbon|null $last_message_at
  * @property string|null $last_message_content
  * @property int|null $pipeline_stage_id
  */
 class Conversation extends Model
 {
-
     use BelongsToTenant;
     use HasTags;
 
@@ -34,7 +35,7 @@ class Conversation extends Model
         'status',
         'last_message_at',
         'last_message_content',
-        'pipeline_stage_id'
+        'pipeline_stage_id',
     ];
 
     protected $casts = [
@@ -138,6 +139,24 @@ class Conversation extends Model
         return $query->whereNull('assigned_to');
     }
 
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->can('conversations.view_any')) {
+            return $query;
+        }
+
+        $accessibleChannelIds = $user->accessibleChannelIds();
+
+        return $query->where(function (Builder $q) use ($user, $accessibleChannelIds) {
+            $q->where('assigned_to', $user->id)
+                ->orWhereHas('users', fn (Builder $sub) => $sub->where('users.id', $user->id));
+
+            if (! empty($accessibleChannelIds)) {
+                $q->orWhereIn('channel_id', $accessibleChannelIds);
+            }
+        });
+    }
+
     /**
      * Obtener el último mensaje
      */
@@ -159,8 +178,6 @@ class Conversation extends Model
             'last_message_content' => $lastMessage?->conversationPreviewContent(),
         ]);
     }
-
-
 
     /**
      * Asignar a un usuario
@@ -231,7 +248,7 @@ class Conversation extends Model
      */
     public function isAssigned(): bool
     {
-        return !is_null($this->assigned_to);
+        return ! is_null($this->assigned_to);
     }
 
     public function pipelineStage(): BelongsTo

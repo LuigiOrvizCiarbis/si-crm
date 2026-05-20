@@ -47,7 +47,7 @@ function AcceptInvitationContent() {
     if (!token) return
     setAccepting(true)
 
-    const { token: newToken, user: newUser, error: err } = await acceptInvitation(token)
+    const { token: newToken, user: newUser, role, permissions, error: err } = await acceptInvitation(token)
     if (err) {
       setError(err)
       setAccepting(false)
@@ -55,7 +55,7 @@ function AcceptInvitationContent() {
     }
 
     if (newToken && newUser) {
-      setAuth(newUser, newToken, false, !!newUser.email_verified_at)
+      setAuth(newUser, newToken, false, !!newUser.email_verified_at, role ?? null, permissions ?? [])
       router.push("/chats")
     }
   }
@@ -122,9 +122,7 @@ function AcceptInvitationContent() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">{t("team.role")}</span>
-              <Badge variant="outline">
-                {invitation.role === 1 ? t("team.roleAdmin") : t("team.roleEmployee")}
-              </Badge>
+              <Badge variant="outline">{invitation.role_name}</Badge>
             </div>
           </div>
 

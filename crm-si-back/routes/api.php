@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Api\ChannelController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ContactHistoryController;
@@ -9,7 +8,9 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\OpportunityController;
+use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PipelineStageController;
+use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
@@ -20,6 +21,7 @@ use App\Models\Invitation;
 use App\Models\Scopes\TenantScope;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\RoleProvisioner;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -27,6 +29,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rules\Password as PasswordRule;
+use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -42,11 +45,16 @@ Route::post('login', function (Request $request): JsonResponse {
         return response()->json(['message' => 'Credenciales inválidas'], 401);
     }
 
+    app(PermissionRegistrar::class)->setPermissionsTeamId($user->tenant_id);
+    $role = $user->roles()->where('roles.tenant_id', $user->tenant_id)->first();
+
     $token = $user->createToken('api-token')->plainTextToken;
 
     return response()->json([
         'token' => $token,
         'user' => $user->load('tenant:id,name'),
+        'role' => $role ? ['id' => $role->id, 'name' => $role->name, 'is_system' => (bool) $role->is_system] : null,
+        'permissions' => $user->getAllPermissions()->pluck('name')->values(),
         'email_verified' => $user->hasVerifiedEmail(),
     ]);
 });
@@ -60,7 +68,8 @@ Route::post('register', function (Request $request): JsonResponse {
     ]);
 
     $invitation = null;
-    $role = UserRole::ADMIN;
+    $roleName = 'Owner';
+    $isNewTenant = false;
 
     // If invitation token provided, join existing tenant
     if ($request->invitation_token) {
@@ -78,12 +87,13 @@ Route::post('register', function (Request $request): JsonResponse {
         }
 
         $tenant = $invitation->tenant;
-        $role = $invitation->role;
+        $roleName = $invitation->role_name ?? 'Admin';
     } else {
         // Create new tenant for the user
         $tenant = Tenant::create([
             'name' => $request->name."'s Workspace",
         ]);
+        $isNewTenant = true;
     }
 
     $user = User::create([
@@ -91,8 +101,14 @@ Route::post('register', function (Request $request): JsonResponse {
         'email' => $request->email,
         'password' => Hash::make($request->password),
         'tenant_id' => $tenant->id,
-        'role' => $role,
     ]);
+
+    if ($isNewTenant) {
+        app(RoleProvisioner::class)->provisionDefaultRoles($tenant);
+    }
+
+    app(PermissionRegistrar::class)->setPermissionsTeamId($tenant->id);
+    $user->syncRoles([$roleName]);
 
     // El registro no debe fallar si el proveedor de email está caído.
     try {
@@ -109,11 +125,14 @@ Route::post('register', function (Request $request): JsonResponse {
         $invitation->update(['accepted_at' => now()]);
     }
 
+    $role = $user->roles()->where('roles.tenant_id', $tenant->id)->first();
     $token = $user->createToken('api-token')->plainTextToken;
 
     return response()->json([
         'token' => $token,
         'user' => $user,
+        'role' => $role ? ['id' => $role->id, 'name' => $role->name, 'is_system' => (bool) $role->is_system] : null,
+        'permissions' => $user->getAllPermissions()->pluck('name')->values(),
         'email_verified' => false,
         'message' => 'Cuenta creada. Por favor verifica tu email.',
     ], 201);
@@ -267,7 +286,14 @@ Route::post('reset-password', function (Request $request) {
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('user', function (Request $request): JsonResponse {
-        return response()->json($request->user()->load('tenant:id,name'));
+        $user = $request->user()->load('tenant:id,name');
+        $role = $user->roles()->where('roles.tenant_id', $user->tenant_id)->first();
+
+        return response()->json([
+            'user' => $user,
+            'role' => $role ? ['id' => $role->id, 'name' => $role->name, 'is_system' => (bool) $role->is_system] : null,
+            'permissions' => $user->getAllPermissions()->pluck('name')->values(),
+        ]);
     });
 
     Route::post('logout', function (Request $request): JsonResponse {
@@ -281,7 +307,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('tags', TagController::class);
 
     Route::get('users', [UserController::class, 'index']);
-    Route::get('users/{user}', [ContactController::class, 'show']);
+    Route::get('users/{user}', [UserController::class, 'show']);
+    Route::patch('users/{user}/role', [UserController::class, 'assignRole']);
+
+    Route::get('roles', [RoleController::class, 'index']);
+    Route::post('roles', [RoleController::class, 'store']);
+    Route::get('roles/{role}', [RoleController::class, 'show']);
+    Route::patch('roles/{role}', [RoleController::class, 'update']);
+    Route::delete('roles/{role}', [RoleController::class, 'destroy']);
+    Route::post('roles/{role}/permissions', [RoleController::class, 'syncPermissions']);
+
+    Route::get('permissions', [PermissionController::class, 'index']);
 
     Route::get('contacts', [ContactController::class, 'index']);
     Route::get('contacts/summary', [ContactController::class, 'summary']);

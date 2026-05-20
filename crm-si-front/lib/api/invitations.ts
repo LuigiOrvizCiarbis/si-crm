@@ -1,9 +1,10 @@
+import type { UserRole } from "@/store/useAuthStore"
 import { getAuthToken } from "./auth-token"
 
 export interface Invitation {
   id: number
   email: string
-  role: number
+  role_name: string
   invited_by: number
   invited_by_user?: { id: number; name: string; email: string }
   expires_at: string
@@ -13,7 +14,7 @@ export interface Invitation {
 
 export interface InvitationDetails {
   email: string
-  role: number
+  role_name: string
   tenant_name: string
   inviter_name: string
   expires_at: string
@@ -33,7 +34,7 @@ export async function getInvitations(): Promise<Invitation[]> {
   return json.data || []
 }
 
-export async function createInvitation(email: string, role: number): Promise<{ data?: Invitation; error?: string }> {
+export async function createInvitation(email: string, roleName: string): Promise<{ data?: Invitation; error?: string }> {
   const token = getAuthToken()
   if (!token) return { error: "No auth" }
 
@@ -44,7 +45,7 @@ export async function createInvitation(email: string, role: number): Promise<{ d
       "Content-Type": "application/json",
       Accept: "application/json",
     },
-    body: JSON.stringify({ email, role }),
+    body: JSON.stringify({ email, role_name: roleName }),
   })
 
   const json = await res.json()
@@ -79,7 +80,9 @@ export async function getInvitationByToken(token: string): Promise<{ data?: Invi
   return { data: json.data }
 }
 
-export async function acceptInvitation(invitationToken: string): Promise<{ token?: string; user?: any; error?: string }> {
+export async function acceptInvitation(
+  invitationToken: string,
+): Promise<{ token?: string; user?: any; role?: UserRole | null; permissions?: string[]; error?: string }> {
   const authToken = getAuthToken()
   if (!authToken) return { error: "No auth" }
 
@@ -95,5 +98,5 @@ export async function acceptInvitation(invitationToken: string): Promise<{ token
 
   const json = await res.json()
   if (!res.ok) return { error: json.message || "Error" }
-  return { token: json.token, user: json.user }
+  return { token: json.token, user: json.user, role: json.role ?? null, permissions: json.permissions ?? [] }
 }

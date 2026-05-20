@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ChannelType;
 use App\Enums\MessageDirection;
 use App\Enums\MessageType;
 use App\Enums\SenderType;
 use App\Enums\UserRole;
-use App\Enums\ChannelType;
 use App\Models\Channel;
 use App\Models\Contact;
 use App\Models\Conversation;

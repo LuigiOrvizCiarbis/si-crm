@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\UserRole;
 use App\Models\Concerns\BelongsToTenant;
 use App\Notifications\CustomResetPassword;
 use App\Notifications\CustomVerifyEmail;
@@ -15,24 +14,30 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 /**
  * @property int $id
  * @property int|null $tenant_id
  * @property string $name
  * @property string $email
- * @property UserRole $role
  */
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use BelongsToTenant, HasApiTokens, HasFactory, Notifiable;
+    use BelongsToTenant, HasApiTokens, HasFactory, HasRoles, Notifiable;
+
+    /**
+     * Force Spatie to resolve roles/permissions against a single guard regardless
+     * of how the user was authenticated (Sanctum vs session). All roles in the
+     * application are seeded under this guard.
+     */
+    protected string $guard_name = 'web';
 
     protected $fillable = [
         'name',
         'email',
         'password',
         'tenant_id',
-        'role',
         'email_verified_at',
     ];
 
@@ -46,7 +51,6 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'role' => UserRole::class,
         ];
     }
 
