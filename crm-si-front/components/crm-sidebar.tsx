@@ -122,20 +122,10 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
 
   const bottomItems = [
     {
-      href: "/administracion",
-      emoji: "💼",
-      label: t("nav.admin"),
-    },
-    {
       href: "/administracion/roles",
       emoji: "🛡️",
       label: t("roles.title"),
       requires: ["roles.view", "roles.manage"] as string[],
-    },
-    {
-      href: "/configuracion",
-      emoji: "⚙️",
-      label: t("nav.settings"),
     },
   ]
 
