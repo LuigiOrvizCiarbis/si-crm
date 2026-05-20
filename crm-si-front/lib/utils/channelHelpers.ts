@@ -5,10 +5,38 @@ import { ChannelType } from "@/data/enums";
  * Extrae el identificador del canal según su tipo.
  * Cada tipo de canal tiene su propio campo identificador.
  */
+export function formatPhoneNumber(raw?: string | null): string | undefined {
+  if (!raw) return undefined;
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return raw;
+
+  if (digits.startsWith("54") && digits.length >= 12) {
+    const cc = digits.slice(0, 2);
+    const mobile = digits.charAt(2) === "9" ? "9 " : "";
+    const rest = digits.slice(mobile ? 3 : 2);
+    const area = rest.slice(0, 3);
+    const part1 = rest.slice(3, 6);
+    const part2 = rest.slice(6);
+    return `+${cc} ${mobile}${area} ${part1}-${part2}`;
+  }
+
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+
+  if (digits.length >= 10) {
+    const cc = digits.length > 10 ? digits.slice(0, digits.length - 10) : "";
+    const local = digits.slice(-10);
+    return `${cc ? `+${cc} ` : ""}${local.slice(0, 3)} ${local.slice(3, 6)}-${local.slice(6)}`;
+  }
+
+  return `+${digits}`;
+}
+
 export function getChannelIdentifier(channel: Channel): string | undefined {
   switch (channel.type) {
     case ChannelType.WHATSAPP:
-      return channel.whatsapp_config?.display_phone_number || channel.whatsapp_config?.phone_number_id;
+      return formatPhoneNumber(channel.whatsapp_config?.display_phone_number) || channel.whatsapp_config?.phone_number_id;
 
     case ChannelType.INSTAGRAM:
       return channel.instagram_config?.page_id;
