@@ -250,6 +250,7 @@
     "online": "Online",
     "viewFullHistory": "View full history",
     "unnamedContact": "Unnamed contact",
+    "yesterday": "Yesterday",
     "loadHistoryError": "Error loading history",
     "loadAccountsError": "Error loading accounts",
     "loadAccountsErrorDesc": "Could not load connected accounts",
