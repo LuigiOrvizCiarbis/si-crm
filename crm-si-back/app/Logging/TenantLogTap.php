@@ -13,6 +13,6 @@ class TenantLogTap
             ? $logger->getLogger()
             : $logger;
 
-        $monolog->pushProcessor(new TenantProcessor());
+        $monolog->pushProcessor(new TenantProcessor);
     }
 }

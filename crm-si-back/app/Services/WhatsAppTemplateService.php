@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Enums\MessageDirection;
 use App\Enums\SenderType;
 use App\Enums\TemplateStatus;
+use App\Events\MessageSent;
+use App\Events\TenantMessageReceived;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\User;
@@ -12,8 +14,6 @@ use App\Models\WhatsAppConfig;
 use App\Models\WhatsAppTemplate;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
-use App\Events\MessageSent;
-use App\Events\TenantMessageReceived;
 use Illuminate\Support\Facades\Log;
 
 class WhatsAppTemplateService

@@ -29,8 +29,13 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
   const pathname = usePathname()
   const router = useRouter()
   const [openSections, setOpenSections] = useState<string[]>([])
-  const { user, token, logout } = useAuthStore()
+  const { user, token, logout, permissions } = useAuthStore()
   const { t } = useTranslation()
+
+  const hasAnyPerm = (perms?: string[]) => {
+    if (!perms || perms.length === 0) return true
+    return perms.some((p) => (permissions ?? []).includes(p))
+  }
 
   const handleLogout = async () => {
     try {
@@ -120,6 +125,12 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
       href: "/administracion",
       emoji: "💼",
       label: t("nav.admin"),
+    },
+    {
+      href: "/administracion/roles",
+      emoji: "🛡️",
+      label: t("roles.title"),
+      requires: ["roles.view", "roles.manage"] as string[],
     },
     {
       href: "/configuracion",
@@ -277,7 +288,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
         )}
 
         {/* Bottom items */}
-        {bottomItems.map((item) => {
+        {bottomItems.filter((item) => hasAnyPerm((item as any).requires)).map((item) => {
           const isActive = pathname === item.href
 
           return (

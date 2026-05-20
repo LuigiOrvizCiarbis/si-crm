@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\UserRole;
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -16,7 +15,7 @@ class Invitation extends Model
         'tenant_id',
         'email',
         'token',
-        'role',
+        'role_name',
         'invited_by',
         'expires_at',
         'accepted_at',
@@ -25,7 +24,6 @@ class Invitation extends Model
     protected function casts(): array
     {
         return [
-            'role' => UserRole::class,
             'expires_at' => 'datetime',
             'accepted_at' => 'datetime',
         ];

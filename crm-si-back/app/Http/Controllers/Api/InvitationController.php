@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Invitation;
 use App\Models\Scopes\TenantScope;
@@ -12,13 +11,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class InvitationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $this->authorizeAdmin($request);
+        $this->authorize('viewAny', Invitation::class);
 
         $invitations = Invitation::with('invitedBy:id,name,email')
             ->orderByDesc('created_at')
@@ -29,14 +30,27 @@ class InvitationController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->authorizeAdmin($request);
+        $this->authorize('create', Invitation::class);
+
+        $actor = $request->user();
+        $tenantId = $actor->tenant_id;
 
         $validated = $request->validate([
             'email' => ['required', 'email'],
-            'role' => ['required', 'integer', Rule::enum(UserRole::class)],
+            'role_name' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::exists('roles', 'name')->where(fn ($q) => $q->where('tenant_id', $tenantId)),
+            ],
         ]);
 
-        $tenantId = $request->user()->tenant_id;
+        // Only an Owner may issue invitations for the Owner role. Otherwise an
+        // Admin holding invitations.create could elevate someone to Owner once
+        // they accept the invite.
+        if ($validated['role_name'] === 'Owner' && ! $actor->hasRole('Owner')) {
+            abort(403, 'Solo un Owner puede invitar con el rol Owner.');
+        }
 
         // Check if already a member of this tenant
         $existingUserTenantId = User::where('email', $validated['email'])->value('tenant_id');
@@ -57,14 +71,13 @@ class InvitationController extends Controller
             'tenant_id' => $tenantId,
             'email' => $validated['email'],
             'token' => Str::random(64),
-            'role' => $validated['role'],
+            'role_name' => $validated['role_name'],
             'invited_by' => $request->user()->id,
             'expires_at' => now()->addDays(7),
         ]);
 
         $invitation->load(['invitedBy:id,name,email', 'tenant:id,name']);
 
-        // Send invitation email
         Notification::route('mail', $validated['email'])
             ->notify(new InvitationNotification($invitation));
 
@@ -73,7 +86,7 @@ class InvitationController extends Controller
 
     public function destroy(Request $request, Invitation $invitation): JsonResponse
     {
-        $this->authorizeAdmin($request);
+        $this->authorize('delete', $invitation);
 
         $invitation->delete();
 
@@ -105,7 +118,7 @@ class InvitationController extends Controller
         return response()->json([
             'data' => [
                 'email' => $invitation->email,
-                'role' => $invitation->role,
+                'role_name' => $invitation->role_name,
                 'tenant_name' => $invitation->tenant->name ?? null,
                 'inviter_name' => $invitation->invitedBy->name ?? null,
                 'expires_at' => $invitation->expires_at,
@@ -146,10 +159,25 @@ class InvitationController extends Controller
             ], 403);
         }
 
+        $newTenantId = $invitation->tenant_id;
+        $roleName = $invitation->role_name ?? 'Admin';
+
+        $registrar = app(PermissionRegistrar::class);
+        $roleExists = Role::query()
+            ->where('tenant_id', $newTenantId)
+            ->where('name', $roleName)
+            ->exists();
+
+        if (! $roleExists) {
+            return response()->json(['message' => 'El rol asignado a la invitación ya no existe.'], 422);
+        }
+
         // Switch user to new tenant
-        $user->tenant_id = $invitation->tenant_id;
-        $user->role = $invitation->role;
+        $user->tenant_id = $newTenantId;
         $user->save();
+
+        $registrar->setPermissionsTeamId($newTenantId);
+        $user->syncRoles([$roleName]);
 
         // Mark invitation as accepted
         $invitation->update(['accepted_at' => now()]);
@@ -158,19 +186,14 @@ class InvitationController extends Controller
         $user->tokens()->delete();
         $token = $user->createToken('api-token')->plainTextToken;
 
+        $role = $user->roles()->where('roles.tenant_id', $newTenantId)->first();
+
         return response()->json([
             'token' => $token,
             'user' => $user,
+            'role' => $role ? ['id' => $role->id, 'name' => $role->name, 'is_system' => (bool) $role->is_system] : null,
+            'permissions' => $user->getAllPermissions()->pluck('name')->values(),
             'message' => 'Te uniste al equipo exitosamente.',
         ]);
-    }
-
-    private function authorizeAdmin(Request $request): void
-    {
-        $user = $request->user();
-
-        if ($user->role !== null && $user->role !== UserRole::ADMIN) {
-            abort(403, 'Solo administradores pueden gestionar invitaciones.');
-        }
     }
 }

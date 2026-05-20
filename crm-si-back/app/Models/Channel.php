@@ -2,14 +2,13 @@
 
 namespace App\Models;
 
+use App\Enums\ChannelType;
+use App\Models\Concerns\BelongsToTenant;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Log;
-use App\Enums\ChannelType;
-use App\Models\Concerns\BelongsToTenant;
 
 /**
  * @property int $id
@@ -23,7 +22,6 @@ use App\Models\Concerns\BelongsToTenant;
  */
 class Channel extends Model
 {
-
     use BelongsToTenant;
 
     protected $fillable = [
@@ -33,7 +31,7 @@ class Channel extends Model
         'type',
         'name',
         'external_id',
-        'status'
+        'status',
     ];
 
     protected $casts = [
@@ -105,6 +103,18 @@ class Channel extends Model
     public function scopeOfType($query, ChannelType $type)
     {
         return $query->where('type', $type);
+    }
+
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->can('channels.view_any')) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $q) use ($user) {
+            $q->where('user_id', $user->id)
+                ->orWhereHas('users', fn (Builder $sub) => $sub->where('users.id', $user->id));
+        });
     }
 
     /**

@@ -22,6 +22,7 @@ class PipelineStageSeeder extends Seeder
 
             if ($existingStages > 0) {
                 $this->command->info("Tenant {$tenant->id} ({$tenant->name}) ya tiene stages configurados. Omitiendo...");
+
                 continue;
             }
 
