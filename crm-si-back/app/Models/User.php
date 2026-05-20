@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\UserRole;
 use App\Models\Concerns\BelongsToTenant;
+use App\Notifications\CustomResetPassword;
 use App\Notifications\CustomVerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,7 +21,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property int|null $tenant_id
  * @property string $name
  * @property string $email
- * @property \App\Enums\UserRole $role
+ * @property UserRole $role
  */
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -52,6 +53,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function sendEmailVerificationNotification(): void
     {
         $this->notify(new CustomVerifyEmail);
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new CustomResetPassword($token));
     }
 
     public function ownedChannels(): HasMany
