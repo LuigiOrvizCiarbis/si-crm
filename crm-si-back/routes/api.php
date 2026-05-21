@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MessageController;
+use App\Http\Controllers\Api\MessageHotkeyController;
 use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PipelineStageController;
@@ -339,6 +340,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('messages', [MessageController::class, 'store']);
     Route::put('messages/{message}', [MessageController::class, 'update']);
     Route::delete('messages/{message}', [MessageController::class, 'destroy']);
+
+    Route::apiResource('message-hotkeys', MessageHotkeyController::class)->except(['show']);
 
     Route::get('channels', [ChannelController::class, 'index']);
     Route::get('channels/{id}/users', [ChannelController::class, 'users']);

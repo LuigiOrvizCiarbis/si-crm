@@ -329,7 +329,14 @@
     "manage": "Gestionar",
     "manageChat": "Gestionar chat",
     "loadingUsers": "Cargando usuarios...",
-    "selectUser": "Seleccionar usuario"
+    "selectUser": "Seleccionar usuario",
+    "hotkeys": {
+      "noMatches": "Sin coincidencias",
+      "scope": {
+        "tenant": "Equipo",
+        "personal": "Personal"
+      }
+    }
   },
   "settings": {
     "title": "Configuración",
@@ -415,7 +422,31 @@
     "timeNow": "Ahora",
     "billingDate": "15 de febrero, 2024",
     "perMonth": "/mes",
-    "toggleTheme": "Cambiar tema"
+    "toggleTheme": "Cambiar tema",
+    "hotkeys": {
+      "title": "Atajos de chat",
+      "new": "Nuevo atajo",
+      "newTitle": "Nuevo atajo",
+      "editTitle": "Editar atajo",
+      "trigger": "Trigger",
+      "description": "Descripción",
+      "descriptionPlaceholder": "Saludo inicial",
+      "content": "Contenido",
+      "contentPlaceholder": "Hola {{contact_name}}, soy {{user_name}}…",
+      "scopeLabel": "Visibilidad",
+      "scope": {
+        "tenant": "Para todo el equipo",
+        "personal": "Solo para mí"
+      },
+      "sectionTenant": "Del equipo",
+      "sectionPersonal": "Personales",
+      "variablesHelp": "Variables disponibles: {{contact_name}}, {{user_name}}, {{tenant_name}}.",
+      "empty": "Todavía no hay atajos. Creá uno para responder más rápido.",
+      "confirmDelete": "¿Eliminar este atajo?",
+      "created": "Atajo creado",
+      "updated": "Atajo actualizado",
+      "deleted": "Atajo eliminado"
+    }
   },
   "team": {
     "inviteTitle": "Invitar miembro",

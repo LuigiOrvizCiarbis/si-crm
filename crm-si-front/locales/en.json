@@ -329,7 +329,14 @@
     "manage": "Manage",
     "manageChat": "Manage Chat",
     "loadingUsers": "Loading users...",
-    "selectUser": "Select user"
+    "selectUser": "Select user",
+    "hotkeys": {
+      "noMatches": "No matches",
+      "scope": {
+        "tenant": "Team",
+        "personal": "Personal"
+      }
+    }
   },
   "settings": {
     "title": "Settings",
@@ -415,7 +422,31 @@
     "timeNow": "Just now",
     "billingDate": "February 15, 2024",
     "perMonth": "/month",
-    "toggleTheme": "Toggle theme"
+    "toggleTheme": "Toggle theme",
+    "hotkeys": {
+      "title": "Chat hotkeys",
+      "new": "New hotkey",
+      "newTitle": "New hotkey",
+      "editTitle": "Edit hotkey",
+      "trigger": "Trigger",
+      "description": "Description",
+      "descriptionPlaceholder": "Greeting",
+      "content": "Content",
+      "contentPlaceholder": "Hi {{contact_name}}, I'm {{user_name}}…",
+      "scopeLabel": "Visibility",
+      "scope": {
+        "tenant": "Shared with team",
+        "personal": "Only for me"
+      },
+      "sectionTenant": "Team hotkeys",
+      "sectionPersonal": "Personal hotkeys",
+      "variablesHelp": "Available variables: {{contact_name}}, {{user_name}}, {{tenant_name}}.",
+      "empty": "No hotkeys yet. Create one to reply faster.",
+      "confirmDelete": "Delete this hotkey?",
+      "created": "Hotkey created",
+      "updated": "Hotkey updated",
+      "deleted": "Hotkey deleted"
+    }
   },
   "team": {
     "inviteTitle": "Invite member",
