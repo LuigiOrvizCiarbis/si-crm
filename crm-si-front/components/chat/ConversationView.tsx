@@ -12,6 +12,7 @@ import { useToast } from '@/components/Toast'
 import { aiSuggestions, teamMembers } from '@/data/constants'
 import { useState } from 'react'
 import { useTranslation } from '@/hooks/useTranslation'
+import { useAuthStore } from '@/store/useAuthStore'
 
 interface ConversationViewProps {
     conversation: Conversation
@@ -32,8 +33,15 @@ export function ConversationView({
 }: ConversationViewProps) {
     const { addToast } = useToast()
     const { t } = useTranslation()
+    const authUser = useAuthStore((state) => state.user)
     const [message, setMessage] = useState("")
     const [isSending, setIsSending] = useState(false)
+
+    const expansionContext = {
+        contactName: conversation.contact?.name ?? null,
+        userName: authUser?.name ?? null,
+        tenantName: authUser?.tenant?.name ?? null,
+    }
 
     const handleSend = async () => {
         if (!message.trim() || isSending) return
@@ -95,6 +103,7 @@ export function ConversationView({
                 onSend={handleSend}
                 disabled={isSending}
                 placeholder={t("chats.messagePlaceholder")}
+                expansionContext={expansionContext}
             />
 
             <ChatQuickBar teamMembers={teamMembers} />

@@ -5,10 +5,13 @@ import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useTranslation } from "@/hooks/useTranslation"
 import { Paperclip, Smile, Send, X, Pencil, Check, Music2 } from "lucide-react"
-import { KeyboardEvent, SyntheticEvent, useRef, useState, useEffect } from "react"
+import { KeyboardEvent, SyntheticEvent, useMemo, useRef, useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import Image from "next/image"
 import { Message } from "@/data/types"
+import { getMessageHotkeys, type MessageHotkey } from "@/lib/api/message-hotkeys"
+import { expandHotkey, parseSlashCommand, type HotkeyExpansionContext } from "@/lib/utils/hotkeys"
+import { HotkeyAutocomplete } from "./HotkeyAutocomplete"
 
 const TemplatePicker = dynamic(
   () => import("./TemplatePicker").then(m => m.TemplatePicker),
@@ -54,6 +57,13 @@ interface MessageInputProps {
   onSendTemplate?: (content: string) => void
   editingMessage?: Message | null
   onCancelEdit?: () => void
+  expansionContext?: HotkeyExpansionContext
+}
+
+interface SlashState {
+  query: string
+  start: number
+  end: number
 }
 
 export function MessageInput({
@@ -67,6 +77,7 @@ export function MessageInput({
   onSendTemplate,
   editingMessage,
   onCancelEdit,
+  expansionContext,
 }: MessageInputProps) {
   const { t } = useTranslation()
   const resolvedPlaceholder = placeholder ?? t("chats.messagePlaceholder")
@@ -75,9 +86,56 @@ export function MessageInput({
   const [selectedMedia, setSelectedMedia] = useState<File | null>(null)
   const [mediaPreview, setMediaPreview] = useState<string | null>(null)
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false)
+  const [hotkeys, setHotkeys] = useState<MessageHotkey[]>([])
+  const [slashState, setSlashState] = useState<SlashState | null>(null)
+  const [activeHotkeyIndex, setActiveHotkeyIndex] = useState(0)
 
   const isEditing = !!editingMessage
   const isAudio = !!selectedMedia?.type.startsWith("audio/")
+
+  useEffect(() => {
+    let cancelled = false
+    getMessageHotkeys().then((data) => {
+      if (!cancelled) setHotkeys(data)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const matchingHotkeys = useMemo(() => {
+    if (!slashState) return []
+    const q = slashState.query
+    return hotkeys.filter((h) => h.trigger.startsWith(q))
+  }, [hotkeys, slashState])
+
+  useEffect(() => {
+    setActiveHotkeyIndex(0)
+  }, [slashState?.query])
+
+  const isHotkeyDropdownOpen = !!slashState && !isEditing
+
+  const closeHotkeyDropdown = () => setSlashState(null)
+
+  const detectSlashFromInput = (nextValue: string, cursorPos: number) => {
+    const match = parseSlashCommand(nextValue, cursorPos)
+    setSlashState(match)
+  }
+
+  const applyHotkey = (hotkey: MessageHotkey) => {
+    if (!slashState) return
+    const expanded = expandHotkey(hotkey.content, expansionContext ?? {})
+    const next = `${value.slice(0, slashState.start)}${expanded}${value.slice(slashState.end)}`
+    const cursor = slashState.start + expanded.length
+
+    onChange(next)
+    setSlashState(null)
+
+    requestAnimationFrame(() => {
+      inputRef.current?.focus()
+      inputRef.current?.setSelectionRange(cursor, cursor)
+    })
+  }
   const isImage = !!selectedMedia?.type.startsWith("image/")
 
   useEffect(() => {
@@ -101,6 +159,37 @@ export function MessageInput({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     e.stopPropagation()
+
+    if (isHotkeyDropdownOpen) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault()
+        if (matchingHotkeys.length > 0) {
+          setActiveHotkeyIndex((i) => (i + 1) % matchingHotkeys.length)
+        }
+        return
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault()
+        if (matchingHotkeys.length > 0) {
+          setActiveHotkeyIndex((i) => (i - 1 + matchingHotkeys.length) % matchingHotkeys.length)
+        }
+        return
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        const target = matchingHotkeys[activeHotkeyIndex]
+        if (target) {
+          e.preventDefault()
+          applyHotkey(target)
+          return
+        }
+      }
+      if (e.key === "Escape") {
+        e.preventDefault()
+        closeHotkeyDropdown()
+        return
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -109,6 +198,19 @@ export function MessageInput({
       e.preventDefault()
       onCancelEdit()
     }
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextValue = e.target.value
+    onChange(nextValue)
+    const cursorPos = e.target.selectionStart ?? nextValue.length
+    detectSlashFromInput(nextValue, cursorPos)
+  }
+
+  const handleInputSelect = (e: SyntheticEvent<HTMLInputElement>) => {
+    const input = e.currentTarget
+    const cursorPos = input.selectionStart ?? value.length
+    detectSlashFromInput(value, cursorPos)
   }
 
   const handleSend = () => {
@@ -231,23 +333,36 @@ export function MessageInput({
               )}
             </>
           )}
-          <Input
-            ref={inputRef}
-            placeholder={
-              isEditing
-                ? t("chats.editingMessage")
-                : isAudio
-                  ? (t("chats.audioPlaceholder") || "Audio listo para enviar")
-                  : (selectedMedia ? (t("chats.captionPlaceholder") || "Agregar caption...") : resolvedPlaceholder)
-            }
-            className="flex-1"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onKeyUp={stopPropagation}
-            onKeyPress={stopPropagation}
-            disabled={disabled || isAudio}
-          />
+          <div className="relative flex-1">
+            <Input
+              ref={inputRef}
+              placeholder={
+                isEditing
+                  ? t("chats.editingMessage")
+                  : isAudio
+                    ? (t("chats.audioPlaceholder") || "Audio listo para enviar")
+                    : (selectedMedia ? (t("chats.captionPlaceholder") || "Agregar caption...") : resolvedPlaceholder)
+              }
+              className="w-full"
+              value={value}
+              onChange={handleInputChange}
+              onSelect={handleInputSelect}
+              onBlur={() => requestAnimationFrame(closeHotkeyDropdown)}
+              onKeyDown={handleKeyDown}
+              onKeyUp={stopPropagation}
+              onKeyPress={stopPropagation}
+              disabled={disabled || isAudio}
+            />
+            {isHotkeyDropdownOpen && (
+              <HotkeyAutocomplete
+                hotkeys={matchingHotkeys}
+                activeIndex={activeHotkeyIndex}
+                onActiveIndexChange={setActiveHotkeyIndex}
+                onSelect={applyHotkey}
+                anchorRef={inputRef}
+              />
+            )}
+          </div>
           {!isEditing && (
             <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
               <PopoverTrigger asChild>

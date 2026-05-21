@@ -11,6 +11,7 @@ import { ApiKeysCard } from "@/components/config/ApiKeysCard"
 import { BillingCard } from "@/components/config/BillingCard"
 import { RolesCard } from "@/components/config/RolesCard"
 import { TeamInvitationsCard } from "@/components/config/TeamInvitationsCard"
+import { MessageHotkeysCard } from "@/components/config/MessageHotkeysCard"
 import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 import { useTranslation } from "@/hooks/useTranslation"
 
@@ -25,19 +26,19 @@ export default function ConfiguracionPage() {
             <Settings className="w-6 h-6 text-gray-500" />
             <h1 className="text-2xl font-bold">{t("settings.title")}</h1>
           </div>
-          <LanguageSwitcher />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          <ProfileCard />
+          {/* <ProfileCard />
           <NotificationsCard />
           <RolesCard />
           <TeamInvitationsCard />
           <SecurityCard />
           <IntegrationsCard />
-          <ChannelsCard />
-          <ApiKeysCard />
-          <BillingCard />
+          <ChannelsCard /> */}
+          <MessageHotkeysCard />
+         {/*  <ApiKeysCard />
+          <BillingCard /> */}
         </div>
       </div>
     </SidebarLayout>
