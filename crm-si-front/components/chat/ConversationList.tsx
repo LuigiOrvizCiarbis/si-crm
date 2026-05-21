@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Checkbox } from "@/components/ui/checkbox"
 import { LeadScoreBadge } from "@/components/Badges"
 import { PlatformIcon } from "@/components/chat/PlatformIcon"
 import { EmptyState } from "@/components/EmptyState"
@@ -17,6 +18,9 @@ interface ConversationCardProps {
   channel?: Channel
   isSelected: boolean
   onClick: (id: number) => void
+  selectionMode?: boolean
+  isChecked?: boolean
+  onToggleSelect?: (id: number) => void
 }
 
 const ConversationCard = memo(function ConversationCard({
@@ -24,6 +28,9 @@ const ConversationCard = memo(function ConversationCard({
   channel,
   isSelected,
   onClick,
+  selectionMode = false,
+  isChecked = false,
+  onToggleSelect,
 }: ConversationCardProps) {
   const { t } = useTranslation()
 
@@ -68,12 +75,28 @@ const ConversationCard = memo(function ConversationCard({
     .slice(0, 2)
     .toUpperCase()
 
+  const handleCardClick = () => {
+    if (selectionMode) {
+      onToggleSelect?.(conversation.id)
+    } else {
+      onClick(conversation.id)
+    }
+  }
+
   return (
     <Card
-      className={`p-3 cursor-pointer hover:bg-accent transition-colors ${isSelected ? 'bg-accent border-primary' : ''}`}
-      onClick={() => onClick(conversation.id)}
+      className={`p-3 cursor-pointer hover:bg-accent transition-colors ${isSelected ? 'bg-accent border-primary' : ''} ${isChecked ? 'bg-primary/5 border-primary/40' : ''}`}
+      onClick={handleCardClick}
     >
       <div className="flex items-center gap-3">
+        {selectionMode && (
+          <Checkbox
+            checked={isChecked}
+            onCheckedChange={() => onToggleSelect?.(conversation.id)}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Seleccionar conversación"
+          />
+        )}
         <div className="flex items-center gap-2">
           {channel && (
             <PlatformIcon
@@ -138,6 +161,9 @@ interface ConversationListProps {
     title: string
     description: string
   }
+  selectionMode?: boolean
+  selectedIds?: Set<number>
+  onToggleSelect?: (conversationId: number) => void
 }
 
 export function ConversationList({
@@ -147,6 +173,9 @@ export function ConversationList({
   selectedConversationId,
   onConversationClick,
   emptyState,
+  selectionMode = false,
+  selectedIds,
+  onToggleSelect,
 }: ConversationListProps) {
   const { t } = useTranslation()
   const resolvedEmptyState = emptyState ?? {
@@ -193,6 +222,9 @@ export function ConversationList({
             channel={conversation.channel || channelMap.get(conversation.channelId)}
             isSelected={selectedConversationId === conversation.id}
             onClick={onConversationClick}
+            selectionMode={selectionMode}
+            isChecked={selectedIds?.has(conversation.id) ?? false}
+            onToggleSelect={onToggleSelect}
           />
         ))}
       </div>
