@@ -256,7 +256,7 @@ export function TaskListView({ tasks }: { tasks: Task[] }) {
     } else if (relation.kind === "pipeline") {
       router.push(`/oportunidades?id=${relation.id}`)
     } else if (relation.kind === "chat") {
-      router.push(`/chats?conversation=${relation.id}`)
+      router.push(`/chats?chat=${relation.id}`)
     }
   }
 

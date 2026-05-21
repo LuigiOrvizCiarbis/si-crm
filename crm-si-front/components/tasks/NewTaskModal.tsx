@@ -25,8 +25,10 @@ interface PrefilledData {
   relationLabel?: string
   type?: TaskType
   assignee?: string
+  assigneeId?: string
   name?: string
   description?: string
+  lockRelation?: boolean
 }
 
 interface NewTaskModalProps {
@@ -75,7 +77,9 @@ export function NewTaskModal({ open, onOpenChange, onCreateTask, prefilledData }
   useEffect(() => {
     if (open && prefilledData) {
       if (prefilledData.type) setType(prefilledData.type)
-      if (prefilledData.assignee) {
+      if (prefilledData.assigneeId) {
+        setAssigneeId(prefilledData.assigneeId)
+      } else if (prefilledData.assignee) {
         const user = users.find((item) => item.name === prefilledData.assignee)
         if (user) setAssigneeId(String(user.id))
       }
@@ -327,40 +331,50 @@ export function NewTaskModal({ open, onOpenChange, onCreateTask, prefilledData }
 
           <div className="space-y-2">
             <Label>Relacionado con</Label>
-            <div className="grid grid-cols-2 gap-4">
-              <Select
-                value={relationType}
-                onValueChange={(val) => {
-                  setRelationType(val as any)
-                  setRelationId("") // Reset selection when type changes
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Ninguno" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Ninguno</SelectItem>
-                  <SelectItem value="contact">Contacto</SelectItem>
-                  <SelectItem value="pipeline">Lead/Oportunidad</SelectItem>
-                  <SelectItem value="chat">Chat</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {relationType !== "none" && (
-                <Select value={relationId} onValueChange={setRelationId}>
+            {prefilledData?.lockRelation ? (
+              <div className="flex items-center gap-2 rounded-md border border-input bg-muted px-3 py-2 text-sm">
+                <span className="text-muted-foreground capitalize">
+                  {relationType === "chat" ? "Chat" : relationType === "contact" ? "Contacto" : relationType === "pipeline" ? "Lead/Oportunidad" : "Ninguno"}
+                </span>
+                <span className="text-muted-foreground">·</span>
+                <span className="font-medium truncate">{prefilledData.relationLabel ?? `#${relationId}`}</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  value={relationType}
+                  onValueChange={(val) => {
+                    setRelationType(val as any)
+                    setRelationId("") // Reset selection when type changes
+                  }}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar..." />
+                    <SelectValue placeholder="Ninguno" />
                   </SelectTrigger>
                   <SelectContent>
-                    {getRelationOptions().map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="none">Ninguno</SelectItem>
+                    <SelectItem value="contact">Contacto</SelectItem>
+                    <SelectItem value="pipeline">Lead/Oportunidad</SelectItem>
+                    <SelectItem value="chat">Chat</SelectItem>
                   </SelectContent>
                 </Select>
-              )}
-            </div>
+
+                {relationType !== "none" && (
+                  <Select value={relationId} onValueChange={setRelationId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getRelationOptions().map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Checklist */}
