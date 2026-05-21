@@ -1,10 +1,12 @@
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar"
 import { Button } from "@/components/ui/button"
 import { LeadScoreBadge } from "@/components/Badges"
-import { ArrowLeft, Info, MoreVertical, History } from "lucide-react"
+import { ArrowLeft, Info, MoreVertical, History, ListTodo } from "lucide-react"
 import { Conversation } from "@/data/types"
 import { useState } from "react"
 import { ContactHistoryDrawer } from "./ContactHistoryDrawer"
+import { NewTaskModal } from "@/components/tasks/NewTaskModal"
+import { useAuthStore } from "@/store/useAuthStore"
 import { useTranslation } from "@/hooks/useTranslation"
 
 interface ConversationHeaderProps {
@@ -21,6 +23,8 @@ export function ConversationHeader({
   onToggleContactInfo,
 }: ConversationHeaderProps) {
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [taskModalOpen, setTaskModalOpen] = useState(false)
+  const currentUser = useAuthStore((state) => state.user)
   const { t } = useTranslation()
   const leadScore = conversation.leadScore ?? 0
 
@@ -56,6 +60,14 @@ export function ConversationHeader({
           <Button
             variant="ghost"
             size="sm"
+            onClick={() => setTaskModalOpen(true)}
+            title={t("chats.createTask")}
+          >
+            <ListTodo className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setHistoryOpen(true)}
             title={t("chats.viewFullHistory")}
           >
@@ -74,12 +86,25 @@ export function ConversationHeader({
           </Button>
         </div>
       </div>
-      
+
       <ContactHistoryDrawer
         open={historyOpen}
         onOpenChange={setHistoryOpen}
         contactId={conversation.contact.id}
         contactName={conversation.contact.name}
+      />
+
+      <NewTaskModal
+        open={taskModalOpen}
+        onOpenChange={setTaskModalOpen}
+        onCreateTask={() => {}}
+        prefilledData={{
+          relationType: "chat",
+          relationId: String(conversation.id),
+          relationLabel: conversation.contact.name,
+          lockRelation: true,
+          ...(currentUser ? { assigneeId: String(currentUser.id) } : {}),
+        }}
       />
     </div>
   )

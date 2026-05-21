@@ -249,6 +249,7 @@
     "leadScoreHint": "Based on intent, recency, and channel",
     "online": "Online",
     "viewFullHistory": "View full history",
+    "createTask": "Create task",
     "unnamedContact": "Unnamed contact",
     "yesterday": "Yesterday",
     "loadHistoryError": "Error loading history",
