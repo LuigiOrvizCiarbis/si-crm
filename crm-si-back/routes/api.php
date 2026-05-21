@@ -324,6 +324,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('contacts/summary', [ContactController::class, 'summary']);
     Route::post('contacts', [ContactController::class, 'store']);
     Route::post('contacts/import', [ContactController::class, 'import']);
+    Route::post('contacts/bulk-tags', [ContactController::class, 'bulkTags']);
     Route::get('contacts/{contact}', [ContactController::class, 'show']);
     Route::put('contacts/{contact}', [ContactController::class, 'update']);
     Route::delete('contacts/{contact}', [ContactController::class, 'destroy']);
@@ -332,6 +333,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('contacts/{contact}/tags/{tag}', [TagController::class, 'detachFromContact']);
 
     Route::get('conversations', [ConversationController::class, 'index']);
+    Route::post('conversations/bulk-tags', [ConversationController::class, 'bulkTags']);
+    Route::post('conversations/bulk-assign', [ConversationController::class, 'bulkAssign']);
+    Route::post('conversations/bulk-archive', [ConversationController::class, 'bulkArchive']);
+    Route::post('conversations/bulk-delete', [ConversationController::class, 'bulkDelete']);
     Route::get('conversations/{conversation}', [ConversationController::class, 'show']);
     Route::post('conversations/{conversation}/tags', [TagController::class, 'attachToConversation']);
     Route::delete('conversations/{conversation}/tags/{tag}', [TagController::class, 'detachFromConversation']);

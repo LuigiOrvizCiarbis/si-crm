@@ -111,6 +111,34 @@
       "source": "Source",
       "lastContact": "Last contact",
       "actions": "Actions"
+    },
+    "bulk": {
+      "editTags": "Edit tags",
+      "dialog": {
+        "title": "Bulk edit tags",
+        "subtitle": "{{count}} selected contacts",
+        "actionLabel": "Action",
+        "action_add": "Add",
+        "action_remove": "Remove",
+        "action_replace": "Replace",
+        "tagsLabel": "Tags",
+        "searchTags": "Search tags",
+        "loadingTags": "Loading tags",
+        "noTags": "No matching tags.",
+        "hintAdd": "These tags will be added to the selected contacts without removing existing ones.",
+        "hintRemove": "These tags will be removed from the selected contacts.",
+        "hintReplace": "All existing tags will be replaced by the selected ones.",
+        "apply": "Apply",
+        "cancel": "Cancel"
+      },
+      "result": {
+        "success": "{{updated}} contacts updated",
+        "partial": "{{updated}} updated, {{failed}} not permitted"
+      },
+      "errors": {
+        "loadTags": "Could not load tags",
+        "apply": "Could not apply the change"
+      }
     }
   },
   "pipeline": {
@@ -335,6 +363,54 @@
       "scope": {
         "tenant": "Team",
         "personal": "Personal"
+      }
+    },
+    "bulk": {
+      "selectMode": "Select",
+      "exitSelection": "Exit",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
+      "selectedCount": "{{count}} selected",
+      "editTags": "Tags",
+      "assign": "Assign",
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "delete": "Delete",
+      "clear": "Clear",
+      "deleteConfirmTitle": "Delete conversations",
+      "deleteConfirmDesc": "You are about to delete {{count}} conversation(s). This action cannot be undone.",
+      "result": {
+        "success": "{{updated}} conversation(s) updated",
+        "partial": "{{updated}} updated, {{failed}} skipped",
+        "successDelete": "{{deleted}} conversation(s) deleted",
+        "partialDelete": "{{deleted}} deleted, {{failed}} skipped"
+      },
+      "errors": {
+        "loadTags": "Error loading tags",
+        "apply": "Error applying changes",
+        "delete": "Error deleting conversations"
+      },
+      "dialog": {
+        "tagsTitle": "Bulk edit tags",
+        "assignTitle": "Assign conversations",
+        "subtitle": "{{count}} conversation(s) selected",
+        "actionLabel": "Action",
+        "action_add": "Add",
+        "action_remove": "Remove",
+        "action_replace": "Replace",
+        "hintAdd": "Selected tags will be added without removing existing ones.",
+        "hintRemove": "Selected tags will be removed from the conversations.",
+        "hintReplace": "Current tags will be replaced by the new selection.",
+        "tagsLabel": "Tags",
+        "userLabel": "Assignee",
+        "searchTags": "Search tag...",
+        "searchUsers": "Search user...",
+        "loadingTags": "Loading tags...",
+        "loadingUsers": "Loading users...",
+        "noTags": "No tags available",
+        "noUsers": "No users available",
+        "cancel": "Cancel",
+        "apply": "Apply"
       }
     }
   },

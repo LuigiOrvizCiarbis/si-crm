@@ -90,3 +90,39 @@ export async function updateContact(contactId: number, updates: ContactUpdate): 
 
   return (payload.data ?? payload) as Contact;
 }
+
+export type BulkTagAction = "add" | "remove" | "replace";
+
+export interface BulkTagsRequest {
+  ids: number[];
+  action: BulkTagAction;
+  tag_ids: number[];
+}
+
+export interface BulkTagsResponse {
+  updated: number;
+  failed: number;
+  action: BulkTagAction;
+}
+
+export async function bulkUpdateContactTags(req: BulkTagsRequest): Promise<BulkTagsResponse> {
+  const token = getAuthToken();
+  if (!token) throw new Error("No authentication token found");
+
+  const response = await fetch("/api/contacts/bulk-tags", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(req),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwApiError(response.status, payload, "Error al actualizar etiquetas en lote");
+  }
+
+  return payload as BulkTagsResponse;
+}

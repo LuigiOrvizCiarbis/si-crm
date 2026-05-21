@@ -23,7 +23,33 @@ import { FilterType, Channel, Conversation, Message } from "@/data/types"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ChatQuickBar } from "@/components/ChatQuickBar"
-import { archiveConversation, getChannelConversations, getConversationMessages, getConversations, getConversationWithMessages } from "@/lib/api/conversations"
+import {
+  archiveConversation,
+  bulkArchiveConversations,
+  bulkDeleteConversations,
+  getChannelConversations,
+  getConversationMessages,
+  getConversations,
+  getConversationWithMessages,
+} from "@/lib/api/conversations"
+const BulkTagsConversationsDialog = dynamic(
+  () => import("@/components/chat/BulkTagsConversationsDialog").then(m => m.BulkTagsConversationsDialog),
+  { loading: () => null }
+)
+const BulkAssignConversationsDialog = dynamic(
+  () => import("@/components/chat/BulkAssignConversationsDialog").then(m => m.BulkAssignConversationsDialog),
+  { loading: () => null }
+)
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 import { sendMessage, editMessage, deleteMessage } from "@/lib/api/messages"
 import { ConversationHeader } from "@/components/chat/ConversationHeader"
@@ -42,11 +68,19 @@ import { useTranslation } from "@/hooks/useTranslation"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useFacebookSDK } from "@/hooks/useFacebookSDK"
 import {
+  Archive,
+  ArchiveRestore,
+  CheckSquare,
   FileText,
+  Loader2,
   MoreHorizontal,
   Plus,
   Search,
   Sparkles,
+  Tags,
+  Trash2,
+  UserPlus,
+  X,
   Zap,
 } from "lucide-react"
 
@@ -197,6 +231,13 @@ export default function ChatsPage() {
   const [hasMore, setHasMore] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [editingMessage, setEditingMessage] = useState<Message | null>(null)
+
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedConversationIds, setSelectedConversationIds] = useState<Set<number>>(new Set())
+  const [bulkTagsOpen, setBulkTagsOpen] = useState(false)
+  const [bulkAssignOpen, setBulkAssignOpen] = useState(false)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkSubmitting, setBulkSubmitting] = useState(false)
 
   const conversationsRef = useRef(conversations);
   useEffect(() => {
@@ -923,6 +964,118 @@ export default function ChatsPage() {
 
 
 
+  const refreshConversations = useCallback(async () => {
+    try {
+      const data = selectedChannelId
+        ? await getChannelConversations(selectedChannelId)
+        : await getConversations()
+      setConversations(data)
+    } catch {
+      addToast({ type: "error", title: t("chats.loadConversationsError") })
+    }
+  }, [selectedChannelId, addToast, t])
+
+  const handleToggleSelectionMode = useCallback(() => {
+    setSelectionMode((prev) => {
+      if (prev) setSelectedConversationIds(new Set())
+      return !prev
+    })
+    setSelectedConversationId(null)
+    router.replace("/chats")
+  }, [router])
+
+  const handleToggleSelectConversation = useCallback((id: number) => {
+    setSelectedConversationIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const handleSelectAllVisible = useCallback(() => {
+    setSelectedConversationIds((prev) => {
+      const allVisibleIds = visibleConversations.map((c) => c.id)
+      const allSelected = allVisibleIds.every((id) => prev.has(id))
+      if (allSelected) {
+        const next = new Set(prev)
+        for (const id of allVisibleIds) next.delete(id)
+        return next
+      }
+      const next = new Set(prev)
+      for (const id of allVisibleIds) next.add(id)
+      return next
+    })
+  }, [visibleConversations])
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedConversationIds(new Set())
+  }, [])
+
+  const handleExitSelectionMode = useCallback(() => {
+    setSelectionMode(false)
+    setSelectedConversationIds(new Set())
+  }, [])
+
+  const handleBulkArchive = useCallback(async (archive: boolean) => {
+    if (selectedConversationIds.size === 0) return
+    setBulkSubmitting(true)
+    try {
+      const result = await bulkArchiveConversations({
+        ids: Array.from(selectedConversationIds),
+        archived: archive,
+      })
+      addToast({
+        type: result.failed > 0 ? "info" : "success",
+        title: result.failed > 0
+          ? t("chats.bulk.result.partial", { updated: result.updated, failed: result.failed })
+          : t("chats.bulk.result.success", { updated: result.updated }),
+      })
+      await refreshConversations()
+      handleExitSelectionMode()
+    } catch (err) {
+      addToast({
+        type: "error",
+        title: t("chats.bulk.errors.apply"),
+        description: err instanceof Error ? err.message : "",
+      })
+    } finally {
+      setBulkSubmitting(false)
+    }
+  }, [selectedConversationIds, addToast, t, refreshConversations, handleExitSelectionMode])
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedConversationIds.size === 0) return
+    setBulkSubmitting(true)
+    try {
+      const result = await bulkDeleteConversations({
+        ids: Array.from(selectedConversationIds),
+      })
+      addToast({
+        type: result.failed > 0 ? "info" : "success",
+        title: result.failed > 0
+          ? t("chats.bulk.result.partialDelete", { deleted: result.deleted, failed: result.failed })
+          : t("chats.bulk.result.successDelete", { deleted: result.deleted }),
+      })
+      await refreshConversations()
+      setBulkDeleteOpen(false)
+      handleExitSelectionMode()
+    } catch (err) {
+      addToast({
+        type: "error",
+        title: t("chats.bulk.errors.delete"),
+        description: err instanceof Error ? err.message : "",
+      })
+    } finally {
+      setBulkSubmitting(false)
+    }
+  }, [selectedConversationIds, addToast, t, refreshConversations, handleExitSelectionMode])
+
+  const allVisibleSelected = useMemo(
+    () => visibleConversations.length > 0 && visibleConversations.every((c) => selectedConversationIds.has(c.id)),
+    [visibleConversations, selectedConversationIds],
+  )
+
   return (
     <SidebarLayout>
       <ChatsCompactHeader
@@ -1031,6 +1184,96 @@ export default function ChatsPage() {
 
           {!selectedConversationId && (
             <>
+              <div className="flex items-center justify-between gap-2 border-b border-border bg-card/60 px-4 py-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={selectionMode ? "default" : "outline"}
+                    size="sm"
+                    onClick={handleToggleSelectionMode}
+                    className="gap-2"
+                  >
+                    <CheckSquare className="h-4 w-4" />
+                    {selectionMode ? t("chats.bulk.exitSelection") : t("chats.bulk.selectMode")}
+                  </Button>
+                  {selectionMode && visibleConversations.length > 0 && (
+                    <Button variant="ghost" size="sm" onClick={handleSelectAllVisible}>
+                      {allVisibleSelected ? t("chats.bulk.deselectAll") : t("chats.bulk.selectAll")}
+                    </Button>
+                  )}
+                </div>
+                {selectionMode && selectedConversationIds.size > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    {t("chats.bulk.selectedCount", { count: selectedConversationIds.size })}
+                  </span>
+                )}
+              </div>
+
+              {selectionMode && selectedConversationIds.size > 0 && (
+                <div className="flex flex-wrap items-center gap-2 border-b border-primary/20 bg-primary/5 px-4 py-2">
+                  <Button
+                    size="sm"
+                    onClick={() => setBulkTagsOpen(true)}
+                    disabled={bulkSubmitting}
+                    className="gap-2"
+                  >
+                    <Tags className="h-3.5 w-3.5" />
+                    {t("chats.bulk.editTags")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setBulkAssignOpen(true)}
+                    disabled={bulkSubmitting}
+                    className="gap-2"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    {t("chats.bulk.assign")}
+                  </Button>
+                  {viewType === "archived" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleBulkArchive(false)}
+                      disabled={bulkSubmitting}
+                      className="gap-2"
+                    >
+                      {bulkSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArchiveRestore className="h-3.5 w-3.5" />}
+                      {t("chats.bulk.unarchive")}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleBulkArchive(true)}
+                      disabled={bulkSubmitting}
+                      className="gap-2"
+                    >
+                      {bulkSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Archive className="h-3.5 w-3.5" />}
+                      {t("chats.bulk.archive")}
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setBulkDeleteOpen(true)}
+                    disabled={bulkSubmitting}
+                    className="gap-2"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {t("chats.bulk.delete")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleClearSelection}
+                    disabled={bulkSubmitting}
+                    className="gap-2"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    {t("chats.bulk.clear")}
+                  </Button>
+                </div>
+              )}
 
               <ConversationList
                 conversations={visibleConversations}
@@ -1038,6 +1281,9 @@ export default function ChatsPage() {
                 isLoading={isLoading}
                 selectedConversationId={selectedConversationId}
                 onConversationClick={handleConversationClick}
+                selectionMode={selectionMode}
+                selectedIds={selectedConversationIds}
+                onToggleSelect={handleToggleSelectConversation}
                 emptyState={{
                   title: searchQuery ? "Sin resultados" : t("chats.noConversations"),
                   description: searchQuery
@@ -1124,6 +1370,50 @@ export default function ChatsPage() {
           />
         )}
       </div>
+
+      <BulkTagsConversationsDialog
+        open={bulkTagsOpen}
+        onOpenChange={setBulkTagsOpen}
+        selectedIds={Array.from(selectedConversationIds)}
+        onSuccess={() => {
+          refreshConversations()
+          handleExitSelectionMode()
+        }}
+      />
+
+      <BulkAssignConversationsDialog
+        open={bulkAssignOpen}
+        onOpenChange={setBulkAssignOpen}
+        selectedIds={Array.from(selectedConversationIds)}
+        onSuccess={() => {
+          refreshConversations()
+          handleExitSelectionMode()
+        }}
+      />
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => { if (!bulkSubmitting) setBulkDeleteOpen(open) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("chats.bulk.deleteConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("chats.bulk.deleteConfirmDesc", { count: selectedConversationIds.size })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkSubmitting}>
+              {t("chats.bulk.dialog.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleBulkDelete() }}
+              disabled={bulkSubmitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("chats.bulk.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarLayout>
   )
 }

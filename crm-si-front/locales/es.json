@@ -111,6 +111,34 @@
       "source": "Fuente",
       "lastContact": "Último contacto",
       "actions": "Acciones"
+    },
+    "bulk": {
+      "editTags": "Editar etiquetas",
+      "dialog": {
+        "title": "Editar etiquetas en lote",
+        "subtitle": "{{count}} contactos seleccionados",
+        "actionLabel": "Acción",
+        "action_add": "Agregar",
+        "action_remove": "Quitar",
+        "action_replace": "Reemplazar",
+        "tagsLabel": "Etiquetas",
+        "searchTags": "Buscar etiquetas",
+        "loadingTags": "Cargando etiquetas",
+        "noTags": "No hay etiquetas que coincidan.",
+        "hintAdd": "Se agregarán a los contactos sin quitar las existentes.",
+        "hintRemove": "Se quitarán de los contactos seleccionados.",
+        "hintReplace": "Se reemplazarán todas las etiquetas existentes por las seleccionadas.",
+        "apply": "Aplicar",
+        "cancel": "Cancelar"
+      },
+      "result": {
+        "success": "{{updated}} contactos actualizados",
+        "partial": "{{updated}} actualizados, {{failed}} sin permiso"
+      },
+      "errors": {
+        "loadTags": "No se pudieron cargar las etiquetas",
+        "apply": "No se pudo aplicar el cambio"
+      }
     }
   },
   "pipeline": {
@@ -335,6 +363,54 @@
       "scope": {
         "tenant": "Equipo",
         "personal": "Personal"
+      }
+    },
+    "bulk": {
+      "selectMode": "Seleccionar",
+      "exitSelection": "Salir",
+      "selectAll": "Seleccionar todos",
+      "deselectAll": "Deseleccionar todos",
+      "selectedCount": "{{count}} seleccionados",
+      "editTags": "Etiquetas",
+      "assign": "Asignar",
+      "archive": "Archivar",
+      "unarchive": "Desarchivar",
+      "delete": "Eliminar",
+      "clear": "Limpiar",
+      "deleteConfirmTitle": "Eliminar conversaciones",
+      "deleteConfirmDesc": "Vas a eliminar {{count}} conversación(es). Esta acción no se puede deshacer.",
+      "result": {
+        "success": "{{updated}} conversación(es) actualizadas",
+        "partial": "{{updated}} actualizadas, {{failed}} omitidas",
+        "successDelete": "{{deleted}} conversación(es) eliminadas",
+        "partialDelete": "{{deleted}} eliminadas, {{failed}} omitidas"
+      },
+      "errors": {
+        "loadTags": "Error al cargar etiquetas",
+        "apply": "Error al aplicar cambios",
+        "delete": "Error al eliminar conversaciones"
+      },
+      "dialog": {
+        "tagsTitle": "Editar etiquetas en lote",
+        "assignTitle": "Asignar conversaciones",
+        "subtitle": "{{count}} conversación(es) seleccionadas",
+        "actionLabel": "Acción",
+        "action_add": "Agregar",
+        "action_remove": "Quitar",
+        "action_replace": "Reemplazar",
+        "hintAdd": "Las etiquetas seleccionadas se agregarán sin quitar las existentes.",
+        "hintRemove": "Las etiquetas seleccionadas se quitarán de las conversaciones.",
+        "hintReplace": "Las etiquetas actuales serán reemplazadas por la nueva selección.",
+        "tagsLabel": "Etiquetas",
+        "userLabel": "Usuario responsable",
+        "searchTags": "Buscar etiqueta...",
+        "searchUsers": "Buscar usuario...",
+        "loadingTags": "Cargando etiquetas...",
+        "loadingUsers": "Cargando usuarios...",
+        "noTags": "No hay etiquetas disponibles",
+        "noUsers": "No hay usuarios disponibles",
+        "cancel": "Cancelar",
+        "apply": "Aplicar"
       }
     }
   },
