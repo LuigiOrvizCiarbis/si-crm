@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useToast } from "@/components/Toast"
-import { MailOpen, Archive, Settings, Loader2 } from "lucide-react"
+import { Archive, Settings, Loader2 } from "lucide-react"
 import { getPipelineStages, PipelineStage } from "@/lib/api/pipeline"
 import { getUsers } from "@/lib/api/users"
 import { updateConversationStage, assignConversationUser } from "@/lib/api/conversations"
@@ -33,7 +33,6 @@ interface ChatQuickBarValue {
   stageId?: number // Cambiado de stage: Stage a stageId: number
   priority?: Priority
   assigneeId?: number | string
-  unread?: boolean
   archived?: boolean
 }
 
@@ -44,7 +43,6 @@ interface ChatQuickBarProps {
   onChangeStage: (stageId: number, stageName: string) => void // Ajustado para recibir ID y nombre
   onChangePriority: (priority: Priority) => void
   onChangeAssignee: (id: number) => void
-  onMarkRead: () => void
   onToggleArchive: () => void
   tags?: Tag[]
   onTagsChange?: (tags: Tag[]) => void
@@ -59,7 +57,6 @@ export function ChatQuickBar({
   onChangeStage,
   onChangePriority,
   onChangeAssignee,
-  onMarkRead,
   onToggleArchive,
   tags = [],
   onTagsChange,
@@ -148,15 +145,6 @@ export function ChatQuickBar({
       const isInput = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable
       if (isInput) return
 
-      if (e.key === "l" || e.key === "L") {
-        e.preventDefault()
-        onMarkRead()
-        addToast({
-          type: "success",
-          title: t("chats.chatMarkedRead"),
-          description: t("chats.chatMarkedReadDesc"),
-        })
-      }
       if (e.key === "e" || e.key === "E") {
         e.preventDefault()
         onToggleArchive()
@@ -170,7 +158,7 @@ export function ChatQuickBar({
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [onMarkRead, onToggleArchive, value.archived, addToast])
+  }, [onToggleArchive, value.archived, addToast, t])
 
   useEffect(() => {
     setTempValues({
@@ -215,15 +203,6 @@ export function ChatQuickBar({
         description: error instanceof Error ? error.message : t("chats.assignErrorDesc"),
       })
     }
-  }
-
-  const handleMarkRead = () => {
-    onMarkRead()
-    addToast({
-      type: "success",
-      title: t("chats.chatMarkedRead"),
-      description: t("chats.chatMarkedReadDesc"),
-    })
   }
 
   const handleToggleArchive = () => {
@@ -401,15 +380,6 @@ export function ChatQuickBar({
             variant="ghost"
             size="sm"
             className="p-2 rounded-lg border border-[#1e2533] hover:bg-[#1A1F2B] text-[#D8DEE9]"
-            onClick={handleMarkRead}
-            title={t("chats.markReadShortcut")}
-          >
-            <MailOpen className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="p-2 rounded-lg border border-[#1e2533] hover:bg-[#1A1F2B] text-[#D8DEE9]"
             onClick={handleToggleArchive}
             title={value.archived ? t("chats.unarchiveShortcut") : t("chats.archiveShortcut")}
           >
@@ -429,15 +399,6 @@ export function ChatQuickBar({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="p-2 rounded-lg border border-[#1e2533] hover:bg-[#1A1F2B] text-[#D8DEE9]"
-            onClick={handleMarkRead}
-            title={t("chats.markReadShortcut")}
-          >
-            <MailOpen className="w-4 h-4" />
-          </Button>
           <Button
             variant="ghost"
             size="sm"
