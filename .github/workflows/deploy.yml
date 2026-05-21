@@ -17,6 +17,27 @@ jobs:
           script: |
             set -eu
 
+            wait_for_http() {
+              name="$1"
+              url="$2"
+              max_attempts="${3:-30}"
+              attempt=1
+
+              while [ "$attempt" -le "$max_attempts" ]; do
+                if curl -fsS "$url" > /dev/null; then
+                  echo "$name is healthy"
+                  return 0
+                fi
+
+                echo "Waiting for $name ($attempt/$max_attempts)..."
+                attempt=$((attempt + 1))
+                sleep 5
+              done
+
+              echo "$name did not become healthy"
+              return 1
+            }
+
             cd /opt/apps/si-crm
             git fetch origin preprod
             git reset --hard origin/preprod
@@ -34,11 +55,11 @@ jobs:
             docker compose -f docker-compose.prod.yml exec -T app php artisan view:cache
             docker compose -f docker-compose.prod.yml exec -T app php artisan queue:restart || true
             docker compose -f docker-compose.prod.yml ps
-            curl -fsS http://localhost:8000 > /dev/null
+            wait_for_http "Backend" "http://localhost:8000"
 
             # Frontend (production build)
             cd ../crm-si-front
             docker compose --env-file .env.production -f docker-compose.prod.yaml build
             docker compose --env-file .env.production -f docker-compose.prod.yaml up -d
             docker compose --env-file .env.production -f docker-compose.prod.yaml ps
-            curl -fsS http://localhost:3000 > /dev/null
+            wait_for_http "Frontend" "http://localhost:3000"
