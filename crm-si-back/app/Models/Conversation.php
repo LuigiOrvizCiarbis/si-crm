@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\HasTags;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -21,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $last_message_at
  * @property string|null $last_message_content
  * @property int|null $pipeline_stage_id
+ * @property Carbon|null $archived_at
  */
 class Conversation extends Model
 {
@@ -36,13 +38,24 @@ class Conversation extends Model
         'last_message_at',
         'last_message_content',
         'pipeline_stage_id',
+        'archived_at',
     ];
+
+    protected $appends = ['archived'];
 
     protected $casts = [
         'last_message_at' => 'datetime',
+        'archived_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    protected function archived(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => ! is_null($this->archived_at),
+        );
+    }
 
     /**
      * Relación con tenant
@@ -254,5 +267,25 @@ class Conversation extends Model
     public function pipelineStage(): BelongsTo
     {
         return $this->belongsTo(PipelineStage::class);
+    }
+
+    public function scopeArchived(Builder $query): Builder
+    {
+        return $query->whereNotNull('archived_at');
+    }
+
+    public function scopeNotArchived(Builder $query): Builder
+    {
+        return $query->whereNull('archived_at');
+    }
+
+    public function archive(): void
+    {
+        $this->update(['archived_at' => now()]);
+    }
+
+    public function unarchive(): void
+    {
+        $this->update(['archived_at' => null]);
     }
 }

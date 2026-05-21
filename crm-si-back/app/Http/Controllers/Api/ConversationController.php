@@ -26,6 +26,11 @@ class ConversationController extends Controller
 
         $q = Conversation::query()
             ->with(['contact:id,name,phone', 'channel:id,name,type', 'messages:id', 'tags'])
+            ->withCount(['messages as unread_count' => function ($query) {
+                $query->where('direction', MessageDirection::INBOUND)
+                    ->whereNull('read_at')
+                    ->whereNull('deleted_at');
+            }])
             ->visibleTo($user);
 
         if ($canViewAny && $filterByUserId) {
@@ -103,6 +108,8 @@ class ConversationController extends Controller
                 'lead_score' => $conversation->lead_score,
                 'pipeline_stage_id' => $conversation->pipeline_stage_id,
                 'assigned_to' => $conversation->assigned_to,
+                'archived_at' => $conversation->archived_at,
+                'archived' => $conversation->archived,
                 'created_at' => $conversation->created_at,
                 'updated_at' => $conversation->updated_at,
                 'messages' => $conversation->messages,
@@ -270,6 +277,30 @@ class ConversationController extends Controller
         return response()->json([
             'message' => 'Usuario removido correctamente',
             'users' => $conversation->users,
+        ]);
+    }
+
+    public function archive(Request $request, $id): JsonResponse
+    {
+        $conversation = Conversation::where('id', $id)->firstOrFail();
+        $this->authorize('update', $conversation);
+
+        $validated = $request->validate([
+            'archived' => 'required|boolean',
+        ]);
+
+        if ($validated['archived']) {
+            $conversation->archive();
+        } else {
+            $conversation->unarchive();
+        }
+
+        return response()->json([
+            'data' => [
+                'id' => $conversation->id,
+                'archived' => $conversation->archived,
+                'archived_at' => $conversation->archived_at,
+            ],
         ]);
     }
 

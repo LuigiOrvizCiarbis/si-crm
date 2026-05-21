@@ -178,6 +178,29 @@ export async function updateConversationStage(conversationId: number, stage: num
   return await res.json();
 }
 
+export async function archiveConversation(conversationId: number, archived: boolean) {
+  const token = getAuthToken();
+  if (!token) throw new Error("No token found");
+
+  const res = await fetch(`/api/conversations/${conversationId}/archive`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ archived }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throwApiError(res.status, errorData, "Error al archivar conversación");
+  }
+
+  const payload = await res.json();
+  return payload.data as { id: number; archived: boolean; archived_at: string | null };
+}
+
 export async function assignConversationUser(conversationId: number, userId: number) {
   const token = getAuthToken();
   if (!token) throw new Error("No token found");

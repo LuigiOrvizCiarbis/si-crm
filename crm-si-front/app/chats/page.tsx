@@ -23,7 +23,7 @@ import { FilterType, Channel, Conversation, Message } from "@/data/types"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ChatQuickBar } from "@/components/ChatQuickBar"
-import { getChannelConversations, getConversationMessages, getConversations, getConversationWithMessages } from "@/lib/api/conversations"
+import { archiveConversation, getChannelConversations, getConversationMessages, getConversations, getConversationWithMessages } from "@/lib/api/conversations"
 
 import { sendMessage, editMessage, deleteMessage } from "@/lib/api/messages"
 import { ConversationHeader } from "@/components/chat/ConversationHeader"
@@ -739,6 +739,34 @@ export default function ChatsPage() {
     }
   };
 
+  const handleToggleArchive = useCallback(async () => {
+    if (!selectedConversationId) return;
+
+    const targetId = selectedConversationId;
+    const current = conversationsRef.current.find((c) => c.id === targetId);
+    const previous = Boolean(current?.archived);
+    const next = !previous;
+
+    setConversations((prev) => prev.map((c) =>
+      c.id === targetId ? { ...c, archived: next } : c
+    ));
+    setCurrentConversation((prev) => (prev && prev.id === targetId ? { ...prev, archived: next } : prev));
+
+    try {
+      await archiveConversation(targetId, next);
+    } catch (error) {
+      setConversations((prev) => prev.map((c) =>
+        c.id === targetId ? { ...c, archived: previous } : c
+      ));
+      setCurrentConversation((prev) => (prev && prev.id === targetId ? { ...prev, archived: previous } : prev));
+      addToast({
+        type: "error",
+        title: t("chats.archiveError") || "Error al archivar",
+        description: error instanceof Error ? error.message : t("chats.unknownError"),
+      });
+    }
+  }, [selectedConversationId, addToast, t]);
+
   const handleDeleteMessage = async (msg: Message) => {
     try {
       await deleteMessage(msg.id);
@@ -1032,7 +1060,6 @@ export default function ChatsPage() {
                   stageId: currentConversation?.pipeline_stage_id,
                   priority: currentConversation?.priority,
                   assigneeId: currentConversation?.assigneeId,
-                  unread: currentConversation?.unread,
                   archived: currentConversation?.archived,
                 }}
                 team={[]}
@@ -1049,8 +1076,7 @@ export default function ChatsPage() {
                   // Actualizar currentConversation localmente
                   setCurrentConversation(prev => prev ? { ...prev, assigneeId: String(assigneeId) } : prev)
                 }}
-                onMarkRead={chatHandlers.handleMarkRead(selectedConversationId)}
-                onToggleArchive={chatHandlers.handleToggleArchive(selectedConversationId)}
+                onToggleArchive={handleToggleArchive}
                 tags={currentConversation?.tags || activeConversation?.tags || []}
                 onTagsChange={handleConversationTagsChange}
               />
