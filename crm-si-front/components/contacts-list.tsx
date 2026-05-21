@@ -14,8 +14,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Search, Filter, Plus, Upload, MoreVertical, Phone, Mail, MessageSquare, Users, Loader2, Calendar, Hash, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { Search, Filter, Plus, Upload, MoreVertical, Phone, Mail, MessageSquare, Users, Loader2, Calendar, Hash, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Tags } from "lucide-react"
 import { ImportContactsDialog } from "./import-contacts-dialog"
+import { BulkTagsDialog } from "./contacts/bulk-tags-dialog"
 import { getAuthToken } from "@/lib/api/auth-token"
 import { getPipelineStages } from "@/lib/api/pipeline"
 import { createOpportunity, getOpportunities, updateOpportunityStage } from "@/lib/api/opportunities"
@@ -272,6 +273,7 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
   const [deleting, setDeleting] = useState(false)
   const [addingToPipelineId, setAddingToPipelineId] = useState<number | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [bulkTagsOpen, setBulkTagsOpen] = useState(false)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const profileResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -870,12 +872,29 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
           <Badge variant="secondary" className="text-sm font-semibold">
             {selectedIds.size} contacto{selectedIds.size !== 1 ? "s" : ""} seleccionado{selectedIds.size !== 1 ? "s" : ""}
           </Badge>
-          <Button variant="outline" size="sm" onClick={() => setSelectedIds(new Set())}>
-            <X className="w-3 h-3 mr-1" />
-            Cancelar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => setBulkTagsOpen(true)}>
+              <Tags className="w-3 h-3 mr-1" />
+              {t("contactsPage.bulk.editTags")}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setSelectedIds(new Set())}>
+              <X className="w-3 h-3 mr-1" />
+              Cancelar
+            </Button>
+          </div>
         </div>
       )}
+
+      <BulkTagsDialog
+        open={bulkTagsOpen}
+        onOpenChange={setBulkTagsOpen}
+        selectedIds={Array.from(selectedIds)}
+        onSuccess={() => {
+          setSelectedIds(new Set())
+          fetchContacts()
+        }}
+      />
+
 
       {isInitialLoading ? (
         <div className="flex items-center justify-center py-16">

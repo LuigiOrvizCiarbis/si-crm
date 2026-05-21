@@ -324,6 +324,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('contacts/summary', [ContactController::class, 'summary']);
     Route::post('contacts', [ContactController::class, 'store']);
     Route::post('contacts/import', [ContactController::class, 'import']);
+    Route::post('contacts/bulk-tags', [ContactController::class, 'bulkTags']);
     Route::get('contacts/{contact}', [ContactController::class, 'show']);
     Route::put('contacts/{contact}', [ContactController::class, 'update']);
     Route::delete('contacts/{contact}', [ContactController::class, 'destroy']);

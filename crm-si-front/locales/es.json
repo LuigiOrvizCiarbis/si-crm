@@ -111,6 +111,34 @@
       "source": "Fuente",
       "lastContact": "Último contacto",
       "actions": "Acciones"
+    },
+    "bulk": {
+      "editTags": "Editar etiquetas",
+      "dialog": {
+        "title": "Editar etiquetas en lote",
+        "subtitle": "{{count}} contactos seleccionados",
+        "actionLabel": "Acción",
+        "action_add": "Agregar",
+        "action_remove": "Quitar",
+        "action_replace": "Reemplazar",
+        "tagsLabel": "Etiquetas",
+        "searchTags": "Buscar etiquetas",
+        "loadingTags": "Cargando etiquetas",
+        "noTags": "No hay etiquetas que coincidan.",
+        "hintAdd": "Se agregarán a los contactos sin quitar las existentes.",
+        "hintRemove": "Se quitarán de los contactos seleccionados.",
+        "hintReplace": "Se reemplazarán todas las etiquetas existentes por las seleccionadas.",
+        "apply": "Aplicar",
+        "cancel": "Cancelar"
+      },
+      "result": {
+        "success": "{{updated}} contactos actualizados",
+        "partial": "{{updated}} actualizados, {{failed}} sin permiso"
+      },
+      "errors": {
+        "loadTags": "No se pudieron cargar las etiquetas",
+        "apply": "No se pudo aplicar el cambio"
+      }
     }
   },
   "pipeline": {

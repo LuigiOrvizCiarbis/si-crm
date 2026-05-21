@@ -61,8 +61,17 @@ class RoleProvisioner
     {
         $this->registrar->setPermissionsTeamId(null);
 
+        $created = false;
         foreach (PermissionCatalog::all() as $name) {
-            Permission::findOrCreate($name, 'web');
+            $permission = Permission::where('name', $name)->where('guard_name', 'web')->first();
+            if ($permission === null) {
+                Permission::create(['name' => $name, 'guard_name' => 'web']);
+                $created = true;
+            }
+        }
+
+        if ($created) {
+            $this->registrar->forgetCachedPermissions();
         }
     }
 }

@@ -103,7 +103,23 @@ class TagController extends Controller
     {
         $this->authorizeTenant($request, $conversation->tenant_id);
 
-        return $this->attachTags($request, $conversation);
+        $response = $this->attachTags($request, $conversation);
+
+        $contact = $conversation->contact;
+        if ($contact && $contact->tenant_id === $request->user()->tenant_id) {
+            $tagIds = (array) $request->input('tag_ids', []);
+            $pivotData = collect($tagIds)
+                ->mapWithKeys(fn (int $tagId) => [
+                    $tagId => [
+                        'tenant_id' => $request->user()->tenant_id,
+                        'assigned_by' => $request->user()->id,
+                    ],
+                ])
+                ->all();
+            $contact->tags()->syncWithoutDetaching($pivotData);
+        }
+
+        return $response;
     }
 
     public function detachFromConversation(Request $request, Conversation $conversation, Tag $tag): JsonResponse

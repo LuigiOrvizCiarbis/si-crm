@@ -8,6 +8,7 @@ use App\Models\Contact;
 use App\Services\ContactImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ContactController extends Controller
 {
@@ -161,6 +162,55 @@ class ContactController extends Controller
         $result = $service->import($request->file('file'), $mapping, $tenantId);
 
         return response()->json(['data' => $result]);
+    }
+
+    public function bulkTags(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $tenantId = $user->tenant_id;
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer'],
+            'action' => ['required', 'in:add,remove,replace'],
+            'tag_ids' => ['present', 'array'],
+            'tag_ids.*' => [
+                'integer',
+                Rule::exists('tags', 'id')->where(fn ($q) => $q->where('tenant_id', $tenantId)),
+            ],
+        ]);
+
+        if (in_array($validated['action'], ['add', 'remove'], true) && count($validated['tag_ids']) === 0) {
+            return response()->json([
+                'message' => 'Debe seleccionar al menos una etiqueta.',
+                'errors' => ['tag_ids' => ['Seleccione al menos una etiqueta.']],
+            ], 422);
+        }
+
+        $contacts = Contact::query()->whereIn('id', $validated['ids'])->get();
+
+        $authorized = $contacts->filter(fn (Contact $contact) => $user->can('update', $contact));
+
+        $pivotData = collect($validated['tag_ids'])->mapWithKeys(fn (int $tagId) => [
+            $tagId => [
+                'tenant_id' => $tenantId,
+                'assigned_by' => $user->id,
+            ],
+        ])->all();
+
+        foreach ($authorized as $contact) {
+            match ($validated['action']) {
+                'add' => $contact->tags()->syncWithoutDetaching($pivotData),
+                'remove' => $contact->tags()->detach($validated['tag_ids']),
+                'replace' => $contact->tags()->sync($pivotData),
+            };
+        }
+
+        return response()->json([
+            'updated' => $authorized->count(),
+            'failed' => count($validated['ids']) - $authorized->count(),
+            'action' => $validated['action'],
+        ]);
     }
 
     private function contactRules(bool $partial = false): array

@@ -111,6 +111,34 @@
       "source": "Source",
       "lastContact": "Last contact",
       "actions": "Actions"
+    },
+    "bulk": {
+      "editTags": "Edit tags",
+      "dialog": {
+        "title": "Bulk edit tags",
+        "subtitle": "{{count}} selected contacts",
+        "actionLabel": "Action",
+        "action_add": "Add",
+        "action_remove": "Remove",
+        "action_replace": "Replace",
+        "tagsLabel": "Tags",
+        "searchTags": "Search tags",
+        "loadingTags": "Loading tags",
+        "noTags": "No matching tags.",
+        "hintAdd": "These tags will be added to the selected contacts without removing existing ones.",
+        "hintRemove": "These tags will be removed from the selected contacts.",
+        "hintReplace": "All existing tags will be replaced by the selected ones.",
+        "apply": "Apply",
+        "cancel": "Cancel"
+      },
+      "result": {
+        "success": "{{updated}} contacts updated",
+        "partial": "{{updated}} updated, {{failed}} not permitted"
+      },
+      "errors": {
+        "loadTags": "Could not load tags",
+        "apply": "Could not apply the change"
+      }
     }
   },
   "pipeline": {
