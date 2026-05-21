@@ -9,6 +9,7 @@ use App\Models\Conversation;
 use App\Models\Opportunity;
 use App\Models\PipelineStage;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class ConversationController extends Controller
@@ -301,6 +302,142 @@ class ConversationController extends Controller
                 'archived' => $conversation->archived,
                 'archived_at' => $conversation->archived_at,
             ],
+        ]);
+    }
+
+    public function bulkTags(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $tenantId = $user->tenant_id;
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer'],
+            'action' => ['required', 'in:add,remove,replace'],
+            'tag_ids' => ['present', 'array'],
+            'tag_ids.*' => [
+                'integer',
+                Rule::exists('tags', 'id')->where(fn ($q) => $q->where('tenant_id', $tenantId)),
+            ],
+        ]);
+
+        if (in_array($validated['action'], ['add', 'remove'], true) && count($validated['tag_ids']) === 0) {
+            return response()->json([
+                'message' => 'Debe seleccionar al menos una etiqueta.',
+                'errors' => ['tag_ids' => ['Seleccione al menos una etiqueta.']],
+            ], 422);
+        }
+
+        $conversations = Conversation::query()->whereIn('id', $validated['ids'])->get();
+
+        $authorized = $conversations->filter(fn (Conversation $conversation) => $user->can('update', $conversation));
+
+        $pivotData = collect($validated['tag_ids'])->mapWithKeys(fn (int $tagId) => [
+            $tagId => [
+                'tenant_id' => $tenantId,
+                'assigned_by' => $user->id,
+            ],
+        ])->all();
+
+        foreach ($authorized as $conversation) {
+            match ($validated['action']) {
+                'add' => $conversation->tags()->syncWithoutDetaching($pivotData),
+                'remove' => $conversation->tags()->detach($validated['tag_ids']),
+                'replace' => $conversation->tags()->sync($pivotData),
+            };
+        }
+
+        return response()->json([
+            'updated' => $authorized->count(),
+            'failed' => count($validated['ids']) - $authorized->count(),
+            'action' => $validated['action'],
+        ]);
+    }
+
+    public function bulkAssign(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $tenantId = $user->tenant_id;
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer'],
+            'user_id' => [
+                'required',
+                'integer',
+                Rule::exists('users', 'id')->where(fn ($q) => $q->where('tenant_id', $tenantId)),
+            ],
+        ]);
+
+        $conversations = Conversation::query()->whereIn('id', $validated['ids'])->get();
+
+        $authorized = $conversations->filter(fn (Conversation $conversation) => $user->can('assign', $conversation));
+
+        foreach ($authorized as $conversation) {
+            $conversation->update(['assigned_to' => $validated['user_id']]);
+            $conversation->users()->syncWithoutDetaching([
+                $validated['user_id'] => ['assigned_by' => $user->id],
+            ]);
+        }
+
+        return response()->json([
+            'updated' => $authorized->count(),
+            'failed' => count($validated['ids']) - $authorized->count(),
+            'assigned_to' => $validated['user_id'],
+        ]);
+    }
+
+    public function bulkArchive(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer'],
+            'archived' => ['required', 'boolean'],
+        ]);
+
+        $conversations = Conversation::query()->whereIn('id', $validated['ids'])->get();
+
+        $authorized = $conversations->filter(fn (Conversation $conversation) => $user->can('update', $conversation));
+
+        foreach ($authorized as $conversation) {
+            if ($validated['archived']) {
+                $conversation->archive();
+            } else {
+                $conversation->unarchive();
+            }
+        }
+
+        return response()->json([
+            'updated' => $authorized->count(),
+            'failed' => count($validated['ids']) - $authorized->count(),
+            'archived' => $validated['archived'],
+        ]);
+    }
+
+    public function bulkDelete(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $conversations = Conversation::query()->whereIn('id', $validated['ids'])->get();
+
+        $authorized = $conversations->filter(fn (Conversation $conversation) => $user->can('delete', $conversation));
+
+        $deleted = 0;
+        foreach ($authorized as $conversation) {
+            $conversation->delete();
+            $deleted++;
+        }
+
+        return response()->json([
+            'deleted' => $deleted,
+            'failed' => count($validated['ids']) - $deleted,
         ]);
     }
 

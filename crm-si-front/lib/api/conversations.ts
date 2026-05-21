@@ -201,6 +201,143 @@ export async function archiveConversation(conversationId: number, archived: bool
   return payload.data as { id: number; archived: boolean; archived_at: string | null };
 }
 
+export type BulkConversationTagAction = "add" | "remove" | "replace";
+
+export interface BulkConversationTagsRequest {
+  ids: number[];
+  action: BulkConversationTagAction;
+  tag_ids: number[];
+}
+
+export interface BulkConversationTagsResponse {
+  updated: number;
+  failed: number;
+  action: BulkConversationTagAction;
+}
+
+export async function bulkUpdateConversationTags(
+  req: BulkConversationTagsRequest,
+): Promise<BulkConversationTagsResponse> {
+  const token = requireToken();
+
+  const response = await fetch("/api/conversations/bulk-tags", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(req),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwApiError(response.status, payload, "Error al actualizar etiquetas en lote");
+  }
+
+  return payload as BulkConversationTagsResponse;
+}
+
+export interface BulkAssignConversationsRequest {
+  ids: number[];
+  user_id: number;
+}
+
+export interface BulkAssignConversationsResponse {
+  updated: number;
+  failed: number;
+  assigned_to: number;
+}
+
+export async function bulkAssignConversations(
+  req: BulkAssignConversationsRequest,
+): Promise<BulkAssignConversationsResponse> {
+  const token = requireToken();
+
+  const response = await fetch("/api/conversations/bulk-assign", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(req),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwApiError(response.status, payload, "Error al asignar conversaciones");
+  }
+
+  return payload as BulkAssignConversationsResponse;
+}
+
+export interface BulkArchiveConversationsRequest {
+  ids: number[];
+  archived: boolean;
+}
+
+export interface BulkArchiveConversationsResponse {
+  updated: number;
+  failed: number;
+  archived: boolean;
+}
+
+export async function bulkArchiveConversations(
+  req: BulkArchiveConversationsRequest,
+): Promise<BulkArchiveConversationsResponse> {
+  const token = requireToken();
+
+  const response = await fetch("/api/conversations/bulk-archive", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(req),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwApiError(response.status, payload, "Error al archivar conversaciones");
+  }
+
+  return payload as BulkArchiveConversationsResponse;
+}
+
+export interface BulkDeleteConversationsRequest {
+  ids: number[];
+}
+
+export interface BulkDeleteConversationsResponse {
+  deleted: number;
+  failed: number;
+}
+
+export async function bulkDeleteConversations(
+  req: BulkDeleteConversationsRequest,
+): Promise<BulkDeleteConversationsResponse> {
+  const token = requireToken();
+
+  const response = await fetch("/api/conversations/bulk-delete", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(req),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwApiError(response.status, payload, "Error al eliminar conversaciones");
+  }
+
+  return payload as BulkDeleteConversationsResponse;
+}
+
 export async function assignConversationUser(conversationId: number, userId: number) {
   const token = getAuthToken();
   if (!token) throw new Error("No token found");
