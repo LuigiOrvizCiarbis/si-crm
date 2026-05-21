@@ -177,6 +177,12 @@ export default function ChatsPage() {
 
   const activeConversation = useMemo(() => conversations.find((c) => c.id === selectedConversationId), [conversations, selectedConversationId])
 
+  const hotkeyExpansionContext = useMemo(() => ({
+    contactName: (currentConversation ?? activeConversation)?.contact?.name ?? null,
+    userName: user?.name ?? null,
+    tenantName: user?.tenant?.name ?? null,
+  }), [activeConversation, currentConversation, user])
+
   const handleConversationTagsChange = useCallback((tags: NonNullable<Conversation["tags"]>) => {
     if (!selectedConversationId) return
 
@@ -1100,6 +1106,7 @@ export default function ChatsPage() {
                 onSendTemplate={handleSendTemplate}
                 editingMessage={editingMessage}
                 onCancelEdit={handleCancelEdit}
+                expansionContext={hotkeyExpansionContext}
               />
             </>
 
