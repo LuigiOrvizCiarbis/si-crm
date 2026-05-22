@@ -9,7 +9,14 @@
     "admin": "Administración",
     "settings": "Configuración",
     "logout": "Cerrar sesión",
-    "dashboard": "Tablero principal"
+    "dashboard": "Tablero principal",
+    "panelShort": "Panel",
+    "chatsShort": "Chats",
+    "contactsShort": "Contactos",
+    "pipelineShort": "Embudo",
+    "tasksShort": "Tareas",
+    "automationShort": "Auto IA",
+    "settingsShort": "Config"
   },
   "dashboard": {
     "title": "Panel",
