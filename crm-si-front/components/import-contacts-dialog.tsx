@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress"
 import { Upload, FileText, CheckCircle2, AlertCircle, Info, Loader2, X } from "lucide-react"
 import { getAuthToken } from "@/lib/api/auth-token"
+import { useContactFieldsStore } from "@/store/useContactFieldsStore"
 
 interface ImportContactsDialogProps {
   open: boolean
@@ -24,13 +25,6 @@ interface ImportResult {
 }
 
 type Step = "upload" | "mapping" | "importing" | "results"
-
-const FIELD_OPTIONS = [
-  { value: "ignore", label: "Ignorar" },
-  { value: "name", label: "Nombre" },
-  { value: "phone", label: "Teléfono" },
-  { value: "email", label: "Email" },
-]
 
 // Priority-ordered patterns per field: first match wins, each field assigned at most once
 const FIELD_PATTERNS: Array<{ field: string; priority: number; pattern: RegExp }> = [
@@ -131,6 +125,25 @@ function parseCSV(text: string): string[][] {
 }
 
 export function ImportContactsDialog({ open, onOpenChange, onImportComplete }: ImportContactsDialogProps) {
+  const contactFields = useContactFieldsStore((s) => s.fields)
+  const fetchContactFields = useContactFieldsStore((s) => s.fetch)
+  const fieldsLoaded = useContactFieldsStore((s) => s.loaded)
+
+  useEffect(() => {
+    if (open && !fieldsLoaded) fetchContactFields()
+  }, [open, fieldsLoaded, fetchContactFields])
+
+  const fieldOptions = useMemo(
+    () => [
+      { value: "ignore", label: "Ignorar" },
+      { value: "name", label: "Nombre" },
+      { value: "phone", label: "Teléfono" },
+      { value: "email", label: "Email" },
+      ...contactFields.map((f) => ({ value: `custom.${f.key}`, label: f.label })),
+    ],
+    [contactFields],
+  )
+
   const [step, setStep] = useState<Step>("upload")
   const [file, setFile] = useState<File | null>(null)
   const [headers, setHeaders] = useState<string[]>([])
@@ -211,13 +224,20 @@ export function ImportContactsDialog({ open, onOpenChange, onImportComplete }: I
   const handleImport = async () => {
     if (!file) return
 
-    // Build mapping object: { name: colIndex, phone: colIndex, email: colIndex }
-    const mapping: Record<string, number> = {}
+    // Build mapping object: { name, phone, email, custom: { fieldKey: colIndex, ... } }
+    const mapping: Record<string, unknown> = {}
+    const customMapping: Record<string, number> = {}
     columnMapping.forEach((field, index) => {
-      if (field !== "ignore") {
+      if (field === "ignore") return
+      if (field.startsWith("custom.")) {
+        customMapping[field.slice("custom.".length)] = index
+      } else {
         mapping[field] = index
       }
     })
+    if (Object.keys(customMapping).length > 0) {
+      mapping.custom = customMapping
+    }
 
     if (!("name" in mapping)) {
       setError("Debes mapear al menos la columna de Nombre")
@@ -360,7 +380,7 @@ export function ImportContactsDialog({ open, onOpenChange, onImportComplete }: I
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {FIELD_OPTIONS.map((opt) => (
+                              {fieldOptions.map((opt) => (
                                 <SelectItem key={opt.value} value={opt.value} className="text-xs">
                                   {opt.label}
                                 </SelectItem>

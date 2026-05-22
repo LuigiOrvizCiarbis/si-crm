@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\ChannelController;
 use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\ContactFieldController;
 use App\Http\Controllers\Api\ContactHistoryController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\DashboardController;
@@ -331,6 +332,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('contacts/{contact}/history', [ContactHistoryController::class, 'show']);
     Route::post('contacts/{contact}/tags', [TagController::class, 'attachToContact']);
     Route::delete('contacts/{contact}/tags/{tag}', [TagController::class, 'detachFromContact']);
+
+    Route::get('contact-fields', [ContactFieldController::class, 'index']);
+    Route::post('contact-fields', [ContactFieldController::class, 'store']);
+    Route::put('contact-fields/{contact_field}', [ContactFieldController::class, 'update']);
+    Route::delete('contact-fields/{contact_field}', [ContactFieldController::class, 'destroy']);
+    Route::post('contact-fields/reorder', [ContactFieldController::class, 'reorder']);
 
     Route::get('conversations', [ConversationController::class, 'index']);
     Route::post('conversations/bulk-tags', [ConversationController::class, 'bulkTags']);

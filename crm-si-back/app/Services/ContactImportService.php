@@ -3,14 +3,18 @@
 namespace App\Services;
 
 use App\Models\Contact;
+use App\Models\ContactField;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
 
 class ContactImportService
 {
     /**
      * Import contacts from a CSV file.
      *
-     * @param  array<string, int>  $mapping  Column mapping (field name => column index)
+     * @param  array<string, mixed>  $mapping  Column mapping. Keys: name, phone, email.
+     *                                         Optionally `custom` => [fieldKey => columnIndex].
      * @return array{imported: int, duplicates: int, errors: int, error_rows: list<array{row: int, reason: string}>, total: int}
      */
     public function import(UploadedFile $file, array $mapping, int $tenantId): array
@@ -21,13 +25,10 @@ class ContactImportService
             return ['imported' => 0, 'duplicates' => 0, 'errors' => 0, 'error_rows' => [], 'total' => 0];
         }
 
-        // Detect delimiter from the first line (comma or semicolon)
         $delimiter = $this->detectDelimiter($handle);
 
-        // Skip header row
         fgetcsv($handle, 0, $delimiter);
 
-        // Pre-load existing phones and emails for duplicate detection (single query)
         $existingPhones = [];
         $existingEmails = [];
 
@@ -42,12 +43,44 @@ class ContactImportService
                 }
             });
 
+        $customMapping = is_array($mapping['custom'] ?? null) ? $mapping['custom'] : [];
+        $contactFields = ContactField::query()
+            ->where('tenant_id', $tenantId)
+            ->whereNull('deleted_at')
+            ->get()
+            ->keyBy('key');
+
+        $uniqueFieldKeys = $contactFields
+            ->filter(fn (ContactField $f): bool => (bool) $f->is_unique)
+            ->keys()
+            ->all();
+
+        $existingUniqueValues = [];
+        if ($uniqueFieldKeys !== []) {
+            foreach ($uniqueFieldKeys as $key) {
+                $existingUniqueValues[$key] = [];
+            }
+            Contact::query()
+                ->where('tenant_id', $tenantId)
+                ->whereNotNull('custom_data')
+                ->select('custom_data')
+                ->each(function (Contact $c) use (&$existingUniqueValues, $uniqueFieldKeys): void {
+                    $data = $c->custom_data ?? [];
+                    foreach ($uniqueFieldKeys as $key) {
+                        if (! array_key_exists($key, $data) || $data[$key] === null || $data[$key] === '') {
+                            continue;
+                        }
+                        $existingUniqueValues[$key][$this->uniqueHash($data[$key])] = true;
+                    }
+                });
+        }
+
         $imported = 0;
         $duplicates = 0;
         $errors = 0;
         $errorRows = [];
         $batch = [];
-        $rowNumber = 1; // 1-based, after header
+        $rowNumber = 1;
 
         $now = now();
         $nameCol = $mapping['name'];
@@ -61,7 +94,6 @@ class ContactImportService
             $phone = $phoneCol !== null ? trim($row[$phoneCol] ?? '') : '';
             $email = $emailCol !== null ? trim($row[$emailCol] ?? '') : '';
 
-            // Validate name
             if ($name === '') {
                 $errors++;
                 $errorRows[] = ['row' => $rowNumber, 'reason' => 'Nombre vacío'];
@@ -76,7 +108,6 @@ class ContactImportService
                 continue;
             }
 
-            // Validate email format
             if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $errors++;
                 $errorRows[] = ['row' => $rowNumber, 'reason' => 'Email inválido'];
@@ -84,7 +115,6 @@ class ContactImportService
                 continue;
             }
 
-            // Validate phone length
             if (mb_strlen($phone) > 50) {
                 $errors++;
                 $errorRows[] = ['row' => $rowNumber, 'reason' => 'Teléfono excede 50 caracteres'];
@@ -92,7 +122,6 @@ class ContactImportService
                 continue;
             }
 
-            // Check duplicates
             $normalizedPhone = $this->normalizePhone($phone);
             $normalizedEmail = strtolower($email);
 
@@ -103,7 +132,28 @@ class ContactImportService
                 continue;
             }
 
-            // Track for in-batch duplicate detection
+            $customResult = $this->extractCustomData($row, $customMapping, $contactFields);
+            if ($customResult['error'] !== null) {
+                $errors++;
+                $errorRows[] = ['row' => $rowNumber, 'reason' => $customResult['error']];
+
+                continue;
+            }
+
+            $uniqueError = $this->checkUniqueCollisions($customResult['data'], $uniqueFieldKeys, $existingUniqueValues, $contactFields);
+            if ($uniqueError !== null) {
+                $errors++;
+                $errorRows[] = ['row' => $rowNumber, 'reason' => $uniqueError];
+
+                continue;
+            }
+
+            foreach ($uniqueFieldKeys as $key) {
+                if (array_key_exists($key, $customResult['data']) && $customResult['data'][$key] !== null && $customResult['data'][$key] !== '') {
+                    $existingUniqueValues[$key][$this->uniqueHash($customResult['data'][$key])] = true;
+                }
+            }
+
             if ($normalizedPhone !== '') {
                 $existingPhones[$normalizedPhone] = true;
             }
@@ -117,6 +167,7 @@ class ContactImportService
                 'phone' => $phone ?: null,
                 'email' => $email ?: null,
                 'source' => 'manual',
+                'custom_data' => json_encode($customResult['data'], JSON_UNESCAPED_UNICODE),
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
@@ -128,7 +179,6 @@ class ContactImportService
             }
         }
 
-        // Insert remaining
         if (count($batch) > 0) {
             Contact::insert($batch);
             $imported += count($batch);
@@ -146,9 +196,96 @@ class ContactImportService
     }
 
     /**
-     * Detect whether the CSV uses comma or semicolon as delimiter
-     * by reading the first line and rewinding the file pointer.
-     *
+     * @param  array<int, string>  $row
+     * @param  array<string, int>  $customMapping
+     * @param  Collection<string, ContactField>  $fields
+     * @return array{data: array<string, mixed>, error: ?string}
+     */
+    private function extractCustomData(array $row, array $customMapping, $fields): array
+    {
+        $data = [];
+
+        foreach ($fields as $key => $field) {
+            $columnIndex = $customMapping[$key] ?? null;
+            $raw = $columnIndex !== null && isset($row[$columnIndex]) ? trim((string) $row[$columnIndex]) : '';
+
+            if ($raw === '') {
+                if ($field->is_required) {
+                    return ['data' => $data, 'error' => "Campo requerido vacío: {$field->label}"];
+                }
+
+                continue;
+            }
+
+            $value = $this->castRawValue($raw, $field);
+
+            $rules = ['value' => $field->type->valueRules($field->options)];
+            $itemRules = $field->type->itemRules($field->options);
+            if ($itemRules !== null) {
+                $rules['value.*'] = $itemRules;
+            }
+
+            $validator = Validator::make(['value' => $value], $rules);
+            if ($validator->fails()) {
+                return ['data' => $data, 'error' => "Valor inválido para {$field->label}"];
+            }
+
+            $data[$key] = $value;
+        }
+
+        return ['data' => $data, 'error' => null];
+    }
+
+    /**
+     * @param  array<string, mixed>  $customData
+     * @param  list<string>  $uniqueFieldKeys
+     * @param  array<string, array<string, bool>>  $existingUniqueValues
+     * @param  Collection<string, ContactField>  $fields
+     */
+    private function checkUniqueCollisions(array $customData, array $uniqueFieldKeys, array $existingUniqueValues, $fields): ?string
+    {
+        foreach ($uniqueFieldKeys as $key) {
+            if (! array_key_exists($key, $customData)) {
+                continue;
+            }
+            $value = $customData[$key];
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $hash = $this->uniqueHash($value);
+            if (isset($existingUniqueValues[$key][$hash])) {
+                $label = $fields->get($key)?->label ?? $key;
+
+                return "Valor duplicado para campo único: {$label}";
+            }
+        }
+
+        return null;
+    }
+
+    private function uniqueHash(mixed $value): string
+    {
+        if (is_array($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        }
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        return (string) $value;
+    }
+
+    private function castRawValue(string $raw, ContactField $field): mixed
+    {
+        return match ($field->type->value) {
+            'multi_select' => array_values(array_filter(array_map('trim', preg_split('/[;|]/', $raw)))),
+            'boolean' => in_array(strtolower($raw), ['1', 'true', 'yes', 'si', 'sí'], true),
+            'number' => is_numeric($raw) ? $raw + 0 : $raw,
+            default => $raw,
+        };
+    }
+
+    /**
      * @param  resource  $handle
      */
     private function detectDelimiter($handle): string

@@ -1,0 +1,463 @@
+<?php
+
+namespace Tests\Feature\Api;
+
+use App\Models\Contact;
+use App\Models\ContactField;
+use App\Models\Tenant;
+use App\Models\User;
+use App\Support\PermissionCatalog;
+use App\Support\RoleProvisioner;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
+use Tests\TestCase;
+
+class ContactFieldsTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_owner_can_create_text_field(): void
+    {
+        [$user] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/contact-fields', [
+            'label' => 'Talle',
+            'type' => 'text',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.key', 'talle')
+            ->assertJsonPath('data.label', 'Talle')
+            ->assertJsonPath('data.type', 'text');
+
+        $this->assertDatabaseHas('contact_fields', ['key' => 'talle', 'label' => 'Talle']);
+    }
+
+    public function test_member_cannot_create_field(): void
+    {
+        $tenant = $this->seedTenantWithRoles();
+        $member = User::factory()->create(['tenant_id' => $tenant->id]);
+        $member->assignRole('Member');
+        Sanctum::actingAs($member);
+
+        $this->postJson('/api/contact-fields', [
+            'label' => 'Talle',
+            'type' => 'text',
+        ])->assertForbidden();
+    }
+
+    public function test_select_requires_options(): void
+    {
+        [$user] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/contact-fields', [
+            'label' => 'Tamaño',
+            'type' => 'select',
+        ])->assertStatus(422)->assertJsonValidationErrors('options.choices');
+    }
+
+    public function test_reserved_key_gets_suffixed(): void
+    {
+        [$user] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/contact-fields', [
+            'label' => 'Email',
+            'type' => 'text',
+        ]);
+
+        $response->assertCreated();
+        $this->assertNotSame('email', $response->json('data.key'));
+        $this->assertStringStartsWith('email_', $response->json('data.key'));
+    }
+
+    public function test_duplicate_label_gets_suffix(): void
+    {
+        [$user] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        $first = $this->postJson('/api/contact-fields', ['label' => 'Notas', 'type' => 'text']);
+        $second = $this->postJson('/api/contact-fields', ['label' => 'Notas', 'type' => 'text']);
+
+        $first->assertCreated();
+        $second->assertCreated();
+        $this->assertSame('notas', $first->json('data.key'));
+        $this->assertSame('notas_2', $second->json('data.key'));
+    }
+
+    public function test_cannot_change_type_after_create(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        $field = ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'foo',
+            'label' => 'Foo',
+            'type' => 'text',
+        ]);
+
+        $this->putJson("/api/contact-fields/{$field->id}", [
+            'type' => 'number',
+        ])->assertStatus(422)->assertJsonValidationErrors('type');
+    }
+
+    public function test_soft_delete_preserves_contact_values(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        $field = ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'talle',
+            'label' => 'Talle',
+            'type' => 'text',
+        ]);
+
+        $contact = Contact::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Juan',
+            'source' => 'manual',
+            'custom_data' => ['talle' => 'L'],
+        ]);
+
+        $this->deleteJson("/api/contact-fields/{$field->id}")->assertOk();
+
+        $this->assertSoftDeleted('contact_fields', ['id' => $field->id]);
+        $this->assertSame('L', $contact->fresh()->custom_data['talle']);
+    }
+
+    public function test_create_contact_validates_custom_data_per_type(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'edad',
+            'label' => 'Edad',
+            'type' => 'number',
+        ]);
+
+        $this->postJson('/api/contacts', [
+            'name' => 'Juan',
+            'custom_data' => ['edad' => 'abc'],
+        ])->assertStatus(422);
+
+        $this->postJson('/api/contacts', [
+            'name' => 'Maria',
+            'custom_data' => ['edad' => 32],
+        ])->assertCreated();
+    }
+
+    public function test_required_custom_field_is_enforced(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'dni',
+            'label' => 'DNI',
+            'type' => 'text',
+            'is_required' => true,
+        ]);
+
+        $this->postJson('/api/contacts', [
+            'name' => 'Sin DNI',
+        ])->assertStatus(422);
+    }
+
+    public function test_unique_custom_field_is_enforced(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'dni',
+            'label' => 'DNI',
+            'type' => 'text',
+            'is_unique' => true,
+        ]);
+
+        $this->postJson('/api/contacts', ['name' => 'A', 'custom_data' => ['dni' => '123']])->assertCreated();
+        $this->postJson('/api/contacts', ['name' => 'B', 'custom_data' => ['dni' => '123']])->assertStatus(422);
+    }
+
+    public function test_filter_by_custom_field(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'ciudad',
+            'label' => 'Ciudad',
+            'type' => 'text',
+        ]);
+
+        Contact::create(['tenant_id' => $tenant->id, 'name' => 'A', 'source' => 'manual', 'custom_data' => ['ciudad' => 'CABA']]);
+        Contact::create(['tenant_id' => $tenant->id, 'name' => 'B', 'source' => 'manual', 'custom_data' => ['ciudad' => 'Rosario']]);
+
+        $response = $this->getJson('/api/contacts?custom[ciudad]=CABA');
+
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data'));
+        $this->assertSame('A', $response->json('data.0.name'));
+    }
+
+    public function test_unknown_custom_keys_ignored_on_filter(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        Contact::create(['tenant_id' => $tenant->id, 'name' => 'A', 'source' => 'manual']);
+
+        $this->getJson('/api/contacts?custom[unknown]=x')->assertOk();
+    }
+
+    public function test_unknown_custom_keys_ignored_on_validation(): void
+    {
+        [$user] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/contacts', [
+            'name' => 'Juan',
+            'custom_data' => ['ghost_key' => 'whatever'],
+        ])->assertCreated();
+    }
+
+    public function test_tenant_isolation_on_fields(): void
+    {
+        [$userA, $tenantA] = $this->createOwner();
+        $tenantB = $this->seedTenantWithRoles();
+        $userB = User::factory()->create(['tenant_id' => $tenantB->id]);
+        $userB->assignRole('Owner');
+
+        Sanctum::actingAs($userA);
+        $this->postJson('/api/contact-fields', ['label' => 'Field A', 'type' => 'text'])->assertCreated();
+
+        Sanctum::actingAs($userB);
+        $list = $this->getJson('/api/contact-fields');
+        $list->assertOk();
+        $this->assertCount(0, $list->json('data'));
+    }
+
+    public function test_import_csv_with_custom_field(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'talle',
+            'label' => 'Talle',
+            'type' => 'select',
+            'options' => ['choices' => ['S', 'M', 'L']],
+        ]);
+
+        $csv = "name,phone,talle\nJuan,+5491111,L\nMaria,+5492222,M\n";
+        $file = UploadedFile::fake()->createWithContent('contacts.csv', $csv);
+
+        $response = $this->postJson('/api/contacts/import', [
+            'file' => $file,
+            'mapping' => json_encode([
+                'name' => 0,
+                'phone' => 1,
+                'custom' => ['talle' => 2],
+            ]),
+        ]);
+
+        $response->assertOk()->assertJsonPath('data.imported', 2);
+
+        $juan = Contact::where('name', 'Juan')->first();
+        $this->assertSame('L', $juan->custom_data['talle']);
+    }
+
+    public function test_import_csv_invalid_custom_value_marks_row_as_error(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'talle',
+            'label' => 'Talle',
+            'type' => 'select',
+            'options' => ['choices' => ['S', 'M', 'L']],
+        ]);
+
+        $csv = "name,phone,talle\nJuan,+5491111,XXL\n";
+        $file = UploadedFile::fake()->createWithContent('contacts.csv', $csv);
+
+        $response = $this->postJson('/api/contacts/import', [
+            'file' => $file,
+            'mapping' => json_encode([
+                'name' => 0,
+                'phone' => 1,
+                'custom' => ['talle' => 2],
+            ]),
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.imported', 0)
+            ->assertJsonPath('data.errors', 1);
+    }
+
+    public function test_import_rejects_rows_missing_required_unmapped_custom_field(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'dni',
+            'label' => 'DNI',
+            'type' => 'text',
+            'is_required' => true,
+        ]);
+
+        $csv = "name,phone\nJuan,+5491111\n";
+        $file = UploadedFile::fake()->createWithContent('contacts.csv', $csv);
+
+        $response = $this->postJson('/api/contacts/import', [
+            'file' => $file,
+            'mapping' => json_encode([
+                'name' => 0,
+                'phone' => 1,
+            ]),
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.imported', 0)
+            ->assertJsonPath('data.errors', 1);
+    }
+
+    public function test_import_rejects_unique_custom_field_collision_with_existing_contact(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'dni',
+            'label' => 'DNI',
+            'type' => 'text',
+            'is_unique' => true,
+        ]);
+
+        Contact::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Existing',
+            'source' => 'manual',
+            'custom_data' => ['dni' => '123'],
+        ]);
+
+        $csv = "name,phone,dni\nNuevo,+5491111,123\n";
+        $file = UploadedFile::fake()->createWithContent('contacts.csv', $csv);
+
+        $response = $this->postJson('/api/contacts/import', [
+            'file' => $file,
+            'mapping' => json_encode([
+                'name' => 0,
+                'phone' => 1,
+                'custom' => ['dni' => 2],
+            ]),
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.imported', 0)
+            ->assertJsonPath('data.errors', 1);
+    }
+
+    public function test_import_rejects_unique_custom_field_collision_within_batch(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'dni',
+            'label' => 'DNI',
+            'type' => 'text',
+            'is_unique' => true,
+        ]);
+
+        $csv = "name,phone,dni\nA,+5491111,123\nB,+5492222,123\n";
+        $file = UploadedFile::fake()->createWithContent('contacts.csv', $csv);
+
+        $response = $this->postJson('/api/contacts/import', [
+            'file' => $file,
+            'mapping' => json_encode([
+                'name' => 0,
+                'phone' => 1,
+                'custom' => ['dni' => 2],
+            ]),
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.imported', 1)
+            ->assertJsonPath('data.errors', 1);
+    }
+
+    public function test_manage_permission_alone_can_list_fields(): void
+    {
+        $tenant = $this->seedTenantWithRoles();
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $user->assignRole('Member');
+        $user->givePermissionTo('contact_fields.manage');
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/contact-fields')->assertOk();
+    }
+
+    public function test_reorder_fields(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        $a = ContactField::create(['tenant_id' => $tenant->id, 'key' => 'a', 'label' => 'A', 'type' => 'text', 'display_order' => 1]);
+        $b = ContactField::create(['tenant_id' => $tenant->id, 'key' => 'b', 'label' => 'B', 'type' => 'text', 'display_order' => 2]);
+
+        $this->postJson('/api/contact-fields/reorder', [
+            'items' => [
+                ['id' => $a->id, 'display_order' => 2],
+                ['id' => $b->id, 'display_order' => 1],
+            ],
+        ])->assertOk();
+
+        $this->assertSame(2, $a->fresh()->display_order);
+        $this->assertSame(1, $b->fresh()->display_order);
+    }
+
+    private function createOwner(): array
+    {
+        $tenant = $this->seedTenantWithRoles();
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $user->assignRole('Owner');
+
+        return [$user, $tenant];
+    }
+
+    private function seedTenantWithRoles(): Tenant
+    {
+        $registrar = app(PermissionRegistrar::class);
+        $registrar->setPermissionsTeamId(null);
+        foreach (PermissionCatalog::all() as $name) {
+            Permission::findOrCreate($name, 'web');
+        }
+        $registrar->forgetCachedPermissions();
+
+        $tenant = Tenant::create(['name' => 'Acme '.uniqid()]);
+        app(RoleProvisioner::class)->provisionDefaultRoles($tenant);
+        $registrar->setPermissionsTeamId($tenant->id);
+
+        return $tenant;
+    }
+}

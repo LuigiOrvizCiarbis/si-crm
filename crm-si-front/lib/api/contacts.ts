@@ -16,6 +16,7 @@ export interface ContactUpdate {
   phone?: string | null
   email?: string | null
   source?: string
+  custom_data?: Record<string, unknown>
 }
 
 export interface Contact {
@@ -24,16 +25,36 @@ export interface Contact {
   email: string | null
   phone: string | null
   source: string
+  custom_data: Record<string, unknown>
   created_at: string
   updated_at: string
   tags?: Tag[]
 }
 
-export async function getContacts(): Promise<Contact[]> {
+export interface GetContactsParams {
+  search?: string
+  source?: string
+  tags?: string
+  custom?: Record<string, string>
+  per_page?: number
+}
+
+export async function getContacts(params: GetContactsParams = {}): Promise<Contact[]> {
   const token = getAuthToken();
   if (!token) throw new Error("No authentication token found");
 
-  const response = await fetch("/api/contacts?per_page=100", {
+  const query = new URLSearchParams();
+  query.set("per_page", String(params.per_page ?? 100));
+  if (params.search) query.set("search", params.search);
+  if (params.source) query.set("source", params.source);
+  if (params.tags) query.set("tags", params.tags);
+  if (params.custom) {
+    for (const [key, value] of Object.entries(params.custom)) {
+      if (value !== undefined && value !== "") query.set(`custom[${key}]`, value);
+    }
+  }
+
+  const response = await fetch(`/api/contacts?${query.toString()}`, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",

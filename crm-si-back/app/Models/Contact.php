@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property string|null $email
  * @property string|null $external_id
  * @property string|null $source
+ * @property array<string, mixed> $custom_data
  */
 class Contact extends Model
 {
@@ -31,12 +32,21 @@ class Contact extends Model
         'email',
         'external_id',
         'source',
+        'custom_data',
     ];
 
-    protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+    protected $attributes = [
+        'custom_data' => '{}',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime',
+            'custom_data' => 'array',
+        ];
+    }
 
     public function tenant(): BelongsTo
     {
@@ -71,6 +81,17 @@ class Contact extends Model
     public function scopeWithPhone($query)
     {
         return $query->whereNotNull('phone');
+    }
+
+    public function scopeWhereCustomField(Builder $query, string $key, mixed $value): Builder
+    {
+        if (is_array($value)) {
+            return $query->whereJsonContains("custom_data->{$key}", $value);
+        }
+
+        $stringValue = is_bool($value) ? ($value ? 'true' : 'false') : (string) $value;
+
+        return $query->whereRaw('custom_data ->> ? = ?', [$key, $stringValue]);
     }
 
     public function scopeVisibleTo(Builder $query, User $user): Builder

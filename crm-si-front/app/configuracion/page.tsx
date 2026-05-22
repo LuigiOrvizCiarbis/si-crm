@@ -12,6 +12,7 @@ import { BillingCard } from "@/components/config/BillingCard"
 import { RolesCard } from "@/components/config/RolesCard"
 import { TeamInvitationsCard } from "@/components/config/TeamInvitationsCard"
 import { MessageHotkeysCard } from "@/components/config/MessageHotkeysCard"
+import { ContactFieldsCard } from "@/components/config/ContactFieldsCard"
 import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 import { useTranslation } from "@/hooks/useTranslation"
 
@@ -39,6 +40,7 @@ export default function ConfiguracionPage() {
             <RolesCard />
           </div>
           <MessageHotkeysCard />
+          <ContactFieldsCard />
          {/*  <ApiKeysCard />
           <BillingCard /> */}
         </div>
