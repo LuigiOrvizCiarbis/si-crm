@@ -112,20 +112,20 @@ const ConversationCard = memo(function ConversationCard({
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-sm truncate">
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className="font-medium text-sm truncate min-w-0">
                 {contactName}
               </span>
               {leadScore != null && leadScore > 0 && (
                 <LeadScoreBadge
                   score={leadScore}
-                  className="cursor-help"
+                  className="cursor-help shrink-0"
                   title={`${t("chats.leadScore")}: ${leadScore}/100`}
                 />
               )}
             </div>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground shrink-0">
               {formatLastMessageAt(conversation.last_message_at)}
             </span>
           </div>

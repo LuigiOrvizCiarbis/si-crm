@@ -33,6 +33,7 @@ import { TagPicker } from "@/components/tags/TagPicker"
 import { useToast } from "@/components/Toast"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useTranslation } from "@/hooks/useTranslation"
+import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import {
@@ -261,6 +262,7 @@ interface ContactsListProps {
 
 export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, onSearchTermChange }: ContactsListProps = {}) {
   const { t } = useTranslation()
+  const router = useRouter()
   const { addToast } = useToast()
   const [searchTermInternal, setSearchTermInternal] = useState("")
   const isSearchControlled = searchTermProp !== undefined
@@ -776,16 +778,40 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
         )
       case "lastContact":
         return <span className="text-sm text-muted-foreground tabular-nums">{getLastContact(contact)}</span>
-      case "actions":
+      case "actions": {
+        const telHref = contact.phone ? `tel:${contact.phone.replace(/[^\d+]/g, "")}` : undefined
+        const mailHref = contact.email ? `mailto:${contact.email}` : undefined
+        const conversationId = contact.conversations?.[0]?.id
         return (
           <div className="flex items-center justify-end gap-1">
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
-              <Phone className="w-3.5 h-3.5" />
+            <Button
+              asChild={!!telHref}
+              variant="ghost"
+              size="sm"
+              disabled={!telHref}
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+              title={contact.phone || "Sin teléfono"}
+            >
+              {telHref ? <a href={telHref}><Phone className="w-3.5 h-3.5" /></a> : <Phone className="w-3.5 h-3.5" />}
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
-              <Mail className="w-3.5 h-3.5" />
+            <Button
+              asChild={!!mailHref}
+              variant="ghost"
+              size="sm"
+              disabled={!mailHref}
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+              title={contact.email || "Sin email"}
+            >
+              {mailHref ? <a href={mailHref}><Mail className="w-3.5 h-3.5" /></a> : <Mail className="w-3.5 h-3.5" />}
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!conversationId}
+              onClick={() => conversationId && router.push(`/chats?chat=${conversationId}`)}
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+              title={conversationId ? "Abrir conversación" : "Sin conversación"}
+            >
               <MessageSquare className="w-3.5 h-3.5" />
             </Button>
             <DropdownMenu modal={false}>
@@ -814,6 +840,7 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
             </DropdownMenu>
           </div>
         )
+      }
       default: {
         if (typeof columnId === "string" && columnId.startsWith("custom:")) {
           const key = columnId.slice("custom:".length)
