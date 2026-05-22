@@ -40,6 +40,10 @@ class PermissionCatalog
                 'contacts.import',
                 'contacts.view_history',
             ],
+            'contact_fields' => [
+                'contact_fields.view',
+                'contact_fields.manage',
+            ],
             'opportunities' => [
                 'opportunities.view_any',
                 'opportunities.view_assigned',
@@ -170,6 +174,7 @@ class PermissionCatalog
             'contacts.create',
             'contacts.update',
             'contacts.view_history',
+            'contact_fields.view',
             'opportunities.view_assigned',
             'opportunities.view',
             'opportunities.create',

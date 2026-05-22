@@ -1,0 +1,127 @@
+import { getAuthToken } from "./auth-token";
+import { throwApiError } from "./api-error";
+
+export type ContactFieldType =
+  | "text"
+  | "number"
+  | "date"
+  | "boolean"
+  | "select"
+  | "multi_select"
+  | "email"
+  | "url"
+  | "phone";
+
+export interface ContactFieldOptions {
+  choices?: string[];
+}
+
+export interface ContactField {
+  id: number;
+  key: string;
+  label: string;
+  type: ContactFieldType;
+  options: ContactFieldOptions | null;
+  is_required: boolean;
+  is_unique: boolean;
+  is_system: boolean;
+  display_order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ContactFieldInput {
+  label: string;
+  type: ContactFieldType;
+  options?: ContactFieldOptions | null;
+  is_required?: boolean;
+  is_unique?: boolean;
+}
+
+export interface ContactFieldUpdate {
+  label?: string;
+  options?: ContactFieldOptions | null;
+  is_required?: boolean;
+  is_unique?: boolean;
+  display_order?: number;
+}
+
+export interface ContactFieldsResponse {
+  data: ContactField[];
+  standard: Array<Omit<ContactField, "id" | "created_at" | "updated_at"> & { id?: undefined }>;
+}
+
+function headers(): HeadersInit {
+  const token = getAuthToken();
+  return {
+    Authorization: token ? `Bearer ${token}` : "",
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  };
+}
+
+export async function getContactFields(): Promise<ContactFieldsResponse> {
+  const token = getAuthToken();
+  if (!token) return { data: [], standard: [] };
+
+  const response = await fetch("/api/contact-fields", {
+    headers: headers(),
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throwApiError(response.status, payload, "Error al cargar campos de contacto");
+
+  return payload as ContactFieldsResponse;
+}
+
+export async function createContactField(input: ContactFieldInput): Promise<ContactField> {
+  const response = await fetch("/api/contact-fields", {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify(input),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throwApiError(response.status, payload, "Error al crear campo");
+
+  return payload.data as ContactField;
+}
+
+export async function updateContactField(id: number, patch: ContactFieldUpdate): Promise<ContactField> {
+  const response = await fetch(`/api/contact-fields/${id}`, {
+    method: "PUT",
+    headers: headers(),
+    body: JSON.stringify(patch),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throwApiError(response.status, payload, "Error al actualizar campo");
+
+  return payload.data as ContactField;
+}
+
+export async function deleteContactField(id: number): Promise<void> {
+  const response = await fetch(`/api/contact-fields/${id}`, {
+    method: "DELETE",
+    headers: headers(),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throwApiError(response.status, payload, "Error al eliminar campo");
+  }
+}
+
+export async function reorderContactFields(items: Array<{ id: number; display_order: number }>): Promise<void> {
+  const response = await fetch("/api/contact-fields/reorder", {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({ items }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throwApiError(response.status, payload, "Error al reordenar campos");
+  }
+}

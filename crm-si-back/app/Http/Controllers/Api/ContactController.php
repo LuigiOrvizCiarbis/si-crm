@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ImportContactsRequest;
 use App\Models\Contact;
+use App\Models\ContactField;
+use App\Rules\ValidContactCustomData;
 use App\Services\ContactImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,6 +41,17 @@ class ContactController extends Controller
 
         if ($request->filled('tags')) {
             $q->withTagSlugs($this->parseTagSlugs((string) $request->query('tags')));
+        }
+
+        $customFilter = $request->query('custom');
+        if (is_array($customFilter) && $customFilter !== []) {
+            $allowedKeys = ContactField::forCurrentTenant()->pluck('key')->all();
+            foreach ($customFilter as $key => $value) {
+                if (! is_string($key) || ! in_array($key, $allowedKeys, true) || $value === null || $value === '') {
+                    continue;
+                }
+                $q->whereCustomField($key, $value);
+            }
         }
 
         $sortBy = (string) $request->query('sort_by', 'updated_at');
@@ -107,12 +120,14 @@ class ContactController extends Controller
     public function store(Request $request)
     {
         $this->authorize('create', Contact::class);
+        $request->merge(['custom_data' => $request->input('custom_data', [])]);
         $validated = $request->validate($this->contactRules());
 
         $contact = Contact::create([
             'tenant_id' => $request->user()->tenant_id,
             ...$validated,
             'source' => $validated['source'] ?? 'manual',
+            'custom_data' => $validated['custom_data'] ?? [],
         ]);
 
         $contact->load('tags');
@@ -136,7 +151,15 @@ class ContactController extends Controller
     {
         $this->authorize('update', $contact);
 
-        $validated = $request->validate($this->contactRules(partial: true));
+        if ($request->has('custom_data')) {
+            $merged = array_merge($contact->custom_data ?? [], (array) $request->input('custom_data'));
+            $request->merge(['custom_data' => $merged]);
+        } else {
+            $request->merge(['custom_data' => $contact->custom_data ?? []]);
+        }
+
+        $validated = $request->validate($this->contactRules(partial: true, contactId: $contact->id));
+
         $contact->update($validated);
         $contact->load('tags');
 
@@ -213,7 +236,7 @@ class ContactController extends Controller
         ]);
     }
 
-    private function contactRules(bool $partial = false): array
+    private function contactRules(bool $partial = false, ?int $contactId = null): array
     {
         $nameRule = $partial ? 'sometimes|required|string|max:255' : 'required|string|max:255';
 
@@ -222,6 +245,7 @@ class ContactController extends Controller
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'source' => 'nullable|string|in:whatsapp,instagram,facebook,manual',
+            'custom_data' => ['nullable', 'array', new ValidContactCustomData($contactId)],
         ];
     }
 

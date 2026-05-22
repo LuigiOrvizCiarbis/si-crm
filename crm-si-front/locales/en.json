@@ -139,6 +139,39 @@
         "loadTags": "Could not load tags",
         "apply": "Could not apply the change"
       }
+    },
+    "customFields": {
+      "title": "Contact fields",
+      "addField": "Add field",
+      "editTitle": "Edit field",
+      "dialogDescription": "Define a custom field for your contacts.",
+      "empty": "You haven't created any custom fields yet.",
+      "fieldLabel": "Field name",
+      "fieldType": "Type",
+      "options": "Options (one per line)",
+      "optionsPlaceholder": "S\nM\nL",
+      "required": "Required",
+      "unique": "Unique value",
+      "typeImmutable": "Type cannot be changed after the field is created.",
+      "deleteConfirm": "Delete field \"{label}\"? Stored values will remain on contacts.",
+      "savedTitle": "Field saved",
+      "deletedTitle": "Field deleted",
+      "errors": {
+        "keyCollision": "A field with this key already exists.",
+        "optionsRequired": "You must define at least one option.",
+        "invalidPayload": "Invalid custom data."
+      },
+      "typeLabels": {
+        "text": "Text",
+        "number": "Number",
+        "date": "Date",
+        "boolean": "Boolean",
+        "select": "Select",
+        "multi_select": "Multi-select",
+        "email": "Email",
+        "url": "URL",
+        "phone": "Phone"
+      }
     }
   },
   "pipeline": {

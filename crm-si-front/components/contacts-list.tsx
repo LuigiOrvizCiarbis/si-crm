@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -21,6 +21,8 @@ import { getAuthToken } from "@/lib/api/auth-token"
 import { getPipelineStages } from "@/lib/api/pipeline"
 import { createOpportunity, getOpportunities, updateOpportunityStage } from "@/lib/api/opportunities"
 import { updateContact, type ContactUpdate } from "@/lib/api/contacts"
+import { CustomFieldInput } from "@/components/CustomFieldInput"
+import { useContactFieldsStore } from "@/store/useContactFieldsStore"
 import type { Tag } from "@/lib/api/tags"
 import { useAutosave } from "@/lib/hooks/useAutosave"
 import { cn } from "@/lib/utils"
@@ -57,6 +59,7 @@ interface Contact {
   email: string | null
   phone: string
   source: string
+  custom_data?: Record<string, unknown>
   created_at: string
   updated_at: string
   conversations?: Array<{
@@ -67,7 +70,13 @@ interface Contact {
   tags?: Tag[]
 }
 
-const DEFAULT_FORM = { name: "", phone: "", email: "", source: "manual" }
+const DEFAULT_FORM: { name: string; phone: string; email: string; source: string; custom_data: Record<string, unknown> } = {
+  name: "",
+  phone: "",
+  email: "",
+  source: "manual",
+  custom_data: {},
+}
 
 function getInitials(name: string): string {
   return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
@@ -100,7 +109,7 @@ const sourceLabels: Record<string, string> = {
   manual: "Manual",
 }
 
-type ColumnId = "select" | "contact" | "phone" | "email" | "source" | "tags" | "lastContact" | "actions"
+type ColumnId = "select" | "contact" | "phone" | "email" | "source" | "tags" | "lastContact" | "actions" | `custom:${string}`
 type SortField = "name" | "phone" | "email" | "source" | "updated_at"
 type SortDirection = "asc" | "desc"
 
@@ -132,14 +141,35 @@ const COLUMN_SORT_FIELDS: Partial<Record<ColumnId, SortField>> = {
   lastContact: "updated_at",
 }
 
+function formatCustomValue(value: unknown, type: string | undefined): string {
+  if (value === null || value === undefined || value === "") return "—"
+  if (Array.isArray(value)) return value.join(", ")
+  if (typeof value === "boolean") return value ? "Sí" : "No"
+  if (type === "date" && typeof value === "string") {
+    try {
+      return format(new Date(value), "d MMM yyyy", { locale: es })
+    } catch {
+      return value
+    }
+  }
+  return String(value)
+}
+
 function loadColumnOrder(): Column[] {
   if (typeof window === "undefined") return DEFAULT_COLUMNS
   try {
     const saved = window.localStorage.getItem(COLUMN_ORDER_KEY)
     if (!saved) return DEFAULT_COLUMNS
     const ids = JSON.parse(saved) as ColumnId[]
-    const ordered = ids
-      .map((id) => DEFAULT_COLUMNS.find((c) => c.id === id))
+    const ordered: Column[] = ids
+      .map((id): Column | undefined => {
+        const known = DEFAULT_COLUMNS.find((c) => c.id === id)
+        if (known) return known
+        if (typeof id === "string" && id.startsWith("custom:")) {
+          return { id, labelKey: id.slice("custom:".length), width: "180px", minWidth: "140px", draggable: true }
+        }
+        return undefined
+      })
       .filter((c): c is Column => Boolean(c))
     const missing = DEFAULT_COLUMNS.filter((c) => !ordered.find((o) => o.id === c.id))
     return [...ordered, ...missing]
@@ -258,11 +288,17 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const contactFields = useContactFieldsStore((s) => s.fields)
+  const fetchContactFields = useContactFieldsStore((s) => s.fetch)
+  const contactFieldsLoaded = useContactFieldsStore((s) => s.loaded)
+  useEffect(() => {
+    if (!contactFieldsLoaded) fetchContactFields()
+  }, [contactFieldsLoaded, fetchContactFields])
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [formData, setFormData] = useState({ name: "", phone: "", email: "", source: "manual" })
+  const [formData, setFormData] = useState<{ name: string; phone: string; email: string; source: string; custom_data: Record<string, unknown> }>({ ...DEFAULT_FORM })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
 
@@ -281,11 +317,41 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
   type EditableField = "name" | "phone" | "email" | "source"
   const [editingCell, setEditingCell] = useState<{ contactId: number; field: EditableField } | null>(null)
 
+  const customFieldColumns = useMemo<Column[]>(
+    () =>
+      contactFields.map((f) => ({
+        id: `custom:${f.key}` as ColumnId,
+        labelKey: f.label,
+        width: "180px",
+        minWidth: "140px",
+        draggable: true,
+      })),
+    [contactFields],
+  )
+
   const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS)
 
   useEffect(() => {
     setColumns(loadColumnOrder())
   }, [])
+
+  useEffect(() => {
+    if (customFieldColumns.length === 0) return
+    setColumns((prev) => {
+      const knownIds = new Set(prev.map((c) => c.id))
+      const additions = customFieldColumns.filter((c) => !knownIds.has(c.id))
+      if (additions.length === 0) {
+        // Keep labels in sync (custom field renames).
+        return prev.map((c) => {
+          const next = customFieldColumns.find((cf) => cf.id === c.id)
+          return next ? { ...c, labelKey: next.labelKey } : c
+        })
+      }
+      const actionsIndex = prev.findIndex((c) => c.id === "actions")
+      if (actionsIndex === -1) return [...prev, ...additions]
+      return [...prev.slice(0, actionsIndex), ...additions, ...prev.slice(actionsIndex)]
+    })
+  }, [customFieldColumns])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -461,6 +527,7 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
           phone: formData.phone.trim() || null,
           email: formData.email.trim() || null,
           source: formData.source,
+          custom_data: formData.custom_data ?? {},
         }),
       })
 
@@ -496,6 +563,7 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
       phone: contact.phone || "",
       email: contact.email || "",
       source: contact.source || "manual",
+      custom_data: (contact.custom_data as Record<string, unknown>) ?? {},
     })
     setFormErrors({})
     setDialogOpen(true)
@@ -746,8 +814,19 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
             </DropdownMenu>
           </div>
         )
-      default:
+      default: {
+        if (typeof columnId === "string" && columnId.startsWith("custom:")) {
+          const key = columnId.slice("custom:".length)
+          const field = contactFields.find((f) => f.key === key)
+          const raw = (contact.custom_data ?? {})[key]
+          return (
+            <span className="truncate text-sm text-foreground">
+              {formatCustomValue(raw, field?.type)}
+            </span>
+          )
+        }
         return null
+      }
     }
   }
 
@@ -922,11 +1001,20 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
                               </TableHead>
                             )
                           }
+                          const isCustom = typeof column.id === "string" && column.id.startsWith("custom:")
                           return (
                             <SortableHeader
                               key={column.id}
                               column={column}
-                              label={column.id === "tags" ? "Etiquetas" : column.labelKey ? t(column.labelKey) : ""}
+                              label={
+                                column.id === "tags"
+                                  ? "Etiquetas"
+                                  : isCustom
+                                    ? column.labelKey
+                                    : column.labelKey
+                                      ? t(column.labelKey)
+                                      : ""
+                              }
                               sortField={sortField}
                               sortDirection={sortDirection}
                               onSort={handleSort}
@@ -1047,6 +1135,26 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
                 </SelectContent>
               </Select>
             </div>
+            {contactFields.map((field) => {
+              const errKey = `custom_data.${field.key}`
+              return (
+                <div key={field.id} className="space-y-1">
+                  <CustomFieldInput
+                    field={field}
+                    value={formData.custom_data[field.key]}
+                    onChange={(next) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        custom_data: { ...prev.custom_data, [field.key]: next },
+                      }))
+                    }
+                  />
+                  {formErrors[errKey] ? (
+                    <p className="text-xs text-destructive">{formErrors[errKey]}</p>
+                  ) : null}
+                </div>
+              )
+            })}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>Cancelar</Button>
