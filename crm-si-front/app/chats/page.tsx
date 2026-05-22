@@ -31,6 +31,7 @@ import {
   getConversationMessages,
   getConversations,
   getConversationWithMessages,
+  markConversationAsRead,
 } from "@/lib/api/conversations"
 const BulkTagsConversationsDialog = dynamic(
   () => import("@/components/chat/BulkTagsConversationsDialog").then(m => m.BulkTagsConversationsDialog),
@@ -62,6 +63,7 @@ import { getChannels } from "@/lib/api/channels"
 import { ChannelHeader } from "@/components/chat/AccountHeader"
 import { useConversationFilters } from "@/hooks/useConversationFilters"
 import { TagFilterMenu } from "@/components/tags/TagFilterMenu"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { useSSEMessages } from "@/hooks/useSSEMessages"
 import { useTenantSSE } from "@/hooks/useTenantSSE"
 import { useTranslation } from "@/hooks/useTranslation"
@@ -73,6 +75,7 @@ import {
   CheckSquare,
   FileText,
   Loader2,
+  Menu,
   MoreHorizontal,
   Plus,
   Search,
@@ -92,6 +95,7 @@ interface ChatsCompactHeaderProps {
   onNewConversation: () => void
   onConnectChannel: () => void
   onTemplates: () => void
+  onOpenChannels: () => void
 }
 
 function ChatsCompactHeader({
@@ -100,10 +104,20 @@ function ChatsCompactHeader({
   onNewConversation,
   onConnectChannel,
   onTemplates,
+  onOpenChannels,
 }: ChatsCompactHeaderProps) {
   return (
     <div className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/90">
       <div className="flex h-[75px] items-center gap-3 px-4 md:px-6">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onOpenChannels}
+          aria-label="Abrir canales"
+          className="md:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
         <div className="flex shrink-0 items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm">
             <Sparkles className="h-4 w-4" />
@@ -197,6 +211,7 @@ export default function ChatsPage() {
   const [selectedChannel, setSelectedChannel] = useState<number | null>(null)
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null)
   const [isContactInfoOpen, setIsContactInfoOpen] = useState(false)
+  const [isChannelsSheetOpen, setIsChannelsSheetOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState<FilterType>("todos")
   const [tagFilterSlugs, setTagFilterSlugs] = useState<string[]>([])
   const [viewType, setViewType] = useState<ConversationView>("inbox")
@@ -686,6 +701,23 @@ export default function ChatsPage() {
   const handleConversationClick = (conversationId: number) => {
     setSelectedConversationId(conversationId)
     router.push(`/chats?chat=${conversationId}`)
+
+    const target = conversationsRef.current.find((c) => c.id === conversationId)
+    if (target?.unread || (target?.unread_count ?? 0) > 0) {
+      setConversations((prev) => prev.map((c) => (
+        c.id === conversationId ? { ...c, unread: false, unread_count: 0 } : c
+      )))
+
+      markConversationAsRead(conversationId)
+        .then(() => {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("conversations:unread-changed"))
+          }
+        })
+        .catch((err) => {
+          console.warn("markConversationAsRead failed", err)
+        })
+    }
   }
 
   const handleBackToConversations = useCallback(() => {
@@ -1076,6 +1108,100 @@ export default function ChatsPage() {
     [visibleConversations, selectedConversationIds],
   )
 
+  const renderChannelsSidebar = (
+    onChannelSelect: (channelId: number) => void,
+    onConnectChannelClick: () => void,
+  ) => (
+    <>
+      <div className="grid h-[70px] grid-cols-[0.86fr_1.12fr_1.34fr] border-b border-border bg-card/95">
+        {([
+          { key: "inbox", label: "Inbox", count: conversationViewCounts.inbox },
+          { key: "unread", label: "No leídos", count: conversationViewCounts.unread },
+          { key: "archived", label: "Archivados", count: conversationViewCounts.archived },
+        ] as const).map((item) => {
+          const isActive = viewType === item.key
+          const hasUnreadCount = item.key === "unread" && item.count > 0
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setViewType(item.key)}
+              className={`relative flex min-w-0 items-center justify-center gap-2 px-2 pb-1 pt-0 text-[15px] font-medium tracking-[-0.01em] transition-colors ${
+                isActive
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span className={`whitespace-nowrap ${isActive ? "text-primary" : ""}`}>
+                {item.label}
+              </span>
+              <Badge
+                variant="outline"
+                className={`h-8 w-8 shrink-0 justify-center rounded-full p-0 text-sm font-medium shadow-inner transition-colors ${
+                  isActive
+                    ? "border-primary/35 bg-primary/10 text-primary"
+                    : hasUnreadCount
+                      ? "border-blue-500/25 bg-blue-500/15 text-blue-300"
+                      : "border-border bg-background/80 text-muted-foreground"
+                }`}
+              >
+                {item.count}
+              </Badge>
+              <span
+                className={`absolute bottom-0 left-0 h-0.5 transition-all ${
+                  isActive ? "w-full bg-primary" : "w-0 bg-transparent"
+                }`}
+              />
+            </button>
+          )
+        })}
+      </div>
+
+      <ChatFilters
+        activeFilter={activeFilter}
+        onFilterChange={handleFilterChange}
+        availableChannelTypes={["whatsapp"]}
+      />
+
+      <div className="border-b border-border bg-card/80 px-4 py-3">
+        <TagFilterMenu
+          selectedSlugs={tagFilterSlugs}
+          onChange={setTagFilterSlugs}
+          label="Tags"
+          align="start"
+        />
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        <ChannelsList
+          channels={connectedChannels.concat(disconnectedChannels)}
+          selectedChannel={selectedChannel}
+          activeFilter={activeFilter}
+          isLoading={isChannelsLoading}
+          error={null}
+          onChannelSelect={onChannelSelect}
+        />
+      </div>
+
+      <div className="border-t border-border p-4">
+        <Button variant="outline" className="w-full justify-center gap-2 bg-transparent" onClick={onConnectChannelClick}>
+          <Zap className="h-4 w-4 text-primary" />
+          + Connect chat
+        </Button>
+      </div>
+    </>
+  )
+
+  const handleMobileChannelSelect = (channelId: number) => {
+    handleChannelSelect(channelId)
+    setIsChannelsSheetOpen(false)
+  }
+
+  const handleMobileConnectChannel = () => {
+    setIsChannelsSheetOpen(false)
+    handleConnectChannel()
+  }
+
   return (
     <SidebarLayout>
       <ChatsCompactHeader
@@ -1084,86 +1210,22 @@ export default function ChatsPage() {
         onNewConversation={handleNewConversation}
         onConnectChannel={handleConnectChannel}
         onTemplates={handleOpenTemplates}
+        onOpenChannels={() => setIsChannelsSheetOpen(true)}
       />
+
+      <Sheet open={isChannelsSheetOpen} onOpenChange={setIsChannelsSheetOpen}>
+        <SheetContent
+          side="left"
+          className="flex w-[320px] flex-col gap-0 p-0 sm:max-w-[360px] md:hidden"
+        >
+          <SheetTitle className="sr-only">Canales</SheetTitle>
+          {renderChannelsSidebar(handleMobileChannelSelect, handleMobileConnectChannel)}
+        </SheetContent>
+      </Sheet>
 
       <div className="flex h-[calc(100vh-75px)] flex-1 overflow-hidden bg-background">
         <div className="hidden w-[360px] flex-col border-r border-border bg-card md:flex lg:w-[380px]">
-          <div className="grid h-[70px] grid-cols-[0.86fr_1.12fr_1.34fr] border-b border-border bg-card/95">
-            {([
-              { key: "inbox", label: "Inbox", count: conversationViewCounts.inbox },
-              { key: "unread", label: "No leídos", count: conversationViewCounts.unread },
-              { key: "archived", label: "Archivados", count: conversationViewCounts.archived },
-            ] as const).map((item) => {
-              const isActive = viewType === item.key
-              const hasUnreadCount = item.key === "unread" && item.count > 0
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => setViewType(item.key)}
-                  className={`relative flex min-w-0 items-center justify-center gap-2 px-2 pb-1 pt-0 text-[15px] font-medium tracking-[-0.01em] transition-colors ${
-                    isActive
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <span className={`whitespace-nowrap ${isActive ? "text-primary" : ""}`}>
-                    {item.label}
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className={`h-8 w-8 shrink-0 justify-center rounded-full p-0 text-sm font-medium shadow-inner transition-colors ${
-                      isActive
-                        ? "border-primary/35 bg-primary/10 text-primary"
-                        : hasUnreadCount
-                          ? "border-blue-500/25 bg-blue-500/15 text-blue-300"
-                          : "border-border bg-background/80 text-muted-foreground"
-                    }`}
-                  >
-                    {item.count}
-                  </Badge>
-                  <span
-                    className={`absolute bottom-0 left-0 h-0.5 transition-all ${
-                      isActive ? "w-full bg-primary" : "w-0 bg-transparent"
-                    }`}
-                  />
-                </button>
-              )
-            })}
-          </div>
-
-          <ChatFilters
-            activeFilter={activeFilter}
-            onFilterChange={handleFilterChange}
-            availableChannelTypes={["whatsapp"]}
-          />
-
-          <div className="border-b border-border bg-card/80 px-4 py-3">
-            <TagFilterMenu
-              selectedSlugs={tagFilterSlugs}
-              onChange={setTagFilterSlugs}
-              label="Tags"
-              align="start"
-            />
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            <ChannelsList
-              channels={connectedChannels.concat(disconnectedChannels)}
-              selectedChannel={selectedChannel}
-              activeFilter={activeFilter}
-              isLoading={isChannelsLoading}
-              error={null}
-              onChannelSelect={handleChannelSelect}
-            />
-          </div>
-
-          <div className="border-t border-border p-4">
-            <Button variant="outline" className="w-full justify-center gap-2 bg-transparent" onClick={handleConnectChannel}>
-              <Zap className="h-4 w-4 text-primary" />
-              + Connect chat
-            </Button>
-          </div>
+          {renderChannelsSidebar(handleChannelSelect, handleConnectChannel)}
         </div>
 
         {/* Panel principal */}
