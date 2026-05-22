@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge"
 import { getConversationUnreadCount } from "@/lib/api/conversations"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useTaskStore } from "@/store/useTaskStore"
-import { MessageSquare, Users, Target, CheckSquare, BarChart3, Menu, HelpCircle, Settings } from "lucide-react"
+import { MessageSquare, Users, Target, CheckSquare, BarChart3, Menu, HelpCircle, Settings, LogOut } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useTranslation } from "@/hooks/useTranslation"
 
 interface MobileBottomNavProps {
   className?: string
@@ -18,14 +19,32 @@ interface MobileBottomNavProps {
 
 export function MobileBottomNav({ className }: MobileBottomNavProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { t } = useTranslation()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [unreadChats, setUnreadChats] = useState(0)
   const hasRequestedTasks = useRef(false)
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const token = useAuthStore((state) => state.token)
+  const logoutStore = useAuthStore((state) => state.logout)
   const tasks = useTaskStore((state) => state.tasks)
   const isTasksLoading = useTaskStore((state) => state.isLoading)
   const fetchTasks = useTaskStore((state) => state.fetchTasks)
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
+      })
+    } catch {
+      // Ignorar errores, cerrar sesión de todos modos
+    }
+    logoutStore()
+    setIsMenuOpen(false)
+    router.replace("/login")
+  }
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)")
@@ -214,6 +233,14 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
                     </Button>
                   </Link>
                 ))}
+                <Button
+                  variant="outline"
+                  onClick={handleLogout}
+                  className="w-full justify-start gap-3 h-12 bg-transparent text-destructive hover:text-destructive hover:bg-destructive/10 col-span-2"
+                >
+                  <LogOut className="w-5 h-5" />
+                  {t("nav.logout")}
+                </Button>
               </div>
             </div>
           </SheetContent>
