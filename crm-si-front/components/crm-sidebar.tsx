@@ -64,26 +64,31 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
       href: "/",
       emoji: "📊",
       label: t("nav.panel"),
+      shortLabel: t("nav.panelShort"),
     },
     {
       href: "/chats",
       emoji: "💬",
       label: t("nav.chats"),
+      shortLabel: t("nav.chatsShort"),
     },
     {
       href: "/contactos",
       emoji: "👥",
       label: t("nav.contacts"),
+      shortLabel: t("nav.contactsShort"),
     },
     {
       href: "/oportunidades",
       emoji: "🎯",
       label: t("nav.pipeline"),
+      shortLabel: t("nav.pipelineShort"),
     },
     {
       href: "/tareas",
       emoji: "✅",
       label: t("nav.tasks"),
+      shortLabel: t("nav.tasksShort"),
     },
   ]
 
@@ -125,6 +130,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
       href: "/configuracion",
       emoji: "⚙️",
       label: t("nav.settings"),
+      shortLabel: t("nav.settingsShort"),
     },
   ]
 
@@ -142,7 +148,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
     <div
       className={cn(
         "flex h-full flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300",
-        isCollapsed ? "w-16" : "w-60",
+        isCollapsed ? "w-20" : "w-60",
         className,
       )}
     >
@@ -208,15 +214,23 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
               <Button
                 variant="ghost"
                 className={cn(
-                  isCollapsed ? "w-12 h-12 p-0 justify-center" : "w-full justify-start gap-3",
+                  isCollapsed
+                    ? "w-full h-auto py-2.5 px-1 flex-col gap-1 justify-center"
+                    : "w-full justify-start gap-3",
                   isActive
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 )}
                 title={isCollapsed ? item.label : undefined}
               >
-                <span className="text-base">{item.emoji}</span>
-                {!isCollapsed && item.label}
+                <span className={cn(isCollapsed ? "text-xl leading-none" : "text-base")}>{item.emoji}</span>
+                {isCollapsed ? (
+                  <span className="text-[10px] font-medium leading-tight text-center">
+                    {item.shortLabel || item.label}
+                  </span>
+                ) : (
+                  item.label
+                )}
               </Button>
             </Link>
           )
@@ -228,15 +242,21 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
               variant="ghost"
               onClick={() => toggleSection("automatizacion")}
               className={cn(
-                isCollapsed ? "w-12 h-12 p-0 justify-center" : "w-full justify-start gap-3",
+                isCollapsed
+                  ? "w-full h-auto py-2.5 px-1 flex-col gap-1 justify-center"
+                  : "w-full justify-start gap-3",
                 isAutomationActive
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
               )}
               title={isCollapsed ? t("nav.automation") : undefined}
             >
-              <span className="text-base">🚀</span>
-              {!isCollapsed && (
+              <span className={cn(isCollapsed ? "text-xl leading-none" : "text-base")}>🚀</span>
+              {isCollapsed ? (
+                <span className="text-[10px] font-medium leading-tight text-center">
+                  {t("nav.automationShort")}
+                </span>
+              ) : (
                 <>
                   {t("nav.automation")}
                   {openSections.includes("automatizacion") ? (
@@ -285,15 +305,23 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
               <Button
                 variant="ghost"
                 className={cn(
-                  isCollapsed ? "w-12 h-12 p-0 justify-center" : "w-full justify-start gap-3",
+                  isCollapsed
+                    ? "w-full h-auto py-2.5 px-1 flex-col gap-1 justify-center"
+                    : "w-full justify-start gap-3",
                   isActive
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 )}
                 title={isCollapsed ? item.label : undefined}
               >
-                <span className="text-base">{item.emoji}</span>
-                {!isCollapsed && item.label}
+                <span className={cn(isCollapsed ? "text-xl leading-none" : "text-base")}>{item.emoji}</span>
+                {isCollapsed ? (
+                  <span className="text-[10px] font-medium leading-tight text-center">
+                    {item.shortLabel || item.label}
+                  </span>
+                ) : (
+                  item.label
+                )}
               </Button>
             </Link>
           )

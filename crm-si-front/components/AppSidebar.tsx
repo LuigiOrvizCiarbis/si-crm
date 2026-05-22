@@ -29,7 +29,7 @@ export function AppSidebar() {
       <div
         className={`
           fixed lg:static inset-y-0 left-0 z-50 transform transition-all duration-300 ease-in-out
-          ${sidebarOpen ? "translate-x-0 w-60" : "-translate-x-full lg:translate-x-0 lg:w-16"}
+          ${sidebarOpen ? "translate-x-0 w-60" : "-translate-x-full lg:translate-x-0 lg:w-20"}
         `}
       >
         <CrmSidebar isCollapsed={!sidebarOpen} onToggle={toggleSidebar} />

@@ -9,7 +9,14 @@
     "admin": "Administration",
     "settings": "Settings",
     "logout": "Log out",
-    "dashboard": "Main Dashboard"
+    "dashboard": "Main Dashboard",
+    "panelShort": "Panel",
+    "chatsShort": "Chats",
+    "contactsShort": "Contacts",
+    "pipelineShort": "Pipeline",
+    "tasksShort": "Tasks",
+    "automationShort": "AI Auto",
+    "settingsShort": "Settings"
   },
   "dashboard": {
     "title": "Dashboard",
