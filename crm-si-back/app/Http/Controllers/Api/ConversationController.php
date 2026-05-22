@@ -6,8 +6,10 @@ use App\Enums\MessageDirection;
 use App\Http\Controllers\Controller;
 use App\Models\Channel;
 use App\Models\Conversation;
+use App\Models\Message;
 use App\Models\Opportunity;
 use App\Models\PipelineStage;
+use App\Services\WhatsAppMessageService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -278,6 +280,51 @@ class ConversationController extends Controller
         return response()->json([
             'message' => 'Usuario removido correctamente',
             'users' => $conversation->users,
+        ]);
+    }
+
+    public function markAsRead(Request $request, WhatsAppMessageService $whatsappService, $id): JsonResponse
+    {
+        $conversation = Conversation::with('channel')->where('id', $id)->firstOrFail();
+        $this->authorize('view', $conversation);
+
+        $unreadMessages = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('direction', MessageDirection::INBOUND)
+            ->whereNull('read_at')
+            ->orderBy('created_at')
+            ->get();
+
+        if ($unreadMessages->isEmpty()) {
+            return response()->json([
+                'data' => [
+                    'conversation_id' => $conversation->id,
+                    'unread_count' => 0,
+                    'marked' => 0,
+                ],
+            ]);
+        }
+
+        $now = now();
+        Message::query()
+            ->whereIn('id', $unreadMessages->pluck('id'))
+            ->update(['read_at' => $now]);
+
+        $latestExternalId = $unreadMessages
+            ->reverse()
+            ->pluck('external_id')
+            ->first(fn ($id) => filled($id));
+
+        if ($latestExternalId) {
+            $whatsappService->markIncomingAsReadOnMeta($conversation, $latestExternalId);
+        }
+
+        return response()->json([
+            'data' => [
+                'conversation_id' => $conversation->id,
+                'unread_count' => 0,
+                'marked' => $unreadMessages->count(),
+            ],
         ]);
     }
 

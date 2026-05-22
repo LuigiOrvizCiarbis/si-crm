@@ -47,18 +47,25 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
 
     let cancelled = false
 
-    getConversationUnreadCount()
-      .then((unreadCount) => {
-        if (cancelled) return
+    const refresh = () => {
+      getConversationUnreadCount()
+        .then((unreadCount) => {
+          if (cancelled) return
+          setUnreadChats(unreadCount)
+        })
+        .catch(() => {
+          if (!cancelled) setUnreadChats(0)
+        })
+    }
 
-        setUnreadChats(unreadCount)
-      })
-      .catch(() => {
-        if (!cancelled) setUnreadChats(0)
-      })
+    refresh()
+
+    const handler = () => refresh()
+    window.addEventListener("conversations:unread-changed", handler)
 
     return () => {
       cancelled = true
+      window.removeEventListener("conversations:unread-changed", handler)
     }
   }, [isAuthenticated, isMobileViewport])
 

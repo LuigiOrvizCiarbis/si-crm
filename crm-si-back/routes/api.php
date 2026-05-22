@@ -372,6 +372,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('opportunities/{id}/stage', [OpportunityController::class, 'updateStage']);
     Route::patch('conversations/{id}/stage', [ConversationController::class, 'updateStage']);
     Route::patch('conversations/{id}/archive', [ConversationController::class, 'archive']);
+    Route::post('conversations/{id}/read', [ConversationController::class, 'markAsRead']);
 
     Route::apiResource('tasks', TaskController::class);
 

@@ -622,6 +622,51 @@ class WhatsAppMessageService
         ];
     }
 
+    /**
+     * Marca el último mensaje entrante como leído en Meta (doble check azul).
+     * Fail-safe: registra warning y no lanza si el canal no es WA, la config falla o Meta rechaza.
+     */
+    public function markIncomingAsReadOnMeta(Conversation $conversation, string $externalId): void
+    {
+        try {
+            $channel = $conversation->channel;
+            if (! $channel || $channel->type !== ChannelType::WHATSAPP || ! $channel->isActive()) {
+                return;
+            }
+
+            $waConfig = $channel->whatsappConfig;
+            if (! $waConfig || ! $waConfig->phone_number_id) {
+                return;
+            }
+
+            $businessToken = $waConfig->getDecryptedToken();
+            if (! $businessToken) {
+                return;
+            }
+
+            $response = Http::withToken($businessToken)
+                ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$waConfig->phone_number_id}/messages", [
+                    'messaging_product' => 'whatsapp',
+                    'status' => 'read',
+                    'message_id' => $externalId,
+                ]);
+
+            if (! $response->successful()) {
+                Log::warning('WhatsApp markAsRead falló', [
+                    'conversation_id' => $conversation->id,
+                    'external_id' => $externalId,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('WhatsApp markAsRead excepción: '.$e->getMessage(), [
+                'conversation_id' => $conversation->id,
+                'external_id' => $externalId,
+            ]);
+        }
+    }
+
     private function mimeToExtension(string $mimeType): string
     {
         return match ($mimeType) {

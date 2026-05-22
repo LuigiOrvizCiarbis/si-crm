@@ -105,6 +105,24 @@ export async function getConversationUnreadCount(): Promise<number> {
   return Number(payload.data?.unread_count ?? 0);
 }
 
+export async function markConversationAsRead(conversationId: number): Promise<number> {
+  const token = requireToken();
+  const response = await fetch(`/api/conversations/${conversationId}/read`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwApiError(response.status, payload, "Error al marcar conversación como leída");
+  }
+
+  return Number(payload.data?.marked ?? 0);
+}
+
 export async function getChannelConversations(channelId: number) {
   const params = new URLSearchParams();
   params.set("channel_id", String(channelId));
