@@ -32,13 +32,13 @@ export default function ConfiguracionPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {/* <ProfileCard />
           <NotificationsCard />
-          <TeamInvitationsCard />
           <SecurityCard />
           <IntegrationsCard />
           <ChannelsCard /> */}
           <div className="lg:col-span-2 xl:col-span-3">
             <RolesCard />
           </div>
+          <TeamInvitationsCard />
           <MessageHotkeysCard />
           <ContactFieldsCard />
          {/*  <ApiKeysCard />
