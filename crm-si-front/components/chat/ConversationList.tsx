@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { LeadScoreBadge } from "@/components/Badges"
 import { PlatformIcon } from "@/components/chat/PlatformIcon"
@@ -37,6 +38,16 @@ const ConversationCard = memo(function ConversationCard({
   const contactName = conversation.contact?.name || t("chats.unnamedContact")
   const contactPhone = formatPhoneNumber(conversation.contact?.phone)
   const leadScore = conversation.leadScore ?? null
+  const unreadCount = conversation.unread_count ?? 0
+  const isUnread = unreadCount > 0 || Boolean(conversation.unread)
+  const unreadAriaLabel = isUnread
+    ? unreadCount > 0
+      ? t(unreadCount === 1 ? "chats.unreadAriaSingular" : "chats.unreadAriaPlural", {
+          count: unreadCount,
+          name: contactName,
+        })
+      : t("chats.unreadDotAria")
+    : undefined
 
   const formatLastMessageAt = (iso?: string | null) => {
     if (!iso) return "--:--"
@@ -85,8 +96,9 @@ const ConversationCard = memo(function ConversationCard({
 
   return (
     <Card
-      className={`p-3 cursor-pointer hover:bg-accent transition-colors ${isSelected ? 'bg-accent border-primary' : ''} ${isChecked ? 'bg-primary/5 border-primary/40' : ''}`}
+      className={`p-3 cursor-pointer hover:bg-accent transition-colors ${isSelected ? 'bg-accent border-primary' : ''} ${isChecked ? 'bg-primary/5 border-primary/40' : ''} ${isUnread && !isSelected ? 'border-l-2 border-l-blue-500' : ''}`}
       onClick={handleCardClick}
+      aria-label={unreadAriaLabel}
     >
       <div className="flex items-center gap-3">
         {selectionMode && (
@@ -114,7 +126,7 @@ const ConversationCard = memo(function ConversationCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1">
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <span className="font-medium text-sm truncate min-w-0">
+              <span className={`text-sm truncate min-w-0 ${isUnread ? 'font-semibold text-foreground' : 'font-medium'}`}>
                 {contactName}
               </span>
               {leadScore != null && leadScore > 0 && (
@@ -125,16 +137,33 @@ const ConversationCard = memo(function ConversationCard({
                 />
               )}
             </div>
-            <span className="text-xs text-muted-foreground shrink-0">
-              {formatLastMessageAt(conversation.last_message_at)}
-            </span>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`text-xs ${isUnread ? 'text-blue-500 font-semibold' : 'text-muted-foreground'}`}>
+                {formatLastMessageAt(conversation.last_message_at)}
+              </span>
+              {isUnread && (
+                unreadCount > 0 ? (
+                  <Badge
+                    className="h-5 min-w-5 rounded-full px-1.5 text-[10px] font-semibold bg-blue-500 hover:bg-blue-500 text-white border-0 tabular-nums"
+                    aria-label={t("chats.unreadBadgeAria", { count: unreadCount })}
+                  >
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Badge>
+                ) : (
+                  <span
+                    className="h-2 w-2 rounded-full bg-blue-500"
+                    aria-label={t("chats.unreadDotAria")}
+                  />
+                )
+              )}
+            </div>
           </div>
           {contactPhone && (
             <p className="text-xs text-muted-foreground/80 truncate tabular-nums tracking-tight">
               {contactPhone}
             </p>
           )}
-          <p className="text-xs text-muted-foreground truncate">
+          <p className={`text-xs truncate ${isUnread ? 'text-foreground/90 font-medium' : 'text-muted-foreground'}`}>
             {conversation.last_message}
           </p>
           {conversation.tags && conversation.tags.length > 0 && (
