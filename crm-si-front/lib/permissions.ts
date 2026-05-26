@@ -36,9 +36,21 @@ export function hasAllPermissions(perms: string[], permissions: string[] | undef
 }
 
 export function isOwner(role: UserRole | null | undefined): boolean {
-  return role?.name === "Owner"
+  return role?.is_owner === true
 }
 
-export function isAdminRole(role: UserRole | null | undefined): boolean {
-  return role?.name === "Admin" || role?.name === "Owner"
+export function isAdminRole(
+  role: UserRole | null | undefined,
+  permissions?: string[] | null
+): boolean {
+  if (isOwner(role)) {
+    return true
+  }
+  // Without the Owner flag we can't reliably detect renamed Admin roles by name.
+  // Fall back to the canonical Admin permission set, identified by roles.manage
+  // being absent (Admin) while users.view is present.
+  if (!permissions) {
+    return role?.name === "Admin"
+  }
+  return permissions.includes("users.view") && permissions.includes("invitations.create")
 }

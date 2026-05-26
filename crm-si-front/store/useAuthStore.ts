@@ -11,6 +11,7 @@ export interface UserRole {
   id: number
   name: string
   is_system: boolean
+  is_owner?: boolean
 }
 
 export interface User {

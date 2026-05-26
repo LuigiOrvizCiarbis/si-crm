@@ -20,6 +20,7 @@ import { Zap, Loader2, Pencil, Trash2, Plus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useAuthStore } from "@/store/useAuthStore"
+import { isAdminRole } from "@/lib/permissions"
 import {
   createMessageHotkey,
   deleteMessageHotkey,
@@ -29,7 +30,6 @@ import {
   type MessageHotkeyScope,
 } from "@/lib/api/message-hotkeys"
 
-const TENANT_MANAGER_ROLES = ["Owner", "Admin"]
 
 interface FormState {
   trigger: string
@@ -49,10 +49,11 @@ export function MessageHotkeysCard() {
   const { toast } = useToast()
   const { t } = useTranslation()
   const role = useAuthStore((state) => state.role)
+  const permissions = useAuthStore((state) => state.permissions)
   const authUser = useAuthStore((state) => state.user)
   const canManageTenant = useMemo(
-    () => !!role && TENANT_MANAGER_ROLES.includes(role.name),
-    [role],
+    () => isAdminRole(role, permissions),
+    [role, permissions],
   )
 
   const [hotkeys, setHotkeys] = useState<MessageHotkey[]>([])

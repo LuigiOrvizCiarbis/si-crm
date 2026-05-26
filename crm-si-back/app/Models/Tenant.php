@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Permission\Models\Role;
 
 class Tenant extends Model
 {
@@ -11,6 +13,7 @@ class Tenant extends Model
         'name',
         'plan',
         'timezone',
+        'owner_role_id',
     ];
 
     protected $casts = [
@@ -43,6 +46,11 @@ class Tenant extends Model
     public function invitations(): HasMany
     {
         return $this->hasMany(Invitation::class);
+    }
+
+    public function ownerRole(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'owner_role_id');
     }
 
     /**

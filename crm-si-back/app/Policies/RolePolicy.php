@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Tenant;
 use App\Models\User;
 use Spatie\Permission\Models\Role;
 
@@ -33,6 +34,10 @@ class RolePolicy
             return false;
         }
 
+        if ($this->isOwnerRole($role)) {
+            return false;
+        }
+
         // System roles are protected from edits via the normal flow.
         // Owner bypasses through Gate::before; everyone else cannot touch them.
         return ! $role->is_system;
@@ -48,7 +53,28 @@ class RolePolicy
             return false;
         }
 
+        if ($this->isOwnerRole($role)) {
+            return false;
+        }
+
         return ! $role->is_system;
+    }
+
+    /**
+     * The tenant's Owner role is immutable: it cannot be renamed or deleted,
+     * not even by an Owner. This guarantees the Gate::before bypass keeps
+     * working and keeps at least one role with full permissions in the tenant.
+     */
+    private function isOwnerRole(Role $role): bool
+    {
+        $tenantId = $role->tenant_id;
+        if ($tenantId === null) {
+            return false;
+        }
+
+        $ownerRoleId = Tenant::query()->whereKey($tenantId)->value('owner_role_id');
+
+        return $ownerRoleId !== null && (int) $ownerRoleId === (int) $role->id;
     }
 
     public function syncPermissions(User $user, Role $role): bool
