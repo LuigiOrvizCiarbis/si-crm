@@ -602,6 +602,7 @@
   "common": {
     "save": "Save",
     "cancel": "Cancel",
+    "close": "Close",
     "loading": "Loading...",
     "error": "Error",
     "success": "Success"
@@ -619,6 +620,7 @@
     "selectNoneGroup": "None",
     "permissionsCount": "{{count}} permissions",
     "systemBadge": "System",
+    "ownerBadge": "Owner",
     "deleteRole": "Delete role",
     "deleteConfirm": "Delete this role? This action cannot be undone.",
     "deleteSuccess": "Role deleted",
@@ -626,6 +628,9 @@
     "createSuccess": "Role created",
     "saveError": "Could not save the role",
     "systemReadOnly": "System roles cannot be modified",
+    "ownerLockedTitle": "This is the workspace Owner role",
+    "ownerLockedDescription": "It cannot be modified or deleted to protect your administrative access. If you need to adjust the Owner's permissions, do it from the backend permission catalog.",
+    "ownerViewOnly": "Read-only — the Owner role is immutable",
     "assignTitle": "Assign roles to users",
     "assignSubtitle": "Change each team member's role",
     "assignSuccess": "Role assigned",

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreRoleRequest;
 use App\Http\Requests\UpdateRoleRequest;
+use App\Models\Tenant;
 use App\Support\PermissionCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -120,10 +121,13 @@ class RoleController extends Controller
      */
     private function transform(Role $role): array
     {
+        $ownerRoleId = Tenant::query()->whereKey($role->tenant_id)->value('owner_role_id');
+
         return [
             'id' => $role->id,
             'name' => $role->name,
             'is_system' => (bool) $role->is_system,
+            'is_owner' => $ownerRoleId !== null && (int) $ownerRoleId === (int) $role->id,
             'permissions' => $role->permissions->pluck('name')->values(),
             'created_at' => $role->created_at,
             'updated_at' => $role->updated_at,

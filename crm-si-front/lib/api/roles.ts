@@ -4,6 +4,7 @@ export interface Role {
   id: number
   name: string
   is_system: boolean
+  is_owner?: boolean
   permissions: string[]
   created_at?: string
   updated_at?: string

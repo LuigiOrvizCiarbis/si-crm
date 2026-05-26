@@ -35,6 +35,10 @@ class RoleProvisioner
             }
             $owner->syncPermissions(PermissionCatalog::ownerPermissions());
 
+            if ($tenant->owner_role_id === null) {
+                $tenant->forceFill(['owner_role_id' => $owner->id])->save();
+            }
+
             $admin = Role::firstOrCreate(
                 ['name' => 'Admin', 'guard_name' => 'web', 'tenant_id' => $tenant->id],
                 ['is_system' => true],
@@ -60,6 +64,9 @@ class RoleProvisioner
     private function ensurePermissionsExist(): void
     {
         $this->registrar->setPermissionsTeamId(null);
+        // Reset the cached permission collection so subsequent inserts don't
+        // throw PermissionAlreadyExists after the DB was wiped (e.g. tests).
+        $this->registrar->forgetCachedPermissions();
 
         $created = false;
         foreach (PermissionCatalog::all() as $name) {

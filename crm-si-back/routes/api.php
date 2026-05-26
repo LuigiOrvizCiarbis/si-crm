@@ -23,6 +23,7 @@ use App\Models\Invitation;
 use App\Models\Scopes\TenantScope;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\RolePayload;
 use App\Support\RoleProvisioner;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
@@ -54,8 +55,8 @@ Route::post('login', function (Request $request): JsonResponse {
 
     return response()->json([
         'token' => $token,
-        'user' => $user->load('tenant:id,name'),
-        'role' => $role ? ['id' => $role->id, 'name' => $role->name, 'is_system' => (bool) $role->is_system] : null,
+        'user' => $user->load('tenant:id,name,owner_role_id'),
+        'role' => RolePayload::transform($role, $user->tenant),
         'permissions' => $user->getAllPermissions()->pluck('name')->values(),
         'email_verified' => $user->hasVerifiedEmail(),
     ]);
@@ -133,7 +134,7 @@ Route::post('register', function (Request $request): JsonResponse {
     return response()->json([
         'token' => $token,
         'user' => $user,
-        'role' => $role ? ['id' => $role->id, 'name' => $role->name, 'is_system' => (bool) $role->is_system] : null,
+        'role' => RolePayload::transform($role, $tenant->fresh()),
         'permissions' => $user->getAllPermissions()->pluck('name')->values(),
         'email_verified' => false,
         'message' => 'Cuenta creada. Por favor verifica tu email.',
@@ -288,12 +289,12 @@ Route::post('reset-password', function (Request $request) {
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('user', function (Request $request): JsonResponse {
-        $user = $request->user()->load('tenant:id,name');
+        $user = $request->user()->load('tenant:id,name,owner_role_id');
         $role = $user->roles()->where('roles.tenant_id', $user->tenant_id)->first();
 
         return response()->json([
             'user' => $user,
-            'role' => $role ? ['id' => $role->id, 'name' => $role->name, 'is_system' => (bool) $role->is_system] : null,
+            'role' => RolePayload::transform($role, $user->tenant),
             'permissions' => $user->getAllPermissions()->pluck('name')->values(),
         ]);
     });

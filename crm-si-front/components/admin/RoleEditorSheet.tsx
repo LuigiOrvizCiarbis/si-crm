@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { Loader2 } from "lucide-react"
+import { Loader2, Crown, Info } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/useTranslation"
 import {
@@ -39,7 +39,11 @@ export function RoleEditorSheet({ open, role, onClose, onSaved }: RoleEditorShee
   const [saving, setSaving] = useState(false)
 
   const isSystem = !!role?.is_system
-  const readOnly = isSystem && !isOwner
+  const isOwnerRole = role?.is_owner === true
+  // The Owner role is immutable for everyone — even an Owner cannot edit it.
+  // Non-system roles are editable by users with roles.manage. System roles
+  // (other than Owner) are editable only by an Owner.
+  const readOnly = isOwnerRole || (isSystem && !isOwner)
 
   useEffect(() => {
     if (!open) return
@@ -109,19 +113,41 @@ export function RoleEditorSheet({ open, role, onClose, onSaved }: RoleEditorShee
       <SheetContent className="w-full sm:max-w-2xl flex flex-col gap-0 p-0">
         <SheetHeader className="p-6 pb-4 border-b">
           <SheetTitle className="flex items-center gap-2">
+            {isOwnerRole && <Crown className="w-5 h-5 text-amber-500" />}
             {role ? t("roles.editRole") : t("roles.createRole")}
-            {isSystem && (
+            {isOwnerRole ? (
+              <Badge variant="default" className="text-xs bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400 border border-amber-500/30">
+                {t("roles.ownerBadge")}
+              </Badge>
+            ) : isSystem && (
               <Badge variant="secondary" className="text-xs">
                 {t("roles.systemBadge")}
               </Badge>
             )}
           </SheetTitle>
           <SheetDescription>
-            {readOnly ? t("roles.systemReadOnly") : t("roles.subtitle")}
+            {isOwnerRole
+              ? t("roles.ownerViewOnly")
+              : readOnly
+                ? t("roles.systemReadOnly")
+                : t("roles.subtitle")}
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {isOwnerRole && (
+            <div className="flex gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+              <Info className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                  {t("roles.ownerLockedTitle")}
+                </p>
+                <p className="text-xs text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
+                  {t("roles.ownerLockedDescription")}
+                </p>
+              </div>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="role-name">{t("roles.roleName")}</Label>
             <Input
@@ -165,12 +191,14 @@ export function RoleEditorSheet({ open, role, onClose, onSaved }: RoleEditorShee
 
         <div className="border-t p-4 flex items-center justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={saving}>
-            {t("common.cancel")}
+            {isOwnerRole ? t("common.close") : t("common.cancel")}
           </Button>
-          <Button onClick={handleSave} disabled={saving || readOnly || !name.trim()}>
-            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-            {t("common.save")}
-          </Button>
+          {!isOwnerRole && (
+            <Button onClick={handleSave} disabled={saving || readOnly || !name.trim()}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+              {t("common.save")}
+            </Button>
+          )}
         </div>
       </SheetContent>
     </Sheet>

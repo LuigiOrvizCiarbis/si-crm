@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Invitation;
 use App\Models\Scopes\TenantScope;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\InvitationNotification;
+use App\Support\RolePayload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -45,10 +47,21 @@ class InvitationController extends Controller
             ],
         ]);
 
-        // Only an Owner may issue invitations for the Owner role. Otherwise an
-        // Admin holding invitations.create could elevate someone to Owner once
-        // they accept the invite.
-        if ($validated['role_name'] === 'Owner' && ! $actor->hasRole('Owner')) {
+        // Only an Owner may issue invitations for the Owner role. The Owner
+        // role is identified by tenant.owner_role_id, not by name — renamed
+        // owner roles must be guarded too.
+        $ownerRoleId = Tenant::query()->whereKey($tenantId)->value('owner_role_id');
+        $invitedRoleId = Role::query()
+            ->where('tenant_id', $tenantId)
+            ->where('name', $validated['role_name'])
+            ->value('id');
+        $invitingOwner = $ownerRoleId !== null && (int) $invitedRoleId === (int) $ownerRoleId;
+        $actorIsOwner = $ownerRoleId !== null && $actor->roles()
+            ->where('roles.id', $ownerRoleId)
+            ->where('roles.tenant_id', $tenantId)
+            ->exists();
+
+        if ($invitingOwner && ! $actorIsOwner) {
             abort(403, 'Solo un Owner puede invitar con el rol Owner.');
         }
 
@@ -187,11 +200,12 @@ class InvitationController extends Controller
         $token = $user->createToken('api-token')->plainTextToken;
 
         $role = $user->roles()->where('roles.tenant_id', $newTenantId)->first();
+        $tenant = Tenant::query()->whereKey($newTenantId)->first();
 
         return response()->json([
             'token' => $token,
             'user' => $user,
-            'role' => $role ? ['id' => $role->id, 'name' => $role->name, 'is_system' => (bool) $role->is_system] : null,
+            'role' => RolePayload::transform($role, $tenant),
             'permissions' => $user->getAllPermissions()->pluck('name')->values(),
             'message' => 'Te uniste al equipo exitosamente.',
         ]);

@@ -602,6 +602,7 @@
   "common": {
     "save": "Guardar",
     "cancel": "Cancelar",
+    "close": "Cerrar",
     "loading": "Cargando...",
     "error": "Error",
     "success": "Éxito"
@@ -619,6 +620,7 @@
     "selectNoneGroup": "Ninguno",
     "permissionsCount": "{{count}} permisos",
     "systemBadge": "Sistema",
+    "ownerBadge": "Owner",
     "deleteRole": "Eliminar rol",
     "deleteConfirm": "¿Eliminar este rol? Esta acción no se puede deshacer.",
     "deleteSuccess": "Rol eliminado",
@@ -626,6 +628,9 @@
     "createSuccess": "Rol creado",
     "saveError": "No se pudo guardar el rol",
     "systemReadOnly": "Los roles del sistema no se pueden modificar",
+    "ownerLockedTitle": "Este es el rol Owner del workspace",
+    "ownerLockedDescription": "No puede ser modificado ni eliminado para proteger tu acceso administrativo. Si necesitás ajustar permisos del Owner, hacelo desde el catálogo de permisos del backend.",
+    "ownerViewOnly": "Solo lectura — el rol Owner es inmutable",
     "assignTitle": "Asignar roles a usuarios",
     "assignSubtitle": "Cambiá el rol de cada miembro del equipo",
     "assignSuccess": "Rol asignado",

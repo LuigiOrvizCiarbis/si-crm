@@ -62,12 +62,28 @@ class AppServiceProvider extends ServiceProvider
 
         // Owner bypasses every gate within their tenant.
         //
-        // We must keep the bypass scoped to the owner's tenant; otherwise an Owner
-        // could touch tenant-scoped resources (e.g. Spatie roles, which are not
-        // covered by the BelongsToTenant global scope) that belong to other tenants
-        // simply by guessing their primary key.
+        // The bypass is keyed by tenants.owner_role_id, not by role name. This
+        // lets workspaces rename the seeded "Owner" role (e.g. "Dueño") without
+        // losing the bypass. We must keep the bypass scoped to the owner's
+        // tenant; otherwise an Owner could touch tenant-scoped resources (e.g.
+        // Spatie roles, which are not covered by the BelongsToTenant global
+        // scope) that belong to other tenants simply by guessing their primary
+        // key.
         Gate::before(function (?User $user, string $ability, array $arguments = []) {
-            if ($user === null || ! $user->hasRole('Owner')) {
+            if ($user === null) {
+                return null;
+            }
+
+            $ownerRoleId = $user->tenant?->owner_role_id;
+            if ($ownerRoleId === null) {
+                return null;
+            }
+
+            $hasOwnerRole = $user->roles()
+                ->where('roles.id', $ownerRoleId)
+                ->where('roles.tenant_id', $user->tenant_id)
+                ->exists();
+            if (! $hasOwnerRole) {
                 return null;
             }
 
@@ -78,6 +94,17 @@ class AppServiceProvider extends ServiceProvider
 
                 if (is_object($argument) && isset($argument->tenant_id) && (int) $argument->tenant_id !== (int) $user->tenant_id) {
                     return null;
+                }
+            }
+
+            // Hard guard: even an Owner cannot rename or delete the Owner role
+            // itself. Returning false here short-circuits the gate; without it,
+            // the bypass above would let the action through.
+            if (in_array($ability, ['update', 'delete', 'syncPermissions'], true)) {
+                foreach ($arguments as $argument) {
+                    if ($argument instanceof Role && (int) $argument->id === (int) $ownerRoleId) {
+                        return false;
+                    }
                 }
             }
 

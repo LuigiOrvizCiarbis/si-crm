@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Pencil, Trash2, Plus, Loader2, ShieldCheck } from "lucide-react"
+import { Pencil, Trash2, Plus, Loader2, ShieldCheck, Eye, Crown } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/hooks/useTranslation"
 import { deleteRole, getRoles, type Role } from "@/lib/api/roles"
@@ -95,7 +95,7 @@ export function RolesList() {
                 <RoleRow
                   key={role.id}
                   role={role}
-                  canEdit={isOwner}
+                  canEdit={isOwner && !role.is_owner ? true : isOwner}
                   canDelete={false}
                   onEdit={() => setEditing(role)}
                   onDelete={() => setDeletingId(role.id)}
@@ -173,15 +173,24 @@ interface RoleRowProps {
 }
 
 function RoleRow({ role, canEdit, canDelete, onEdit, onDelete, t }: RoleRowProps) {
+  const isOwnerRole = role.is_owner === true
   return (
     <Card className="border-border">
       <CardContent className="flex items-center justify-between py-3">
         <div className="flex items-center gap-3 min-w-0">
-          <ShieldCheck className="w-5 h-5 text-muted-foreground shrink-0" />
+          {isOwnerRole ? (
+            <Crown className="w-5 h-5 text-amber-500 shrink-0" />
+          ) : (
+            <ShieldCheck className="w-5 h-5 text-muted-foreground shrink-0" />
+          )}
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <p className="font-medium truncate">{role.name}</p>
-              {role.is_system && (
+              {isOwnerRole ? (
+                <Badge variant="default" className="text-xs bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400 border border-amber-500/30">
+                  {t("roles.ownerBadge")}
+                </Badge>
+              ) : role.is_system && (
                 <Badge variant="secondary" className="text-xs">
                   {t("roles.systemBadge")}
                 </Badge>
@@ -203,8 +212,14 @@ function RoleRow({ role, canEdit, canDelete, onEdit, onDelete, t }: RoleRowProps
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {canEdit && (
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
-              <Pencil className="w-4 h-4" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={onEdit}
+              title={isOwnerRole ? t("roles.ownerViewOnly") : t("roles.editRole")}
+            >
+              {isOwnerRole ? <Eye className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
             </Button>
           )}
           {canDelete && (

@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AssignRoleRequest;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Support\RolePayload;
 use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
@@ -52,24 +55,39 @@ class UserController extends Controller
 
         $newRoleName = $request->validated('role_name');
 
-        // Only an Owner may grant or revoke the Owner role.
-        $actorIsOwner = $actor->hasRole('Owner');
-        $targetIsOwner = $user->hasRole('Owner');
+        // Owner is identified by tenant.owner_role_id, not by role name —
+        // renamed Owner roles (e.g. "Dueño") must be treated as the same
+        // privileged role.
+        $ownerRoleId = Tenant::query()->whereKey($tenantId)->value('owner_role_id');
+        $newRoleId = Role::query()
+            ->where('tenant_id', $tenantId)
+            ->where('name', $newRoleName)
+            ->value('id');
 
-        if ($newRoleName === 'Owner' && ! $actorIsOwner) {
+        $actorIsOwner = $ownerRoleId !== null && $actor->roles()
+            ->where('roles.id', $ownerRoleId)
+            ->where('roles.tenant_id', $tenantId)
+            ->exists();
+        $targetIsOwner = $ownerRoleId !== null && $user->roles()
+            ->where('roles.id', $ownerRoleId)
+            ->where('roles.tenant_id', $tenantId)
+            ->exists();
+        $newRoleIsOwner = $ownerRoleId !== null && (int) $newRoleId === (int) $ownerRoleId;
+
+        if ($newRoleIsOwner && ! $actorIsOwner) {
             abort(403, 'Solo un Owner puede asignar el rol Owner.');
         }
 
-        if ($targetIsOwner && $newRoleName !== 'Owner' && ! $actorIsOwner) {
+        if ($targetIsOwner && ! $newRoleIsOwner && ! $actorIsOwner) {
             abort(403, 'Solo un Owner puede degradar a otro Owner.');
         }
 
         // Prevent leaving the tenant without any Owner.
-        if ($targetIsOwner && $newRoleName !== 'Owner') {
+        if ($targetIsOwner && ! $newRoleIsOwner) {
             $remainingOwners = User::query()
                 ->where('tenant_id', $tenantId)
                 ->where('id', '!=', $user->id)
-                ->whereHas('roles', fn ($q) => $q->where('roles.tenant_id', $tenantId)->where('name', 'Owner'))
+                ->whereHas('roles', fn ($q) => $q->where('roles.tenant_id', $tenantId)->where('roles.id', $ownerRoleId))
                 ->count();
 
             if ($remainingOwners === 0) {
@@ -91,17 +109,14 @@ class UserController extends Controller
     private function transform(User $user, int $tenantId): array
     {
         $role = $user->roles->first();
+        $tenant = Tenant::query()->whereKey($tenantId)->first();
 
         return [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'tenant_id' => $user->tenant_id,
-            'role' => $role ? [
-                'id' => $role->id,
-                'name' => $role->name,
-                'is_system' => (bool) $role->is_system,
-            ] : null,
+            'role' => RolePayload::transform($role, $tenant),
             'created_at' => $user->created_at,
             'updated_at' => $user->updated_at,
         ];

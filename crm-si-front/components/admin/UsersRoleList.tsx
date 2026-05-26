@@ -70,7 +70,7 @@ export function UsersRoleList() {
         <div className="space-y-2">
           {users.map((u) => {
             const isCurrent = u.id === currentUser?.id
-            const targetIsOwner = u.role?.name === "Owner"
+            const targetIsOwner = u.role?.is_owner === true
             // Only Owner can change another Owner's role.
             const disabled = !canAssign || (targetIsOwner && !isOwner) || isCurrent
             return (

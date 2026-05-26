@@ -27,5 +27,6 @@ export function useIsOwner(): boolean {
 
 export function useIsAdmin(): boolean {
   const role = useAuthStore((s) => s.role)
-  return isAdminRole(role)
+  const permissions = useAuthStore((s) => s.permissions)
+  return isAdminRole(role, permissions)
 }
