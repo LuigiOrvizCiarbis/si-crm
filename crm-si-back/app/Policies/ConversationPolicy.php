@@ -4,9 +4,12 @@ namespace App\Policies;
 
 use App\Models\Conversation;
 use App\Models\User;
+use App\Policies\Concerns\ChecksBranchAccess;
 
 class ConversationPolicy
 {
+    use ChecksBranchAccess;
+
     public function viewAny(User $user): bool
     {
         return $user->can('conversations.view_any')
@@ -15,6 +18,10 @@ class ConversationPolicy
 
     public function view(User $user, Conversation $conversation): bool
     {
+        if (! $this->passesBranchCheck($user, $conversation)) {
+            return false;
+        }
+
         if ($user->can('conversations.view_any')) {
             return true;
         }
@@ -53,6 +60,10 @@ class ConversationPolicy
 
     private function canTouch(User $user, Conversation $conversation): bool
     {
+        if (! $this->passesBranchCheck($user, $conversation)) {
+            return false;
+        }
+
         return $user->can('conversations.view_any') || $this->isAssigned($user, $conversation);
     }
 

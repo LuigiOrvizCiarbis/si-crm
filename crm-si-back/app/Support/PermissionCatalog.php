@@ -112,6 +112,12 @@ class PermissionCatalog
             'permissions' => [
                 'permissions.view',
             ],
+            'branches' => [
+                'branches.view_any',
+                'branches.view',
+                'branches.manage',
+                'branches.view_all',
+            ],
         ];
     }
 
@@ -190,6 +196,8 @@ class PermissionCatalog
             'tags.attach',
             'templates.view',
             'analytics.view',
+            'branches.view_any',
+            'branches.view',
         ];
     }
 }

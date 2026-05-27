@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/useAuthStore"
 import { SidebarLayout } from "@/components/SidebarLayout"
 import { DashboardCompactHeader } from "@/components/dashboard-compact-header"
 import { MetricsCards } from "@/components/metrics-cards"
+import { BranchComparisonSection } from "@/components/dashboard/BranchComparisonSection"
 import { SalesFunnel } from "@/components/sales-funnel"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
@@ -101,6 +102,7 @@ export default function Dashboard() {
                   isLoading={isLoading}
                 />
                 <SalesFunnel stages={data?.stages} isLoading={isLoading} />
+                <BranchComparisonSection />
               </>
             )}
           </TabsContent>

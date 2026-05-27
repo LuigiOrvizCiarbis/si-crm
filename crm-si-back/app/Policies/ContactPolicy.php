@@ -4,9 +4,12 @@ namespace App\Policies;
 
 use App\Models\Contact;
 use App\Models\User;
+use App\Policies\Concerns\ChecksBranchAccess;
 
 class ContactPolicy
 {
+    use ChecksBranchAccess;
+
     public function viewAny(User $user): bool
     {
         return $user->can('contacts.view_any')
@@ -15,6 +18,10 @@ class ContactPolicy
 
     public function view(User $user, Contact $contact): bool
     {
+        if (! $this->passesBranchCheck($user, $contact)) {
+            return false;
+        }
+
         if ($user->can('contacts.view_any')) {
             return true;
         }
@@ -33,12 +40,20 @@ class ContactPolicy
 
     public function update(User $user, Contact $contact): bool
     {
+        if (! $this->passesBranchCheck($user, $contact)) {
+            return false;
+        }
+
         return $user->can('contacts.update')
             && ($user->can('contacts.view_any') || $this->isAssigned($user, $contact));
     }
 
     public function delete(User $user, Contact $contact): bool
     {
+        if (! $this->passesBranchCheck($user, $contact)) {
+            return false;
+        }
+
         return $user->can('contacts.delete')
             && ($user->can('contacts.view_any') || $this->isAssigned($user, $contact));
     }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Channel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ChannelController extends Controller
 {
@@ -96,6 +97,30 @@ class ChannelController extends Controller
             'message' => 'Usuario removido del canal',
             'users' => $channel->users()->get(['id', 'name', 'email']),
         ]);
+    }
+
+    public function assignBranch(Request $request, $id)
+    {
+        $channel = Channel::findOrFail($id);
+        $this->authorize('update', $channel);
+
+        $tenantId = $request->user()->tenant_id;
+
+        if (! $request->user()->can('branches.manage')) {
+            abort(403, 'No tienes permiso para asignar sucursales.');
+        }
+
+        $validated = $request->validate([
+            'branch_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('branches', 'id')->where(fn ($q) => $q->where('tenant_id', $tenantId)),
+            ],
+        ]);
+
+        $channel->update(['branch_id' => $validated['branch_id'] ?? null]);
+
+        return response()->json(['data' => $channel->refresh()]);
     }
 
     public function syncUsers(Request $request, $id)

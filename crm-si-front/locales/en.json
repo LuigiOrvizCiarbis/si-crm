@@ -728,7 +728,55 @@
       "invitations.revoke": "Revoke invitations",
       "roles.view": "View roles",
       "roles.manage": "Manage roles and permissions",
-      "permissions.view": "View permission catalog"
+      "permissions.view": "View permission catalog",
+      "branches.view_any": "View branches list",
+      "branches.view": "View branches",
+      "branches.manage": "Manage branches",
+      "branches.view_all": "View data across all branches"
+    }
+  },
+  "sucursales": {
+    "title": "Branches",
+    "subtitle": "Manage physical branches or locations of the business",
+    "empty": "No branches yet. Once you add one, you can assign contacts, conversations and opportunities to each branch.",
+    "create": "New branch",
+    "edit": "Edit branch",
+    "delete": "Delete branch",
+    "created": "Branch created",
+    "updated": "Branch updated",
+    "deleted": "Branch deleted",
+    "confirmDelete": "Delete this branch?",
+    "confirmDeleteDesc": "This action cannot be undone. Associated data keeps its branch reference until you change it.",
+    "inactive": "Inactive",
+    "pickerPlaceholder": "Select branch",
+    "fields": {
+      "name": "Name",
+      "address": "Address",
+      "phone": "Phone",
+      "email": "Email",
+      "timezone": "Timezone",
+      "manager": "Manager",
+      "business_hours": "Business hours",
+      "is_active": "Active"
+    },
+    "filters": {
+      "all": "All branches",
+      "none": "No branch"
+    },
+    "errors": {
+      "name_required": "Branch name is required",
+      "cross_branch_forbidden": "You don't have access to other branches' data"
+    },
+    "dashboard": {
+      "title": "Branch comparison",
+      "subtitle": "Performance per branch in the selected range",
+      "contacts": "Contacts",
+      "conversations": "Open conversations",
+      "opportunities": "Opportunities",
+      "value": "Value",
+      "won": "Won",
+      "conversion_rate": "Conversion rate",
+      "response_time": "Response time"
     }
   }
 }
