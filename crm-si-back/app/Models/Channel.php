@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ChannelType;
 use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\HasBranch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,9 +24,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Channel extends Model
 {
     use BelongsToTenant;
+    use HasBranch;
 
     protected $fillable = [
         'tenant_id',
+        'branch_id',
         'user_id',
         'whatsapp_config_id',
         'type',

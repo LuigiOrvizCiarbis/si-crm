@@ -38,6 +38,7 @@ export interface AppFilters {
   rango: 7 | 30 | 90
   canal: string
   owner: string
+  sucursal_id?: number | null
 }
 
 interface AppStore {

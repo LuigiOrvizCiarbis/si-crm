@@ -4,3 +4,4 @@ CLAUDE.md
 .DS_Store
 crm-si-back/docker-compose.yml
 .tmp/
+.claude

@@ -8,6 +8,7 @@ use App\Models\Conversation;
 use App\Models\Opportunity;
 use App\Models\PipelineStage;
 use App\Models\User;
+use App\Support\BranchRuleResolver;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -41,6 +42,10 @@ class OpportunityController extends Controller
             $query->where('status', $request->string('status'));
         }
 
+        if ($request->filled('branch_id') && ($user->isTenantOwner() || $user->can('branches.view_all'))) {
+            $query->where('branch_id', (int) $request->query('branch_id'));
+        }
+
         $opportunities = $query->paginate((int) $request->query('per_page', 100));
 
         return response()->json([
@@ -62,7 +67,7 @@ class OpportunityController extends Controller
         $stage = $this->resolveStage($validated);
         $assignedUser = $this->resolveAssignedUser($validated);
 
-        $opportunity = Opportunity::create([
+        $payload = [
             'contact_id' => $contact->id,
             'conversation_id' => $conversation?->id,
             'pipeline_stage_id' => $stage?->id,
@@ -73,7 +78,13 @@ class OpportunityController extends Controller
             'value' => $validated['value'] ?? null,
             'notes' => $validated['notes'] ?? null,
             'last_activity_at' => $validated['last_activity_at'] ?? ($conversation?->last_message_at ?? now()),
-        ]);
+        ];
+
+        if (array_key_exists('branch_id', $validated)) {
+            $payload['branch_id'] = $validated['branch_id'];
+        }
+
+        $opportunity = Opportunity::create($payload);
 
         $opportunity->load(self::EAGER_LOAD);
 
@@ -190,7 +201,8 @@ class OpportunityController extends Controller
 
     private function rules(Request $request, ?Opportunity $opportunity = null): array
     {
-        $tenantId = $request->user()->tenant_id;
+        $user = $request->user();
+        $tenantId = $user->tenant_id;
         $sometimes = $opportunity ? ['sometimes'] : ['required'];
 
         return [
@@ -204,6 +216,10 @@ class OpportunityController extends Controller
             'value' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
             'last_activity_at' => ['nullable', 'date'],
+            'branch_id' => BranchRuleResolver::rulesFor(
+                $user,
+                __('No tienes permiso para asignar oportunidades a esa sucursal.')
+            ),
         ];
     }
 
