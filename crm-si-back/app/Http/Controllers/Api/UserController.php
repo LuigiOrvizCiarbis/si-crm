@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Support\RolePayload;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -103,6 +104,35 @@ class UserController extends Controller
         return response()->json(['data' => $this->transform($user, $tenantId)]);
     }
 
+    public function assignBranch(Request $request, User $user): JsonResponse
+    {
+        $this->authorize('update', $user);
+
+        $actor = $request->user();
+        $tenantId = $actor->tenant_id;
+
+        if ((int) $user->tenant_id !== (int) $tenantId) {
+            abort(403, 'Usuario fuera del tenant');
+        }
+
+        if (! $actor->can('branches.manage')) {
+            abort(403, 'No tienes permiso para asignar sucursales.');
+        }
+
+        $validated = $request->validate([
+            'branch_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('branches', 'id')->where(fn ($q) => $q->where('tenant_id', $tenantId)),
+            ],
+        ]);
+
+        $user->forceFill(['branch_id' => $validated['branch_id'] ?? null])->save();
+        $user->load(['roles' => fn ($q) => $q->where('roles.tenant_id', $tenantId)]);
+
+        return response()->json(['data' => $this->transform($user, $tenantId)]);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -116,6 +146,7 @@ class UserController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'tenant_id' => $user->tenant_id,
+            'branch_id' => $user->branch_id,
             'role' => RolePayload::transform($role, $tenant),
             'created_at' => $user->created_at,
             'updated_at' => $user->updated_at,

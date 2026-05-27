@@ -38,8 +38,11 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'tenant_id',
+        'branch_id',
         'email_verified_at',
     ];
+
+    protected ?bool $isTenantOwnerCache = null;
 
     protected $hidden = [
         'password',
@@ -115,8 +118,31 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(Tenant::class);
     }
 
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
     public function messages(): MorphMany
     {
         return $this->morphMany(Message::class, 'sender');
+    }
+
+    public function isTenantOwner(): bool
+    {
+        if ($this->isTenantOwnerCache !== null) {
+            return $this->isTenantOwnerCache;
+        }
+
+        $ownerRoleId = $this->tenant?->owner_role_id;
+
+        if ($ownerRoleId === null) {
+            return $this->isTenantOwnerCache = false;
+        }
+
+        return $this->isTenantOwnerCache = $this->roles()
+            ->where('roles.id', $ownerRoleId)
+            ->where('roles.tenant_id', $this->tenant_id)
+            ->exists();
     }
 }

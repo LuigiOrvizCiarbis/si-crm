@@ -98,7 +98,7 @@ class WhatsAppMessageService
             }
 
             /** @var Contact $contact */
-            $contact = $this->findOrCreateContact($contactData, $messageData['from'] ?? '', $tenantId);
+            $contact = $this->findOrCreateContact($contactData, $messageData['from'] ?? '', $channel);
             /** @var Conversation $conversation */
             $conversation = $this->findOrCreateConversation($contact, $channel);
             /** @var int $conversationId */
@@ -144,7 +144,7 @@ class WhatsAppMessageService
         }
     }
 
-    private function findOrCreateContact(?array $contactData, string $phoneNumber, ?int $tenantId): Contact
+    private function findOrCreateContact(?array $contactData, string $phoneNumber, Channel $channel): Contact
     {
         $name = 'Sin nombre';
         if ($contactData && isset($contactData['profile']['name'])) {
@@ -153,12 +153,13 @@ class WhatsAppMessageService
 
         return Contact::firstOrCreate(
             [
-                'tenant_id' => $tenantId,
+                'tenant_id' => $channel->tenant_id,
                 'phone' => $phoneNumber,
             ],
             [
                 'name' => $name,
                 'source' => 'whatsapp',
+                'branch_id' => $channel->branch_id,
             ]
         );
     }
@@ -174,6 +175,7 @@ class WhatsAppMessageService
             [
                 'status' => 'open',
                 'last_message_at' => now(),
+                'branch_id' => $contact->branch_id ?? $channel->branch_id,
             ]
         );
 
@@ -865,7 +867,7 @@ class WhatsAppMessageService
                 continue;
             }
 
-            $contact = $this->findOrCreateContact(null, $customerPhone, $tenantId);
+            $contact = $this->findOrCreateContact(null, $customerPhone, $channel);
             $conversation = $this->findOrCreateConversation($contact, $channel);
 
             $extracted = $this->extractMessageData($echo);

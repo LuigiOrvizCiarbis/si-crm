@@ -8,6 +8,7 @@ use App\Models\Contact;
 use App\Models\ContactField;
 use App\Rules\ValidContactCustomData;
 use App\Services\ContactImportService;
+use App\Support\BranchRuleResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -37,6 +38,10 @@ class ContactController extends Controller
 
         if ($request->filled('source')) {
             $q->where('source', $request->query('source'));
+        }
+
+        if ($request->filled('branch_id') && ($user->isTenantOwner() || $user->can('branches.view_all'))) {
+            $q->where('branch_id', (int) $request->query('branch_id'));
         }
 
         if ($request->filled('tags')) {
@@ -239,6 +244,7 @@ class ContactController extends Controller
     private function contactRules(bool $partial = false, ?int $contactId = null): array
     {
         $nameRule = $partial ? 'sometimes|required|string|max:255' : 'required|string|max:255';
+        $user = request()->user();
 
         return [
             'name' => $nameRule,
@@ -246,6 +252,10 @@ class ContactController extends Controller
             'email' => 'nullable|email|max:255',
             'source' => 'nullable|string|in:whatsapp,instagram,facebook,manual',
             'custom_data' => ['nullable', 'array', new ValidContactCustomData($contactId)],
+            'branch_id' => BranchRuleResolver::rulesFor(
+                $user,
+                __('No tienes permiso para asignar contactos a esa sucursal.')
+            ),
         ];
     }
 

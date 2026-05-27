@@ -728,7 +728,55 @@
       "invitations.revoke": "Revocar invitaciones",
       "roles.view": "Ver roles",
       "roles.manage": "Gestionar roles y permisos",
-      "permissions.view": "Ver catálogo de permisos"
+      "permissions.view": "Ver catálogo de permisos",
+      "branches.view_any": "Ver listado de sucursales",
+      "branches.view": "Ver sucursales",
+      "branches.manage": "Gestionar sucursales",
+      "branches.view_all": "Ver datos de todas las sucursales"
+    }
+  },
+  "sucursales": {
+    "title": "Sucursales",
+    "subtitle": "Gestiona las sucursales o ubicaciones físicas del negocio",
+    "empty": "Aún no creaste sucursales. Cuando agregues una, podrás asignar contactos, conversaciones y oportunidades a cada sucursal.",
+    "create": "Nueva sucursal",
+    "edit": "Editar sucursal",
+    "delete": "Eliminar sucursal",
+    "created": "Sucursal creada",
+    "updated": "Sucursal actualizada",
+    "deleted": "Sucursal eliminada",
+    "confirmDelete": "¿Eliminar esta sucursal?",
+    "confirmDeleteDesc": "Esta acción no se puede deshacer. Los datos asociados conservarán su sucursal asignada hasta que la cambies.",
+    "inactive": "Inactiva",
+    "pickerPlaceholder": "Seleccionar sucursal",
+    "fields": {
+      "name": "Nombre",
+      "address": "Dirección",
+      "phone": "Teléfono",
+      "email": "Email",
+      "timezone": "Zona horaria",
+      "manager": "Responsable",
+      "business_hours": "Horarios de atención",
+      "is_active": "Activa"
+    },
+    "filters": {
+      "all": "Todas las sucursales",
+      "none": "Sin sucursal"
+    },
+    "errors": {
+      "name_required": "El nombre de la sucursal es obligatorio",
+      "cross_branch_forbidden": "No tienes acceso a datos de otra sucursal"
+    },
+    "dashboard": {
+      "title": "Comparativa por sucursal",
+      "subtitle": "Performance de cada sucursal en el rango seleccionado",
+      "contacts": "Contactos",
+      "conversations": "Conversaciones abiertas",
+      "opportunities": "Oportunidades",
+      "value": "Valor",
+      "won": "Ganadas",
+      "conversion_rate": "Tasa de conversión",
+      "response_time": "Tiempo de respuesta"
     }
   }
 }

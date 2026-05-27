@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Branch;
 use App\Models\Channel;
 use App\Models\Contact;
 use App\Models\Conversation;
@@ -14,6 +15,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\WhatsAppTemplate;
 use App\Observers\MessageObserver;
+use App\Policies\BranchPolicy;
 use App\Policies\ChannelPolicy;
 use App\Policies\ContactPolicy;
 use App\Policies\ConversationPolicy;
@@ -26,6 +28,7 @@ use App\Policies\TagPolicy;
 use App\Policies\TaskPolicy;
 use App\Policies\UserPolicy;
 use App\Policies\WhatsAppTemplatePolicy;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Role;
@@ -45,8 +48,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        DB::prohibitDestructiveCommands(
+            (bool) env('DB_PROHIBIT_DESTRUCTIVE_COMMANDS', false)
+                && ! $this->app->environment('testing')
+        );
+
         Message::observe(MessageObserver::class);
 
+        Gate::policy(Branch::class, BranchPolicy::class);
         Gate::policy(Channel::class, ChannelPolicy::class);
         Gate::policy(Contact::class, ContactPolicy::class);
         Gate::policy(Conversation::class, ConversationPolicy::class);
@@ -74,18 +83,11 @@ class AppServiceProvider extends ServiceProvider
                 return null;
             }
 
-            $ownerRoleId = $user->tenant?->owner_role_id;
-            if ($ownerRoleId === null) {
+            if (! $user->isTenantOwner()) {
                 return null;
             }
 
-            $hasOwnerRole = $user->roles()
-                ->where('roles.id', $ownerRoleId)
-                ->where('roles.tenant_id', $user->tenant_id)
-                ->exists();
-            if (! $hasOwnerRole) {
-                return null;
-            }
+            $ownerRoleId = $user->tenant?->owner_role_id;
 
             foreach ($arguments as $argument) {
                 if (is_object($argument) && property_exists($argument, 'tenant_id') === false && ! isset($argument->tenant_id)) {

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\ChannelController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ContactFieldController;
@@ -306,12 +307,17 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::get('dashboard/metrics', [DashboardController::class, 'metrics']);
+    Route::get('dashboard/branches', [DashboardController::class, 'branches']);
 
     Route::apiResource('tags', TagController::class);
+
+    Route::apiResource('branches', BranchController::class);
+    Route::get('branches/{branch}/stats', [BranchController::class, 'stats']);
 
     Route::get('users', [UserController::class, 'index']);
     Route::get('users/{user}', [UserController::class, 'show']);
     Route::patch('users/{user}/role', [UserController::class, 'assignRole']);
+    Route::patch('users/{user}/branch', [UserController::class, 'assignBranch']);
 
     Route::get('roles', [RoleController::class, 'index']);
     Route::post('roles', [RoleController::class, 'store']);
@@ -361,6 +367,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('channels/{id}/users', [ChannelController::class, 'addUser']);
     Route::delete('channels/{id}/users/{userId}', [ChannelController::class, 'removeUser']);
     Route::put('channels/{id}/users', [ChannelController::class, 'syncUsers']);
+    Route::patch('channels/{id}/branch', [ChannelController::class, 'assignBranch']);
 
     Route::post('admin/channels/whatsapp-auth', [WhatsAppController::class, 'handleAuth']);
 

@@ -4,12 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\DashboardMetricsRequest;
+use App\Models\Branch;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Opportunity;
 use App\Models\PipelineStage;
+use App\Models\Scopes\BranchScope;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class DashboardController extends Controller
@@ -48,6 +52,68 @@ class DashboardController extends Controller
                 'end' => $rangeEnd->toIso8601String(),
                 'periodo' => $request->periodo(),
             ],
+        ]);
+    }
+
+    public function branches(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user->isTenantOwner() && ! $user->can('branches.view_all') && ! $user->can('branches.manage')) {
+            abort(403);
+        }
+
+        $rango = (int) $request->query('rango', 30);
+        if (! in_array($rango, [7, 30, 90], true)) {
+            $rango = 30;
+        }
+
+        $tenantId = $user->tenant_id;
+        $cacheKey = "branches.dashboard.{$tenantId}.{$rango}";
+
+        $data = Cache::remember($cacheKey, 60, function () use ($tenantId, $rango) {
+            $since = CarbonImmutable::now()->subDays($rango);
+
+            return Branch::query()
+                ->where('tenant_id', $tenantId)
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Branch $branch) => [
+                    'id' => $branch->id,
+                    'name' => $branch->name,
+                    'is_active' => (bool) $branch->is_active,
+                    'contacts_total' => Contact::withoutGlobalScope(BranchScope::class)
+                        ->where('tenant_id', $tenantId)
+                        ->where('branch_id', $branch->id)
+                        ->count(),
+                    'conversations_open' => Conversation::withoutGlobalScope(BranchScope::class)
+                        ->where('tenant_id', $tenantId)
+                        ->where('branch_id', $branch->id)
+                        ->where('status', 'open')
+                        ->count(),
+                    'opportunities_count' => Opportunity::withoutGlobalScope(BranchScope::class)
+                        ->where('tenant_id', $tenantId)
+                        ->where('branch_id', $branch->id)
+                        ->where('created_at', '>=', $since)
+                        ->count(),
+                    'opportunities_value' => (float) Opportunity::withoutGlobalScope(BranchScope::class)
+                        ->where('tenant_id', $tenantId)
+                        ->where('branch_id', $branch->id)
+                        ->where('created_at', '>=', $since)
+                        ->sum('value'),
+                    'opportunities_won' => Opportunity::withoutGlobalScope(BranchScope::class)
+                        ->where('tenant_id', $tenantId)
+                        ->where('branch_id', $branch->id)
+                        ->where('status', 'won')
+                        ->where('created_at', '>=', $since)
+                        ->count(),
+                ])
+                ->all();
+        });
+
+        return response()->json([
+            'data' => $data,
+            'meta' => ['rango' => $rango],
         ]);
     }
 

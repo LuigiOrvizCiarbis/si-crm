@@ -10,6 +10,7 @@ import { ChannelsCard } from "@/components/config/ChannelsCard"
 import { ApiKeysCard } from "@/components/config/ApiKeysCard"
 import { BillingCard } from "@/components/config/BillingCard"
 import { RolesCard } from "@/components/config/RolesCard"
+import { SucursalesCard } from "@/components/config/SucursalesCard"
 import { TeamInvitationsCard } from "@/components/config/TeamInvitationsCard"
 import { MessageHotkeysCard } from "@/components/config/MessageHotkeysCard"
 import { ContactFieldsCard } from "@/components/config/ContactFieldsCard"
@@ -37,6 +38,9 @@ export default function ConfiguracionPage() {
           <ChannelsCard /> */}
           <div className="lg:col-span-2 xl:col-span-3">
             <RolesCard />
+          </div>
+          <div className="lg:col-span-2 xl:col-span-3">
+            <SucursalesCard />
           </div>
           <TeamInvitationsCard />
           <MessageHotkeysCard />

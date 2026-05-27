@@ -4,9 +4,12 @@ namespace App\Policies;
 
 use App\Models\Opportunity;
 use App\Models\User;
+use App\Policies\Concerns\ChecksBranchAccess;
 
 class OpportunityPolicy
 {
+    use ChecksBranchAccess;
+
     public function viewAny(User $user): bool
     {
         return $user->can('opportunities.view_any')
@@ -15,6 +18,10 @@ class OpportunityPolicy
 
     public function view(User $user, Opportunity $opportunity): bool
     {
+        if (! $this->passesBranchCheck($user, $opportunity)) {
+            return false;
+        }
+
         if ($user->can('opportunities.view_any')) {
             return true;
         }
@@ -58,6 +65,10 @@ class OpportunityPolicy
 
     private function canTouch(User $user, Opportunity $opportunity): bool
     {
+        if (! $this->passesBranchCheck($user, $opportunity)) {
+            return false;
+        }
+
         return $user->can('opportunities.view_any')
             || (int) $opportunity->assigned_to === (int) $user->id;
     }

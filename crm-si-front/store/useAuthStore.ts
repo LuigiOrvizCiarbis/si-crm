@@ -21,6 +21,7 @@ export interface User {
   email_verified_at?: string | null
   tenant_id?: number
   tenant?: UserTenant | null
+  branch_id?: number | null
   created_at?: string
   updated_at?: string
 }

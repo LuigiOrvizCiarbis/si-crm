@@ -76,6 +76,10 @@ class ConversationController extends Controller
             $q->withTagSlugs($this->parseTagSlugs((string) $request->query('tags')));
         }
 
+        if ($request->filled('branch_id') && ($user->isTenantOwner() || $user->can('branches.view_all'))) {
+            $q->where('conversations.branch_id', (int) $request->query('branch_id'));
+        }
+
         if ($request->query('summary') === 'unread_count') {
             $unreadCount = (clone $q)
                 ->reorder()
