@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Pencil, Trash2, Plus, Loader2, Building2, MapPin, Phone, Mail } from "lucide-react"
+import { Pencil, Trash2, Loader2, Building2, MapPin, Phone, Mail } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,14 +22,21 @@ import { useBranchesStore } from "@/store/useBranchesStore"
 import { Branch } from "@/lib/api/branches"
 import { SucursalForm } from "./SucursalForm"
 
-export function SucursalesList() {
+type SucursalesListProps = {
+  creating?: boolean
+  onCreatingChange?: (open: boolean) => void
+}
+
+export function SucursalesList({ creating: creatingProp, onCreatingChange }: SucursalesListProps = {}) {
   const { toast } = useToast()
   const { t } = useTranslation()
   const canManage = usePermission("branches.manage")
   const { branches, loaded, loading, fetch, remove } = useBranchesStore()
 
   const [editing, setEditing] = useState<Branch | null>(null)
-  const [creating, setCreating] = useState(false)
+  const [creatingInternal, setCreatingInternal] = useState(false)
+  const creating = creatingProp ?? creatingInternal
+  const setCreating = onCreatingChange ?? setCreatingInternal
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
   useEffect(() => {
@@ -56,19 +63,6 @@ export function SucursalesList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">{t("sucursales.title")}</h3>
-          <p className="text-sm text-muted-foreground">{t("sucursales.subtitle")}</p>
-        </div>
-        {canManage && (
-          <Button onClick={() => setCreating(true)} size="sm">
-            <Plus className="w-4 h-4 mr-1" />
-            {t("sucursales.create")}
-          </Button>
-        )}
-      </div>
-
       {branches.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
