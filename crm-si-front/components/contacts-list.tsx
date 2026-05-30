@@ -317,7 +317,8 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
   const profileResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   type EditableField = "name" | "phone" | "email" | "source"
-  const [editingCell, setEditingCell] = useState<{ contactId: number; field: EditableField } | null>(null)
+  type EditableCellField = EditableField | `custom:${string}`
+  const [editingCell, setEditingCell] = useState<{ contactId: number; field: EditableCellField } | null>(null)
 
   const customFieldColumns = useMemo<Column[]>(
     () =>
@@ -418,6 +419,20 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
     setContacts((prev) => prev.map((c) => (c.id === contact.id ? { ...c, [field]: nextValue } : c)))
     setEditingCell(null)
     saveAutosave({ id: contact.id, updates: { [field]: nextValue } as ContactUpdate })
+  }
+
+  const handleCustomCellSave = (contact: Contact, key: string, nextValue: unknown): void => {
+    const current = (contact.custom_data ?? {})[key]
+    const normalized = nextValue === "" ? null : nextValue
+    if (JSON.stringify(current ?? null) === JSON.stringify(normalized ?? null)) {
+      return
+    }
+
+    const nextCustomData = { ...(contact.custom_data ?? {}), [key]: normalized }
+    setContacts((prev) =>
+      prev.map((c) => (c.id === contact.id ? { ...c, custom_data: nextCustomData } : c)),
+    )
+    saveAutosave({ id: contact.id, updates: { custom_data: { [key]: normalized } } })
   }
 
   useEffect(() => {
@@ -846,10 +861,56 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
           const key = columnId.slice("custom:".length)
           const field = contactFields.find((f) => f.key === key)
           const raw = (contact.custom_data ?? {})[key]
+
+          if (!field) {
+            return (
+              <span className="truncate text-sm text-foreground">
+                {formatCustomValue(raw, undefined)}
+              </span>
+            )
+          }
+
+          const isEditingThis = editingCell?.contactId === contact.id && editingCell.field === columnId
+
+          if (isEditingThis) {
+            // Tipos que despliegan portales (Select/Radix) o múltiples controles no
+            // deben cerrarse en blur, porque interactuar con el portal dispara blur.
+            const usesPortal = field.type === "select" || field.type === "multi_select"
+            return (
+              <div
+                onBlur={(e) => {
+                  if (usesPortal) return
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setEditingCell(null)
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape" || e.key === "Enter") setEditingCell(null)
+                }}
+              >
+                <CustomFieldInput
+                  field={{ ...field, label: "" }}
+                  value={raw}
+                  onChange={(next) => {
+                    handleCustomCellSave(contact, key, next)
+                    // Single-value pickers terminan la edición tras elegir.
+                    if (field.type === "select" || field.type === "boolean") {
+                      setEditingCell(null)
+                    }
+                  }}
+                />
+              </div>
+            )
+          }
+
           return (
-            <span className="truncate text-sm text-foreground">
-              {formatCustomValue(raw, field?.type)}
-            </span>
+            <button
+              type="button"
+              className="w-full text-left rounded px-1 py-0.5 hover:bg-muted/60 transition-colors truncate text-sm text-foreground"
+              onClick={() => setEditingCell({ contactId: contact.id, field: columnId })}
+            >
+              {formatCustomValue(raw, field.type)}
+            </button>
           )
         }
         return null
