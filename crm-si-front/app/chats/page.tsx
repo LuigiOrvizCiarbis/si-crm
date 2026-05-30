@@ -108,7 +108,7 @@ function ChatsCompactHeader({
 }: ChatsCompactHeaderProps) {
   return (
     <div className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/90">
-      <div className="flex h-[75px] items-center gap-3 px-4 md:px-6">
+      <div className="flex h-18.75 items-center gap-3 px-4 md:px-6">
         <Button
           variant="ghost"
           size="icon"
