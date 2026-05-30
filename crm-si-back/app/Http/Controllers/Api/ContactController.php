@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ImportContactsRequest;
+use App\Http\Resources\ContactResource;
 use App\Models\Contact;
 use App\Models\ContactField;
 use App\Rules\ValidContactCustomData;
@@ -72,7 +73,7 @@ class ContactController extends Controller
         );
 
         return response()->json([
-            'data' => $contacts->items(),
+            'data' => ContactResource::collection($contacts->getCollection()),
             'meta' => [
                 'total' => $contacts->total(),
                 'current_page' => $contacts->currentPage(),
@@ -137,7 +138,7 @@ class ContactController extends Controller
 
         $contact->load('tags');
 
-        return response()->json(['data' => $contact], 201);
+        return response()->json(['data' => new ContactResource($contact)], 201);
     }
 
     public function show(Request $request, Contact $contact)
@@ -149,7 +150,7 @@ class ContactController extends Controller
             'conversations' => fn ($c) => $c->latest('last_message_at')->limit(5),
         ]);
 
-        return response()->json(['data' => $contact]);
+        return response()->json(['data' => new ContactResource($contact)]);
     }
 
     public function update(Request $request, Contact $contact)
@@ -168,7 +169,7 @@ class ContactController extends Controller
         $contact->update($validated);
         $contact->load('tags');
 
-        return response()->json(['data' => $contact]);
+        return response()->json(['data' => new ContactResource($contact)]);
     }
 
     public function destroy(Request $request, Contact $contact)
