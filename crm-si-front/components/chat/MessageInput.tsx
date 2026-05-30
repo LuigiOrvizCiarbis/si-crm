@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useTranslation } from "@/hooks/useTranslation"
 import { Paperclip, Smile, Send, X, Pencil, Check, Music2 } from "lucide-react"
@@ -82,7 +82,7 @@ export function MessageInput({
   const { t } = useTranslation()
   const resolvedPlaceholder = placeholder ?? t("chats.messagePlaceholder")
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const [selectedMedia, setSelectedMedia] = useState<File | null>(null)
   const [mediaPreview, setMediaPreview] = useState<string | null>(null)
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false)
@@ -157,7 +157,7 @@ export function MessageInput({
     e.stopPropagation()
   }
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     e.stopPropagation()
 
     if (isHotkeyDropdownOpen) {
@@ -200,14 +200,14 @@ export function MessageInput({
     }
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const nextValue = e.target.value
     onChange(nextValue)
     const cursorPos = e.target.selectionStart ?? nextValue.length
     detectSlashFromInput(nextValue, cursorPos)
   }
 
-  const handleInputSelect = (e: SyntheticEvent<HTMLInputElement>) => {
+  const handleInputSelect = (e: SyntheticEvent<HTMLTextAreaElement>) => {
     const input = e.currentTarget
     const cursorPos = input.selectionStart ?? value.length
     detectSlashFromInput(value, cursorPos)
@@ -220,22 +220,42 @@ export function MessageInput({
     setIsEmojiPickerOpen(false)
   }
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
+  const acceptMediaFile = (file: File) => {
     if (file.size > 10 * 1024 * 1024) {
       alert(t("chats.fileTooLarge") || "El archivo es demasiado grande (máx. 10MB)")
-      return
+      return false
     }
 
     if (!file.type.startsWith("image/") && !file.type.startsWith("audio/")) {
       alert(t("chats.onlyImagesOrAudio") || "Solo se permiten imágenes o audios")
-      return
+      return false
     }
 
     setSelectedMedia(file)
+    return true
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    acceptMediaFile(file)
     if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (isEditing || isAudio) return
+
+    const imageItem = Array.from(e.clipboardData.items).find((item) =>
+      item.type.startsWith("image/")
+    )
+    if (!imageItem) return
+
+    const file = imageItem.getAsFile()
+    if (!file) return
+
+    e.preventDefault()
+    acceptMediaFile(file)
   }
 
   const canSend = isAudio ? selectedMedia : value.trim() || selectedMedia
@@ -305,7 +325,7 @@ export function MessageInput({
         </div>
       )}
       <div className="p-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-end gap-2">
           {!isEditing && (
             <>
               <input
@@ -334,8 +354,9 @@ export function MessageInput({
             </>
           )}
           <div className="relative flex-1">
-            <Input
+            <Textarea
               ref={inputRef}
+              rows={1}
               placeholder={
                 isEditing
                   ? t("chats.editingMessage")
@@ -343,14 +364,14 @@ export function MessageInput({
                     ? (t("chats.audioPlaceholder") || "Audio listo para enviar")
                     : (selectedMedia ? (t("chats.captionPlaceholder") || "Agregar caption...") : resolvedPlaceholder)
               }
-              className="w-full"
+              className="w-full min-h-9 max-h-32 resize-none py-2"
               value={value}
               onChange={handleInputChange}
               onSelect={handleInputSelect}
+              onPaste={handlePaste}
               onBlur={() => requestAnimationFrame(closeHotkeyDropdown)}
               onKeyDown={handleKeyDown}
               onKeyUp={stopPropagation}
-              onKeyPress={stopPropagation}
               disabled={disabled || isAudio}
             />
             {isHotkeyDropdownOpen && (
