@@ -173,6 +173,31 @@ class ContactFieldsTest extends TestCase
         ])->assertStatus(422);
     }
 
+    public function test_owner_can_update_contact_through_real_middleware_pipeline(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+
+        $contact = Contact::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Sin nombre',
+            'source' => 'manual',
+            'custom_data' => [],
+        ]);
+
+        $token = $user->createToken('test')->plainTextToken;
+
+        app(PermissionRegistrar::class)->setPermissionsTeamId(null);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->withHeaders([
+            'Authorization' => "Bearer {$token}",
+            'Accept' => 'application/json',
+        ])->putJson("/api/contacts/{$contact->id}", [
+            'name' => 'Nombre Editado',
+        ])->assertOk()
+            ->assertJsonPath('data.name', 'Nombre Editado');
+    }
+
     public function test_partial_update_does_not_enforce_unrelated_required_field(): void
     {
         [$user, $tenant] = $this->createOwner();
