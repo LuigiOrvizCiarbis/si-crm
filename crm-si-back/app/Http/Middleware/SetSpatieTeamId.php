@@ -23,6 +23,7 @@ class SetSpatieTeamId
 
         if ($user !== null && $user->tenant_id !== null) {
             $this->registrar->setPermissionsTeamId($user->tenant_id);
+            $user->unsetRelation('roles')->unsetRelation('permissions');
         }
 
         return $next($request);
