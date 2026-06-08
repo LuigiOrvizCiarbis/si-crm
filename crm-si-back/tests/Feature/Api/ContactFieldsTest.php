@@ -173,6 +173,93 @@ class ContactFieldsTest extends TestCase
         ])->assertStatus(422);
     }
 
+    public function test_partial_update_does_not_enforce_unrelated_required_field(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'dni',
+            'label' => 'DNI',
+            'type' => 'text',
+            'is_required' => true,
+        ]);
+        ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'empresa',
+            'label' => 'Empresa',
+            'type' => 'text',
+        ]);
+
+        $contact = Contact::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Juan',
+            'source' => 'manual',
+            'custom_data' => [],
+        ]);
+
+        $this->putJson("/api/contacts/{$contact->id}", [
+            'custom_data' => ['empresa' => 'ACME'],
+        ])->assertOk()
+            ->assertJsonPath('data.custom_data.empresa', 'ACME');
+
+        $this->assertSame('ACME', $contact->fresh()->custom_data['empresa']);
+    }
+
+    public function test_update_of_standard_field_only_does_not_enforce_required_custom_field(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'dni',
+            'label' => 'DNI',
+            'type' => 'text',
+            'is_required' => true,
+        ]);
+
+        $contact = Contact::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Juan',
+            'source' => 'manual',
+            'custom_data' => [],
+        ]);
+
+        $this->putJson("/api/contacts/{$contact->id}", [
+            'name' => 'Juan Pérez',
+        ])->assertOk()
+            ->assertJsonPath('data.name', 'Juan Pérez');
+
+        $this->assertSame('Juan Pérez', $contact->fresh()->name);
+    }
+
+    public function test_partial_update_still_enforces_required_field_when_cleared(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        ContactField::create([
+            'tenant_id' => $tenant->id,
+            'key' => 'dni',
+            'label' => 'DNI',
+            'type' => 'text',
+            'is_required' => true,
+        ]);
+
+        $contact = Contact::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Juan',
+            'source' => 'manual',
+            'custom_data' => ['dni' => '123'],
+        ]);
+
+        $this->putJson("/api/contacts/{$contact->id}", [
+            'custom_data' => ['dni' => ''],
+        ])->assertStatus(422);
+    }
+
     public function test_unique_custom_field_is_enforced(): void
     {
         [$user, $tenant] = $this->createOwner();

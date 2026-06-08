@@ -5,11 +5,12 @@ import { useToast } from "@/components/Toast"
 
 interface AutosaveOptions<T> {
   onSave: (data: T) => Promise<void>
+  onError?: (data: T, error: unknown) => void
   debounceMs?: number
   showToast?: boolean
 }
 
-export function useAutosave<T>({ onSave, debounceMs = 600, showToast = true }: AutosaveOptions<T>) {
+export function useAutosave<T>({ onSave, onError, debounceMs = 600, showToast = true }: AutosaveOptions<T>) {
   const { addToast } = useToast()
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingSaveRef = useRef<T | null>(null)
@@ -30,7 +31,9 @@ export function useAutosave<T>({ onSave, debounceMs = 600, showToast = true }: A
           if (showToast) {
             addToast({ type: "success", title: "Cambios guardados" })
           }
-          pendingSaveRef.current = null
+          if (pendingSaveRef.current === payload) {
+            pendingSaveRef.current = null
+          }
         } catch (error) {
           if (showToast) {
             addToast({
@@ -38,6 +41,10 @@ export function useAutosave<T>({ onSave, debounceMs = 600, showToast = true }: A
               title: "No se pudo guardar",
               description: error instanceof Error ? error.message : "Reintentá en unos segundos",
             })
+          }
+          onError?.(payload, error)
+          if (pendingSaveRef.current === payload) {
+            pendingSaveRef.current = null
           }
           console.error("[autosave] error:", error)
         }

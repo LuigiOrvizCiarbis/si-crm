@@ -11,7 +11,16 @@ use Illuminate\Support\Facades\Validator;
 
 class ValidContactCustomData implements ValidationRule
 {
-    public function __construct(private ?int $ignoreContactId = null) {}
+    /**
+     * @param  list<string>|null  $providedKeys  Keys explicitly sent in the request payload. When provided, the
+     *                                           required-field check is skipped for keys absent from this list so a
+     *                                           partial update of a single cell does not fail on unrelated required
+     *                                           fields that are empty on the contact.
+     */
+    public function __construct(
+        private ?int $ignoreContactId = null,
+        private ?array $providedKeys = null,
+    ) {}
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
@@ -36,8 +45,9 @@ class ValidContactCustomData implements ValidationRule
         foreach ($fields as $key => $field) {
             $present = array_key_exists($key, $value);
             $rawValue = $value[$key] ?? null;
+            $sentInPayload = $this->providedKeys === null || in_array($key, $this->providedKeys, true);
 
-            if ($field->is_required && (! $present || $rawValue === null || $rawValue === '' || (is_array($rawValue) && $rawValue === []))) {
+            if ($sentInPayload && $field->is_required && (! $present || $rawValue === null || $rawValue === '' || (is_array($rawValue) && $rawValue === []))) {
                 $fail("custom_data.{$key} es requerido.");
 
                 continue;
