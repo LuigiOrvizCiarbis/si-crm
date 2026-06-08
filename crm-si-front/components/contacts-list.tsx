@@ -83,6 +83,11 @@ function getInitials(name: string): string {
   return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
 }
 
+function capitalize(value: string): string {
+  if (!value) return value
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
 const AVATAR_GRADIENTS = [
   "from-cyan-500 to-blue-600",
   "from-violet-500 to-purple-600",
@@ -391,9 +396,13 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
     setSortDirection(nextSortField === "updated_at" ? "desc" : "asc")
   }
 
-  const { save: saveAutosave } = useAutosave<{ id: number; updates: ContactUpdate }>({
+  const { save: saveAutosave } = useAutosave<{ id: number; updates: ContactUpdate; rollback: Partial<Contact> }>({
     onSave: async ({ id, updates }) => {
-      await updateContact(id, updates)
+      const updated = await updateContact(id, updates)
+      setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...updated } : c)))
+    },
+    onError: ({ id, rollback }) => {
+      setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...rollback } : c)))
     },
   })
 
@@ -416,23 +425,33 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
       nextValue = trimmed || null
     }
 
+    const previousValue = contact[field as keyof Contact]
     setContacts((prev) => prev.map((c) => (c.id === contact.id ? { ...c, [field]: nextValue } : c)))
     setEditingCell(null)
-    saveAutosave({ id: contact.id, updates: { [field]: nextValue } as ContactUpdate })
+    saveAutosave({
+      id: contact.id,
+      updates: { [field]: nextValue } as ContactUpdate,
+      rollback: { [field]: previousValue } as Partial<Contact>,
+    })
   }
 
   const handleCustomCellSave = (contact: Contact, key: string, nextValue: unknown): void => {
-    const current = (contact.custom_data ?? {})[key]
+    const previousCustomData = contact.custom_data ?? {}
+    const current = previousCustomData[key]
     const normalized = nextValue === "" ? null : nextValue
     if (JSON.stringify(current ?? null) === JSON.stringify(normalized ?? null)) {
       return
     }
 
-    const nextCustomData = { ...(contact.custom_data ?? {}), [key]: normalized }
+    const nextCustomData = { ...previousCustomData, [key]: normalized }
     setContacts((prev) =>
       prev.map((c) => (c.id === contact.id ? { ...c, custom_data: nextCustomData } : c)),
     )
-    saveAutosave({ id: contact.id, updates: { custom_data: { [key]: normalized } } })
+    saveAutosave({
+      id: contact.id,
+      updates: { custom_data: { [key]: normalized } },
+      rollback: { custom_data: previousCustomData },
+    })
   }
 
   useEffect(() => {
@@ -1098,7 +1117,7 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
                                 column.id === "tags"
                                   ? "Etiquetas"
                                   : isCustom
-                                    ? column.labelKey
+                                    ? capitalize(column.labelKey)
                                     : column.labelKey
                                       ? t(column.labelKey)
                                       : ""

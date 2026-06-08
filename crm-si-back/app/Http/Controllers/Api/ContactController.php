@@ -157,14 +157,21 @@ class ContactController extends Controller
     {
         $this->authorize('update', $contact);
 
+        $providedCustomKeys = [];
         if ($request->has('custom_data')) {
-            $merged = array_merge($contact->custom_data ?? [], (array) $request->input('custom_data'));
+            $incoming = (array) $request->input('custom_data');
+            $providedCustomKeys = array_keys($incoming);
+            $merged = array_merge($contact->custom_data ?? [], $incoming);
             $request->merge(['custom_data' => $merged]);
         } else {
             $request->merge(['custom_data' => $contact->custom_data ?? []]);
         }
 
-        $validated = $request->validate($this->contactRules(partial: true, contactId: $contact->id));
+        $validated = $request->validate($this->contactRules(
+            partial: true,
+            contactId: $contact->id,
+            providedCustomKeys: $providedCustomKeys,
+        ));
 
         $contact->update($validated);
         $contact->load('tags');
@@ -242,7 +249,11 @@ class ContactController extends Controller
         ]);
     }
 
-    private function contactRules(bool $partial = false, ?int $contactId = null): array
+    /**
+     * @param  list<string>|null  $providedCustomKeys  Custom field keys explicitly sent in this request, used to scope
+     *                                                 required-field validation to a partial update.
+     */
+    private function contactRules(bool $partial = false, ?int $contactId = null, ?array $providedCustomKeys = null): array
     {
         $nameRule = $partial ? 'sometimes|required|string|max:255' : 'required|string|max:255';
         $user = request()->user();
@@ -252,7 +263,7 @@ class ContactController extends Controller
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'source' => 'nullable|string|in:whatsapp,instagram,facebook,manual',
-            'custom_data' => ['nullable', 'array', new ValidContactCustomData($contactId)],
+            'custom_data' => ['nullable', 'array', new ValidContactCustomData($contactId, $providedCustomKeys)],
             'branch_id' => BranchRuleResolver::rulesFor(
                 $user,
                 __('No tienes permiso para asignar contactos a esa sucursal.')
