@@ -156,7 +156,9 @@ export function ConversationHeader({
                 title={`${t("chats.leadScore")}: ${leadScore}/100 - ${t("chats.leadScoreHint")}`}
               />
             </div>
-            <p className="text-xs text-muted-foreground">{t("chats.online")}</p>
+            <p className="text-xs text-muted-foreground">
+              {conversation.contact.phone || t("chats.online")}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
