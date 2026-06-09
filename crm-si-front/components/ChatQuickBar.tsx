@@ -26,7 +26,7 @@ type Priority = "baja" | "media" | "alta" | "hot"
 interface TeamUser {
   id: number
   name: string
-  role: "Vendedor" | "Supervisor" | "Owner"
+  role: string
 }
 
 interface ChatQuickBarValue {
@@ -97,7 +97,13 @@ export function ChatQuickBar({
           getUsers(),
         ])
         setPipelineStages(stages)
-        setUsers(fetchedUsers.map(u => ({ id: u.id, name: u.name, role: (u.role as TeamUser['role']) || 'Vendedor' })))
+        setUsers(fetchedUsers.map((user) => ({
+          id: user.id,
+          name: user.name,
+          role: typeof user.role === "string"
+            ? user.role
+            : user.role?.name || "Vendedor",
+        })))
       } catch (error) {
         console.error('Error loading stages/users', error)
       } finally {

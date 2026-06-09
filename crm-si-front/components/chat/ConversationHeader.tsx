@@ -2,7 +2,7 @@ import { Avatar, AvatarFallback } from "@radix-ui/react-avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LeadScoreBadge } from "@/components/Badges"
-import { ArrowLeft, Info, History, ListTodo, Pencil, Check, X, ContactRound, User, Plus } from "lucide-react"
+import { ArrowLeft, Info, History, Pencil, Check, X, User, Plus } from "lucide-react"
 import { Conversation } from "@/data/types"
 import { useEffect, useRef, useState } from "react"
 import { ContactHistoryDrawer } from "./ContactHistoryDrawer"
@@ -94,19 +94,27 @@ export function ConversationHeader({
     .slice(0, 2)
 
   return (
-    <div className="p-4 border-b border-border bg-card">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={onBack}>
+    <div className="border-b border-border bg-card px-3 py-2.5 sm:p-4">
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-10 w-10 shrink-0 rounded-full p-0 sm:h-8 sm:w-auto sm:rounded-md sm:px-2.5"
+            onClick={onBack}
+            aria-label={t("chats.back")}
+          >
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <Avatar className="w-10 h-10">
-            <AvatarFallback>{initials}</AvatarFallback>
+          <Avatar className="flex h-10 w-10 shrink-0 overflow-hidden rounded-full ring-1 ring-border">
+            <AvatarFallback className="flex h-full w-full items-center justify-center bg-muted text-sm font-semibold">
+              {initials}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
               {isEditingName ? (
-                <div className="flex items-center gap-1">
+                <div className="flex min-w-0 flex-1 items-center gap-1">
                   <Input
                     ref={nameInputRef}
                     value={nameDraft}
@@ -114,13 +122,13 @@ export function ConversationHeader({
                     onKeyDown={handleNameKeyDown}
                     disabled={isSavingName}
                     maxLength={255}
-                    className="h-7 w-48 text-sm font-medium"
+                    className="h-8 min-w-0 flex-1 px-2 text-sm font-medium sm:w-48 sm:flex-none"
                     aria-label={t("chats.editContactName")}
                   />
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 w-7 p-0"
+                    className="h-8 w-8 shrink-0 p-0 text-primary"
                     onClick={() => void saveName()}
                     disabled={isSavingName}
                     title={t("chats.save")}
@@ -130,7 +138,7 @@ export function ConversationHeader({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 w-7 p-0"
+                    className="h-8 w-8 shrink-0 p-0"
                     onClick={cancelEditingName}
                     disabled={isSavingName}
                     title={t("chats.cancel")}
@@ -139,15 +147,18 @@ export function ConversationHeader({
                   </Button>
                 </div>
               ) : (
-                <div className="flex items-center gap-1 group">
-                  <h3 className="font-medium truncate">{conversation.contact.name}</h3>
+                <div className="group flex min-w-0 items-center gap-0.5">
+                  <h3 className="truncate text-sm font-semibold leading-tight sm:text-base sm:font-medium">
+                    {conversation.contact.name}
+                  </h3>
                   {onRenameContact && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                      className="h-7 w-7 shrink-0 rounded-full p-0 text-muted-foreground opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"
                       onClick={startEditingName}
                       title={t("chats.editContactName")}
+                      aria-label={t("chats.editContactName")}
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
@@ -156,16 +167,16 @@ export function ConversationHeader({
               )}
               <LeadScoreBadge
                 score={leadScore}
-                className="cursor-help"
+                className="hidden cursor-help sm:inline-flex"
                 title={`${t("chats.leadScore")}: ${leadScore}/100 - ${t("chats.leadScoreHint")}`}
               />
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
               {conversation.contact.phone || t("chats.online")}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="hidden items-center gap-2 sm:flex">
           <Button
             variant="ghost"
             size="sm"
@@ -180,11 +191,11 @@ export function ConversationHeader({
             <Button
               variant="ghost"
               size="sm"
-            onClick={() => setTimelineOpen(true)}
-            title={t("timeline.title")}
-          >
-            <User className="w-4 h-4" />
-          </Button>
+              onClick={() => setTimelineOpen(true)}
+              title={t("timeline.title")}
+            >
+              <User className="w-4 h-4" />
+            </Button>
           )}
           <Button
             variant="ghost"
@@ -199,10 +210,56 @@ export function ConversationHeader({
             size="sm"
             onClick={onToggleContactInfo}
             aria-pressed={isContactInfoOpen}
+            title={t("chats.contactInfo")}
           >
             <Info className="w-4 h-4" />
           </Button>
         </div>
+      </div>
+
+      <div className="mt-2 grid grid-cols-4 gap-1 rounded-xl bg-muted/60 p-1 sm:hidden">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-10 rounded-lg p-0"
+          onClick={() => setTaskModalOpen(true)}
+          title={t("chats.createTask")}
+          aria-label={t("chats.createTask")}
+        >
+          <Plus className="h-[18px] w-[18px]" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-10 rounded-lg p-0"
+          onClick={() => setTimelineOpen(true)}
+          disabled={!hasContactId}
+          title={t("timeline.title")}
+          aria-label={t("timeline.title")}
+        >
+          <User className="h-[18px] w-[18px]" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-10 rounded-lg p-0"
+          onClick={() => setHistoryOpen(true)}
+          title={t("chats.viewFullHistory")}
+          aria-label={t("chats.viewFullHistory")}
+        >
+          <History className="h-[18px] w-[18px]" />
+        </Button>
+        <Button
+          variant={isContactInfoOpen ? "secondary" : "ghost"}
+          size="sm"
+          className="h-10 rounded-lg p-0"
+          onClick={onToggleContactInfo}
+          aria-pressed={isContactInfoOpen}
+          title={t("chats.contactInfo")}
+          aria-label={t("chats.contactInfo")}
+        >
+          <Info className="h-[18px] w-[18px]" />
+        </Button>
       </div>
 
       <ContactHistoryDrawer

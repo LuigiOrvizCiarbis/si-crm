@@ -316,6 +316,8 @@
     "leadScore": "Lead Score",
     "leadScoreHint": "Based on intent, recency, and channel",
     "online": "Online",
+    "back": "Back to conversations",
+    "contactInfo": "Contact information",
     "viewFullHistory": "View full history",
     "createTask": "Create task",
     "editContactName": "Edit contact name",
