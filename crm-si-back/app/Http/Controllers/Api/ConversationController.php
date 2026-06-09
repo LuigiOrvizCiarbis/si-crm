@@ -332,6 +332,39 @@ class ConversationController extends Controller
         ]);
     }
 
+    public function markAsUnread(Request $request, $id): JsonResponse
+    {
+        $conversation = Conversation::where('id', $id)->firstOrFail();
+        $this->authorize('view', $conversation);
+
+        $latestInbound = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('direction', MessageDirection::INBOUND)
+            ->whereNotNull('read_at')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($latestInbound === null) {
+            return response()->json([
+                'data' => [
+                    'conversation_id' => $conversation->id,
+                    'unread_count' => 0,
+                    'marked' => 0,
+                ],
+            ]);
+        }
+
+        $latestInbound->update(['read_at' => null]);
+
+        return response()->json([
+            'data' => [
+                'conversation_id' => $conversation->id,
+                'unread_count' => 1,
+                'marked' => 1,
+            ],
+        ]);
+    }
+
     public function archive(Request $request, $id): JsonResponse
     {
         $conversation = Conversation::where('id', $id)->firstOrFail();

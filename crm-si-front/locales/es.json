@@ -318,6 +318,8 @@
     "online": "En línea",
     "viewFullHistory": "Ver historial completo",
     "createTask": "Crear tarea",
+    "markAsRead": "Marcar como leído",
+    "markAsUnread": "Marcar como no leído",
     "unnamedContact": "Sin nombre",
     "yesterday": "Ayer",
     "unreadAriaSingular": "{{name}}, {{count}} mensaje sin leer",

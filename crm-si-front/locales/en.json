@@ -318,6 +318,8 @@
     "online": "Online",
     "viewFullHistory": "View full history",
     "createTask": "Create task",
+    "markAsRead": "Mark as read",
+    "markAsUnread": "Mark as unread",
     "unnamedContact": "Unnamed contact",
     "yesterday": "Yesterday",
     "unreadAriaSingular": "{{name}}, {{count}} unread message",
