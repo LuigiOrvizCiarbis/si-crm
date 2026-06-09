@@ -163,10 +163,12 @@ export function ConversationHeader({
           <Button
             variant="ghost"
             size="sm"
+            className="gap-2"
             onClick={() => setTaskModalOpen(true)}
             title={t("chats.createTask")}
           >
             <ListTodo className="w-4 h-4" />
+            {t("chats.createTask")}
           </Button>
           <Button
             variant="ghost"
