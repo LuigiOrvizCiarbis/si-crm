@@ -351,6 +351,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('conversations/bulk-assign', [ConversationController::class, 'bulkAssign']);
     Route::post('conversations/bulk-archive', [ConversationController::class, 'bulkArchive']);
     Route::post('conversations/bulk-delete', [ConversationController::class, 'bulkDelete']);
+    Route::post('conversations/bulk-read', [ConversationController::class, 'bulkMarkRead']);
     Route::get('conversations/{conversation}', [ConversationController::class, 'show']);
     Route::post('conversations/{conversation}/tags', [TagController::class, 'attachToConversation']);
     Route::delete('conversations/{conversation}/tags/{tag}', [TagController::class, 'detachFromConversation']);

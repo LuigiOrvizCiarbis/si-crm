@@ -315,7 +315,7 @@ export function MessageList({
                 )}
 
                 <div
-                  className={`p-3 rounded-lg max-w-xs ${isUser
+                  className={`p-3 rounded-lg max-w-xs break-words overflow-hidden ${isUser
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted"
                     }`}
@@ -326,10 +326,10 @@ export function MessageList({
                     </p>
                   ) : hasOriginalContent ? (
                     <div className="space-y-2">
-                      <p className="text-xs opacity-70 line-through whitespace-pre-wrap">
+                      <p className="text-xs opacity-70 line-through whitespace-pre-wrap [overflow-wrap:anywhere]">
                         {msg.original_content}
                       </p>
-                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{msg.content}</p>
                     </div>
                   ) : isImage && imageUrl ? (
                     <div className="space-y-1">
@@ -353,13 +353,13 @@ export function MessageList({
                         {parsed.title}
                       </span>
                       {parsed.body && (
-                        <p className="text-sm whitespace-pre-wrap">
+                        <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">
                           {parsed.body}
                         </p>
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm">{msg.content}</p>
+                    <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{msg.content}</p>
                   )}
                   {(msg.delivered_at || msg.created_at) && (
                     <div className="flex items-center gap-1">
