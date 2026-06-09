@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useToast } from "@/components/Toast"
-import { Archive, Settings, Loader2 } from "lucide-react"
+import { Archive, Settings, Loader2, Mail, MailOpen } from "lucide-react"
 import { getPipelineStages, PipelineStage } from "@/lib/api/pipeline"
 import { getUsers } from "@/lib/api/users"
 import { updateConversationStage, assignConversationUser } from "@/lib/api/conversations"
@@ -44,6 +44,8 @@ interface ChatQuickBarProps {
   onChangePriority: (priority: Priority) => void
   onChangeAssignee: (id: number) => void
   onToggleArchive: () => void
+  isUnread?: boolean
+  onToggleReadStatus?: () => void
   tags?: Tag[]
   onTagsChange?: (tags: Tag[]) => void
 }
@@ -58,6 +60,8 @@ export function ChatQuickBar({
   onChangePriority,
   onChangeAssignee,
   onToggleArchive,
+  isUnread = false,
+  onToggleReadStatus,
   tags = [],
   onTagsChange,
 }: ChatQuickBarProps) {
@@ -376,6 +380,18 @@ export function ChatQuickBar({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-1 ml-auto">
+          {onToggleReadStatus && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-2 rounded-lg border border-[#1e2533] hover:bg-[#1A1F2B] text-[#D8DEE9]"
+              onClick={onToggleReadStatus}
+              title={isUnread ? t("chats.markAsRead") : t("chats.markAsUnread")}
+              aria-label={isUnread ? t("chats.markAsRead") : t("chats.markAsUnread")}
+            >
+              {isUnread ? <Mail className="w-4 h-4" /> : <MailOpen className="w-4 h-4" />}
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -399,6 +415,18 @@ export function ChatQuickBar({
         </div>
 
         <div className="flex items-center gap-2">
+          {onToggleReadStatus && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-2 rounded-lg border border-[#1e2533] hover:bg-[#1A1F2B] text-[#D8DEE9]"
+              onClick={onToggleReadStatus}
+              title={isUnread ? t("chats.markAsRead") : t("chats.markAsUnread")}
+              aria-label={isUnread ? t("chats.markAsRead") : t("chats.markAsUnread")}
+            >
+              {isUnread ? <Mail className="w-4 h-4" /> : <MailOpen className="w-4 h-4" />}
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"

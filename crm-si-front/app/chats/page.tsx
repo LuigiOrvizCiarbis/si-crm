@@ -32,6 +32,7 @@ import {
   getConversations,
   getConversationWithMessages,
   markConversationAsRead,
+  markConversationAsUnread,
 } from "@/lib/api/conversations"
 const BulkTagsConversationsDialog = dynamic(
   () => import("@/components/chat/BulkTagsConversationsDialog").then(m => m.BulkTagsConversationsDialog),
@@ -720,6 +721,51 @@ export default function ChatsPage() {
     }
   }
 
+  const handleToggleReadStatus = useCallback((conversationId: number) => {
+    const target = conversationsRef.current.find((c) => c.id === conversationId)
+    if (!target) {
+      return
+    }
+
+    const originalUnread = Boolean(target.unread)
+    const originalUnreadCount = target.unread_count ?? 0
+    const isCurrentlyUnread = originalUnread || originalUnreadCount > 0
+
+    setConversations((prev) => prev.map((c) => (
+      c.id === conversationId
+        ? { ...c, unread: !isCurrentlyUnread, unread_count: isCurrentlyUnread ? 0 : 1 }
+        : c
+    )))
+
+    const action = isCurrentlyUnread
+      ? markConversationAsRead(conversationId)
+      : markConversationAsUnread(conversationId)
+
+    const revertOptimisticUpdate = () => {
+      setConversations((prev) => prev.map((c) => (
+        c.id === conversationId
+          ? { ...c, unread: originalUnread, unread_count: originalUnreadCount }
+          : c
+      )))
+    }
+
+    action
+      .then((marked) => {
+        if (marked === 0) {
+          revertOptimisticUpdate()
+          return
+        }
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("conversations:unread-changed"))
+        }
+      })
+      .catch((err) => {
+        console.warn("toggle read status failed", err)
+        revertOptimisticUpdate()
+      })
+  }, [])
+
   const handleBackToConversations = useCallback(() => {
     setSelectedConversationId(null)
     router.replace("/chats")
@@ -1391,6 +1437,8 @@ export default function ChatsPage() {
                   setCurrentConversation(prev => prev ? { ...prev, assigneeId: String(assigneeId) } : prev)
                 }}
                 onToggleArchive={handleToggleArchive}
+                isUnread={Boolean(activeConversation.unread || (activeConversation.unread_count ?? 0) > 0)}
+                onToggleReadStatus={() => handleToggleReadStatus(activeConversation.id)}
                 tags={currentConversation?.tags || activeConversation?.tags || []}
                 onTagsChange={handleConversationTagsChange}
               />
