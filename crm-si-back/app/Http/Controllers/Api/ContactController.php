@@ -147,7 +147,9 @@ class ContactController extends Controller
 
         $contact->load([
             'tags',
-            'conversations' => fn ($c) => $c->latest('last_message_at')->limit(5),
+            'conversations' => fn ($c) => $c->latest('last_message_at')
+                ->with(['pipelineStage:id,name', 'assignedUser:id,name,email'])
+                ->limit(5),
         ]);
 
         return response()->json(['data' => new ContactResource($contact)]);

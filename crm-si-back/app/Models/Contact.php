@@ -71,6 +71,11 @@ class Contact extends Model
         return $this->hasMany(Task::class);
     }
 
+    public function notes(): HasMany
+    {
+        return $this->hasMany(Note::class);
+    }
+
     public function scopeFromSource($query, string $source)
     {
         return $query->where('source', $source);
@@ -108,7 +113,7 @@ class Contact extends Model
         }
 
         return $query->where(function (Builder $q) use ($user) {
-            $q->whereHas('conversations', fn (Builder $sub) => $sub->where('assigned_to', $user->id))
+            $q->whereHas('conversations', fn (Builder $sub) => $sub->visibleTo($user))
                 ->orWhereHas('opportunities', fn (Builder $sub) => $sub->where('assigned_to', $user->id));
         });
     }
