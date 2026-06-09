@@ -5,11 +5,13 @@ use App\Http\Controllers\Api\ChannelController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ContactFieldController;
 use App\Http\Controllers\Api\ContactHistoryController;
+use App\Http\Controllers\Api\ContactTimelineController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\MessageHotkeyController;
+use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PipelineStageController;
@@ -337,6 +339,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('contacts/{contact}', [ContactController::class, 'update']);
     Route::delete('contacts/{contact}', [ContactController::class, 'destroy']);
     Route::get('contacts/{contact}/history', [ContactHistoryController::class, 'show']);
+    Route::get('contacts/{contact}/timeline', [ContactTimelineController::class, 'show']);
     Route::post('contacts/{contact}/tags', [TagController::class, 'attachToContact']);
     Route::delete('contacts/{contact}/tags/{tag}', [TagController::class, 'detachFromContact']);
 
@@ -385,6 +388,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('conversations/{id}/unread', [ConversationController::class, 'markAsUnread']);
 
     Route::apiResource('tasks', TaskController::class);
+    Route::apiResource('notes', NoteController::class)->only(['index', 'store', 'destroy']);
 
     Route::post('conversations/{id}/users', [ConversationController::class, 'assignUsers']);
     Route::post('conversations/{id}/users/add', [ConversationController::class, 'addUser']);

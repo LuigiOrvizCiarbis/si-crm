@@ -1576,13 +1576,17 @@ export default function ChatsPage() {
         </div>
 
         {/* Panel de información de contacto */}
-        {selectedConversationId && (
-          <ContactInfoPanel
-            contactId={selectedConversationId}
-            isOpen={isContactInfoOpen}
-            onClose={() => setIsContactInfoOpen(false)}
-          />
-        )}
+        {selectedConversationId && activeConversation && (() => {
+          const contactId = activeConversation.contact_id ?? Number(activeConversation.contact?.id)
+          if (!contactId || Number.isNaN(contactId)) return null
+          return (
+            <ContactInfoPanel
+              contactId={contactId}
+              isOpen={isContactInfoOpen}
+              onClose={() => setIsContactInfoOpen(false)}
+            />
+          )
+        })()}
       </div>
 
       <BulkTagsConversationsDialog

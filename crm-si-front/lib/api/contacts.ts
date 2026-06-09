@@ -19,6 +19,17 @@ export interface ContactUpdate {
   custom_data?: Record<string, unknown>
 }
 
+export interface ContactPipelineStage {
+  id: number
+  name: string
+}
+
+export interface ContactAssignedUser {
+  id: number
+  name: string
+  email: string | null
+}
+
 export interface Contact {
   id: number
   name: string
@@ -29,6 +40,8 @@ export interface Contact {
   created_at: string
   updated_at: string
   tags?: Tag[]
+  pipeline_stage?: ContactPipelineStage | null
+  assigned_user?: ContactAssignedUser | null
 }
 
 export interface GetContactsParams {
@@ -68,6 +81,26 @@ export async function getContacts(params: GetContactsParams = {}): Promise<Conta
   }
 
   return (payload.data ?? payload) as Contact[];
+}
+
+export async function getContact(contactId: number): Promise<Contact> {
+  const token = getAuthToken();
+  if (!token) throw new Error("No authentication token found");
+
+  const response = await fetch(`/api/contacts/${contactId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwApiError(response.status, payload, "Error al cargar contacto");
+  }
+
+  return (payload.data ?? payload) as Contact;
 }
 
 export async function getContactsSummary(): Promise<ContactsSummary> {

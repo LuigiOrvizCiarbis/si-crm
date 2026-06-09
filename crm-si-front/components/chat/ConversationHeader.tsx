@@ -2,10 +2,11 @@ import { Avatar, AvatarFallback } from "@radix-ui/react-avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LeadScoreBadge } from "@/components/Badges"
-import { ArrowLeft, Info, MoreVertical, History, ListTodo, Pencil, Check, X } from "lucide-react"
+import { ArrowLeft, Info, History, ListTodo, Pencil, Check, X, ContactRound, User, Plus } from "lucide-react"
 import { Conversation } from "@/data/types"
 import { useEffect, useRef, useState } from "react"
 import { ContactHistoryDrawer } from "./ContactHistoryDrawer"
+import { ContactTimeline } from "./timeline/ContactTimeline"
 import { NewTaskModal } from "@/components/tasks/NewTaskModal"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useTranslation } from "@/hooks/useTranslation"
@@ -26,7 +27,10 @@ export function ConversationHeader({
   onRenameContact,
 }: ConversationHeaderProps) {
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [timelineOpen, setTimelineOpen] = useState(false)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
+  const contactId = conversation.contact_id ?? Number(conversation.contact?.id)
+  const hasContactId = Boolean(contactId) && !Number.isNaN(contactId)
   const [isEditingName, setIsEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(conversation.contact.name)
   const [isSavingName, setIsSavingName] = useState(false)
@@ -156,18 +160,32 @@ export function ConversationHeader({
                 title={`${t("chats.leadScore")}: ${leadScore}/100 - ${t("chats.leadScoreHint")}`}
               />
             </div>
-            <p className="text-xs text-muted-foreground">{t("chats.online")}</p>
+            <p className="text-xs text-muted-foreground">
+              {conversation.contact.phone || t("chats.online")}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
+            className="gap-2"
             onClick={() => setTaskModalOpen(true)}
             title={t("chats.createTask")}
           >
-            <ListTodo className="w-4 h-4" />
+            <Plus className="w-4 h-4" />
+            {t("chats.createTask")}
           </Button>
+          {hasContactId && (
+            <Button
+              variant="ghost"
+              size="sm"
+            onClick={() => setTimelineOpen(true)}
+            title={t("timeline.title")}
+          >
+            <User className="w-4 h-4" />
+          </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -184,9 +202,6 @@ export function ConversationHeader({
           >
             <Info className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="sm">
-            <MoreVertical className="w-4 h-4" />
-          </Button>
         </div>
       </div>
 
@@ -196,6 +211,16 @@ export function ConversationHeader({
         contactId={conversation.contact.id}
         contactName={conversation.contact.name}
       />
+
+      {hasContactId && (
+        <ContactTimeline
+          open={timelineOpen}
+          onOpenChange={setTimelineOpen}
+          contactId={contactId}
+          conversationId={conversation.id}
+          contactName={conversation.contact.name}
+        />
+      )}
 
       <NewTaskModal
         open={taskModalOpen}

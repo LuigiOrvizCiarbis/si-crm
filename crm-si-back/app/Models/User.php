@@ -145,4 +145,9 @@ class User extends Authenticatable implements MustVerifyEmail
             ->where('roles.tenant_id', $this->tenant_id)
             ->exists();
     }
+
+    public function forgetTenantOwnerCache(): void
+    {
+        $this->isTenantOwnerCache = null;
+    }
 }

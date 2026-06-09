@@ -70,7 +70,7 @@ class ContactPolicy
 
     private function isAssigned(User $user, Contact $contact): bool
     {
-        return $contact->conversations()->where('assigned_to', $user->id)->exists()
+        return $contact->conversations()->visibleTo($user)->exists()
             || $contact->opportunities()->where('assigned_to', $user->id)->exists();
     }
 }

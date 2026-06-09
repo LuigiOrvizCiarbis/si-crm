@@ -787,5 +787,35 @@
       "conversion_rate": "Conversion rate",
       "response_time": "Response time"
     }
+  },
+  "timeline": {
+    "title": "Timeline",
+    "tasks": "Tasks",
+    "addNote": "Add note",
+    "allEvents": "All events",
+    "note": "Note",
+    "task": "Task",
+    "message": "Message",
+    "stageChange": "Stage change",
+    "taskCreated": "Task created",
+    "notePlaceholder": "Write a note about this contact...",
+    "saveNote": "Save note",
+    "noteError": "Could not save the note",
+    "empty": "No events to show",
+    "noTasks": "No tasks for this contact"
+  },
+  "contactPanel": {
+    "title": "Contact Information",
+    "email": "Email",
+    "phone": "Phone",
+    "stage": "Pipeline stage",
+    "assignee": "Assigned rep",
+    "source": "Source",
+    "createdAt": "Created at",
+    "tags": "Tags",
+    "additionalFields": "Additional fields",
+    "openWhatsApp": "WhatsApp",
+    "call": "Call",
+    "loadError": "Could not load the contact"
   }
 }

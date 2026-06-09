@@ -16,6 +16,8 @@ class ContactResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $latestConversation = $this->relationLoaded('conversations') ? $this->conversations->first() : null;
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -27,6 +29,21 @@ class ContactResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
             'tags' => $this->whenLoaded('tags'),
+            'pipeline_stage' => $this->when(
+                $latestConversation && $latestConversation->relationLoaded('pipelineStage') && $latestConversation->pipelineStage,
+                fn () => [
+                    'id' => $latestConversation->pipelineStage->id,
+                    'name' => $latestConversation->pipelineStage->name,
+                ]
+            ),
+            'assigned_user' => $this->when(
+                $latestConversation && $latestConversation->relationLoaded('assignedUser') && $latestConversation->assignedUser,
+                fn () => [
+                    'id' => $latestConversation->assignedUser->id,
+                    'name' => $latestConversation->assignedUser->name,
+                    'email' => $latestConversation->assignedUser->email,
+                ]
+            ),
             'conversations' => $this->whenLoaded('conversations', fn () => $this->conversations->map(fn ($conversation) => [
                 'id' => $conversation->id,
                 'last_message_at' => $conversation->last_message_at?->toIso8601String(),

@@ -787,5 +787,35 @@
       "conversion_rate": "Tasa de conversión",
       "response_time": "Tiempo de respuesta"
     }
+  },
+  "timeline": {
+    "title": "Línea de Tiempo",
+    "tasks": "Tareas",
+    "addNote": "Agregar nota",
+    "allEvents": "Todos los eventos",
+    "note": "Nota",
+    "task": "Tarea",
+    "message": "Mensaje",
+    "stageChange": "Cambio de etapa",
+    "taskCreated": "Tarea creada",
+    "notePlaceholder": "Escribí una nota sobre este contacto...",
+    "saveNote": "Guardar nota",
+    "noteError": "No se pudo guardar la nota",
+    "empty": "No hay eventos para mostrar",
+    "noTasks": "No hay tareas para este contacto"
+  },
+  "contactPanel": {
+    "title": "Información del Contacto",
+    "email": "Email",
+    "phone": "Teléfono",
+    "stage": "Etapa del embudo",
+    "assignee": "Vendedor asignado",
+    "source": "Origen del dato",
+    "createdAt": "Fecha de creación",
+    "tags": "Etiquetas",
+    "additionalFields": "Campos adicionales",
+    "openWhatsApp": "WhatsApp",
+    "call": "Llamar",
+    "loadError": "No se pudo cargar el contacto"
   }
 }
