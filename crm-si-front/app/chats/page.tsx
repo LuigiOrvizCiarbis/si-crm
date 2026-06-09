@@ -61,6 +61,7 @@ import { ConversationList } from "@/components/chat/ConversationList"
 import { FilteredConversationsHeader } from "@/components/chat/FilteredConversationsHeader"
 import { ChannelsList } from "@/components/chat/ChannelsList"
 import { getChannels } from "@/lib/api/channels"
+import { updateContact } from "@/lib/api/contacts"
 import { ChannelHeader } from "@/components/chat/AccountHeader"
 import { useConversationFilters } from "@/hooks/useConversationFilters"
 import { TagFilterMenu } from "@/components/tags/TagFilterMenu"
@@ -241,6 +242,54 @@ export default function ChatsPage() {
     )))
     setCurrentConversation((prev) => (prev ? { ...prev, tags } : prev))
   }, [selectedConversationId])
+
+  const handleRenameContact = useCallback(async (name: string) => {
+    if (!selectedConversationId) return
+
+    const target = conversationsRef.current.find((c) => c.id === selectedConversationId)
+    const contactId = target?.contact_id ?? (target?.contact?.id ? Number(target.contact.id) : undefined)
+    if (!contactId || Number.isNaN(contactId)) {
+      addToast({ type: "error", title: t("chats.renameContactError") })
+      return
+    }
+
+    const belongsToContact = (c: Conversation) => (
+      (c.contact_id ?? (c.contact?.id ? Number(c.contact.id) : undefined)) === contactId
+    )
+
+    const previousNames = new Map(
+      conversationsRef.current
+        .filter(belongsToContact)
+        .map((c) => [c.id, c.contact?.name ?? ""] as const)
+    )
+
+    setConversations((prev) => prev.map((c) => (
+      belongsToContact(c) ? { ...c, contact: { ...c.contact, name } } : c
+    )))
+    setCurrentConversation((prev) => (
+      prev && belongsToContact(prev) ? { ...prev, contact: { ...prev.contact, name } } : prev
+    ))
+
+    try {
+      await updateContact(contactId, { name })
+      addToast({ type: "success", title: t("chats.renameContactSuccess") })
+    } catch (error) {
+      setConversations((prev) => prev.map((c) => (
+        previousNames.has(c.id) ? { ...c, contact: { ...c.contact, name: previousNames.get(c.id)! } } : c
+      )))
+      setCurrentConversation((prev) => (
+        prev && previousNames.has(prev.id)
+          ? { ...prev, contact: { ...prev.contact, name: previousNames.get(prev.id)! } }
+          : prev
+      ))
+      addToast({
+        type: "error",
+        title: t("chats.renameContactError"),
+        description: error instanceof Error ? error.message : undefined,
+      })
+    }
+  }, [selectedConversationId, addToast, t])
+
   const activeChannel = useMemo(() => channels.find((channel) => channel.id === selectedChannelId), [channels, selectedChannelId])
 
   const [page, setPage] = useState(1)
@@ -1412,6 +1461,7 @@ export default function ChatsPage() {
                 isContactInfoOpen={isContactInfoOpen}
                 onBack={handleBackToConversations}
                 onToggleContactInfo={() => setIsContactInfoOpen(!isContactInfoOpen)}
+                onRenameContact={handleRenameContact}
               />
               {/* Quick Bar */}
               <ChatQuickBar
