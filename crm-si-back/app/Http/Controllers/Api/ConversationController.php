@@ -11,6 +11,7 @@ use App\Models\Opportunity;
 use App\Models\PipelineStage;
 use App\Services\WhatsAppMessageService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
@@ -81,7 +82,7 @@ class ConversationController extends Controller
         }
 
         if ($request->query('summary') === 'unread_count') {
-            $unreadCount = (clone $q)
+            $messageUnreadCount = (clone $q)
                 ->reorder()
                 ->join('messages', 'messages.conversation_id', '=', 'conversations.id')
                 ->where('messages.direction', MessageDirection::INBOUND->value)
@@ -89,9 +90,19 @@ class ConversationController extends Controller
                 ->whereNull('messages.deleted_at')
                 ->count('messages.id');
 
+            $manualUnreadCount = (clone $q)
+                ->reorder()
+                ->where('conversations.manual_unread', true)
+                ->whereDoesntHave('messages', function ($query) {
+                    $query->where('direction', MessageDirection::INBOUND)
+                        ->whereNull('read_at')
+                        ->whereNull('deleted_at');
+                })
+                ->count('conversations.id');
+
             return response()->json([
                 'data' => [
-                    'unread_count' => $unreadCount,
+                    'unread_count' => $messageUnreadCount + $manualUnreadCount,
                 ],
             ]);
         }
@@ -112,6 +123,8 @@ class ConversationController extends Controller
                 'last_message_at' => $conversation->last_message_at,
                 'last_message' => $conversation->last_message_content ?? 'Sin mensajes',
                 'unread_count' => $conversation->unread_count ?? 0,
+                'manual_unread' => (bool) $conversation->manual_unread,
+                'unread' => ($conversation->unread_count ?? 0) > 0 || (bool) $conversation->manual_unread,
                 'lead_score' => $conversation->lead_score,
                 'pipeline_stage_id' => $conversation->pipeline_stage_id,
                 'assigned_to' => $conversation->assigned_to,
@@ -299,12 +312,18 @@ class ConversationController extends Controller
             ->orderBy('created_at')
             ->get();
 
+        $clearedManualFlag = false;
+        if ($conversation->manual_unread) {
+            $conversation->update(['manual_unread' => false]);
+            $clearedManualFlag = true;
+        }
+
         if ($unreadMessages->isEmpty()) {
             return response()->json([
                 'data' => [
                     'conversation_id' => $conversation->id,
                     'unread_count' => 0,
-                    'marked' => 0,
+                    'marked' => $clearedManualFlag ? 1 : 0,
                 ],
             ]);
         }
@@ -337,24 +356,7 @@ class ConversationController extends Controller
         $conversation = Conversation::where('id', $id)->firstOrFail();
         $this->authorize('view', $conversation);
 
-        $latestInbound = Message::query()
-            ->where('conversation_id', $conversation->id)
-            ->where('direction', MessageDirection::INBOUND)
-            ->whereNotNull('read_at')
-            ->orderByDesc('created_at')
-            ->first();
-
-        if ($latestInbound === null) {
-            return response()->json([
-                'data' => [
-                    'conversation_id' => $conversation->id,
-                    'unread_count' => 0,
-                    'marked' => 0,
-                ],
-            ]);
-        }
-
-        $latestInbound->update(['read_at' => null]);
+        $conversation->update(['manual_unread' => true]);
 
         return response()->json([
             'data' => [
@@ -395,7 +397,7 @@ class ConversationController extends Controller
         $tenantId = $user->tenant_id;
 
         $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids' => ['required', 'array', 'min:1', 'max:5000'],
             'ids.*' => ['integer'],
             'action' => ['required', 'in:add,remove,replace'],
             'tag_ids' => ['present', 'array'],
@@ -444,7 +446,7 @@ class ConversationController extends Controller
         $tenantId = $user->tenant_id;
 
         $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids' => ['required', 'array', 'min:1', 'max:5000'],
             'ids.*' => ['integer'],
             'user_id' => [
                 'required',
@@ -476,7 +478,7 @@ class ConversationController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids' => ['required', 'array', 'min:1', 'max:5000'],
             'ids.*' => ['integer'],
             'archived' => ['required', 'boolean'],
         ]);
@@ -505,7 +507,7 @@ class ConversationController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids' => ['required', 'array', 'min:1', 'max:5000'],
             'ids.*' => ['integer'],
         ]);
 
@@ -523,6 +525,145 @@ class ConversationController extends Controller
             'deleted' => $deleted,
             'failed' => count($validated['ids']) - $deleted,
         ]);
+    }
+
+    /**
+     * Máximo de conversaciones a sincronizar como "visto" en Meta por request de bulk.
+     * El throughput de Cloud API (80 mps por número, inbound + outbound) es compartido
+     * con los mensajes reales, así que se acota para no consumir esa cuota.
+     */
+    private const BULK_READ_META_SYNC_CAP = 20;
+
+    /**
+     * Ventana en la que Meta acepta marcar un mensaje entrante como leído.
+     * Fuera de ella la API responde "(#100) Message ID does not exist".
+     */
+    private const META_READ_WINDOW_HOURS = 24;
+
+    public function bulkMarkRead(Request $request, WhatsAppMessageService $whatsappService): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:5000'],
+            'ids.*' => ['integer'],
+            'read' => ['required', 'boolean'],
+        ]);
+
+        $conversations = Conversation::query()
+            ->with('channel')
+            ->whereIn('id', $validated['ids'])
+            ->get();
+
+        $authorized = $conversations->filter(fn (Conversation $conversation) => $user->can('view', $conversation));
+
+        if ($validated['read']) {
+            $this->bulkMarkConversationsRead($authorized, $whatsappService);
+        } else {
+            $this->bulkMarkConversationsUnread($authorized);
+        }
+
+        return response()->json([
+            'updated' => $authorized->count(),
+            'failed' => count($validated['ids']) - $authorized->count(),
+            'read' => $validated['read'],
+        ]);
+    }
+
+    /**
+     * Marca como leídas en bloque. Sincroniza el estado "visto" con Meta solo para
+     * un subconjunto acotado de conversaciones recientes, para evitar errores por
+     * message IDs expirados y no agotar el throughput de la Cloud API.
+     *
+     * @param  Collection<int, Conversation>  $conversations
+     */
+    private function bulkMarkConversationsRead(Collection $conversations, WhatsAppMessageService $whatsappService): void
+    {
+        $conversationIds = $conversations->pluck('id');
+
+        if ($conversationIds->isEmpty()) {
+            return;
+        }
+
+        $conversationsWithUnread = Message::query()
+            ->whereIn('conversation_id', $conversationIds)
+            ->where('direction', MessageDirection::INBOUND)
+            ->whereNull('read_at')
+            ->distinct()
+            ->pluck('conversation_id');
+
+        $manuallyUnreadIds = $conversations
+            ->filter(fn (Conversation $conversation) => $conversation->manual_unread)
+            ->pluck('id');
+
+        if ($conversationsWithUnread->isEmpty() && $manuallyUnreadIds->isEmpty()) {
+            return;
+        }
+
+        $metaSyncTargets = $this->resolveRecentMetaReadTargets($conversationsWithUnread);
+
+        if ($conversationsWithUnread->isNotEmpty()) {
+            Message::query()
+                ->whereIn('conversation_id', $conversationsWithUnread)
+                ->where('direction', MessageDirection::INBOUND)
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
+        }
+
+        if ($manuallyUnreadIds->isNotEmpty()) {
+            Conversation::query()
+                ->whereIn('id', $manuallyUnreadIds)
+                ->update(['manual_unread' => false]);
+        }
+
+        foreach ($conversations as $conversation) {
+            $externalId = $metaSyncTargets->get($conversation->id);
+            if ($externalId) {
+                $whatsappService->markIncomingAsReadOnMeta($conversation, $externalId);
+            }
+        }
+    }
+
+    /**
+     * Resuelve hasta BULK_READ_META_SYNC_CAP conversaciones cuyo último mensaje
+     * entrante sin leer está dentro de la ventana aceptada por Meta, devolviendo
+     * su external_id para sincronizar el "visto".
+     *
+     * @param  Collection<int, int>  $conversationIds
+     * @return Collection<int, string> conversation_id => external_id
+     */
+    private function resolveRecentMetaReadTargets(Collection $conversationIds): Collection
+    {
+        return Message::query()
+            ->whereIn('conversation_id', $conversationIds)
+            ->where('direction', MessageDirection::INBOUND)
+            ->whereNull('read_at')
+            ->whereNotNull('external_id')
+            ->where('created_at', '>=', now()->subHours(self::META_READ_WINDOW_HOURS))
+            ->orderBy('created_at')
+            ->get(['conversation_id', 'external_id'])
+            ->groupBy('conversation_id')
+            ->map(fn ($messages) => $messages->last()->external_id)
+            ->take(self::BULK_READ_META_SYNC_CAP);
+    }
+
+    /**
+     * Marca como no leídas en bloque mediante el flag manual_unread, que funciona
+     * en cualquier conversación (incluso sin mensajes entrantes).
+     *
+     * @param  Collection<int, Conversation>  $conversations
+     */
+    private function bulkMarkConversationsUnread(Collection $conversations): void
+    {
+        $conversationIds = $conversations->pluck('id');
+
+        if ($conversationIds->isEmpty()) {
+            return;
+        }
+
+        Conversation::query()
+            ->whereIn('id', $conversationIds)
+            ->update(['manual_unread' => true]);
     }
 
     private function parseTagSlugs(string $tags): array

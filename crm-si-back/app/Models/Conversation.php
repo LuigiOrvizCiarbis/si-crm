@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property int $contact_id
  * @property int|null $assigned_to
  * @property string $status
+ * @property bool $manual_unread
  * @property Carbon|null $last_message_at
  * @property string|null $last_message_content
  * @property int|null $pipeline_stage_id
@@ -38,6 +39,7 @@ class Conversation extends Model
         'contact_id',
         'assigned_to',
         'status',
+        'manual_unread',
         'last_message_at',
         'last_message_content',
         'pipeline_stage_id',
@@ -47,6 +49,7 @@ class Conversation extends Model
     protected $appends = ['archived'];
 
     protected $casts = [
+        'manual_unread' => 'boolean',
         'last_message_at' => 'datetime',
         'archived_at' => 'datetime',
         'created_at' => 'datetime',

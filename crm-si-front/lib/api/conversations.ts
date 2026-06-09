@@ -9,7 +9,8 @@ function mapConversation(c: any): Conversation {
     contact: c.contact,
     last_message: c.last_message_preview || c.last_message || "",
     timestamp: c.last_message_at || c.updated_at || c.created_at || "",
-    unread: Boolean(c.unread_count && c.unread_count > 0),
+    unread: Boolean(c.unread ?? ((c.unread_count && c.unread_count > 0) || c.manual_unread)),
+    manual_unread: Boolean(c.manual_unread),
     leadScore: c.lead_score ?? undefined,
     pipeline_stage_id: c.pipeline_stage_id,
     priority: c.priority,
@@ -372,6 +373,40 @@ export async function bulkDeleteConversations(
   }
 
   return payload as BulkDeleteConversationsResponse;
+}
+
+export interface BulkMarkReadConversationsRequest {
+  ids: number[];
+  read: boolean;
+}
+
+export interface BulkMarkReadConversationsResponse {
+  updated: number;
+  failed: number;
+  read: boolean;
+}
+
+export async function bulkMarkReadConversations(
+  req: BulkMarkReadConversationsRequest,
+): Promise<BulkMarkReadConversationsResponse> {
+  const token = requireToken();
+
+  const response = await fetch("/api/conversations/bulk-read", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(req),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwApiError(response.status, payload, "Error al actualizar el estado de lectura");
+  }
+
+  return payload as BulkMarkReadConversationsResponse;
 }
 
 export async function assignConversationUser(conversationId: number, userId: number) {

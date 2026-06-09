@@ -59,6 +59,7 @@ export interface Conversation {
   last_message: string
   timestamp: string
   unread: boolean
+  manual_unread?: boolean
   leadScore?: number
   stage?: "nuevo" | "calificado" | "demo" | "cierre"
   pipeline_stage_id?: number // Nuevo campo para etapas dinámicas

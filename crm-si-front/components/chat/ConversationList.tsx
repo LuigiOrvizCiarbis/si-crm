@@ -39,7 +39,7 @@ const ConversationCard = memo(function ConversationCard({
   const contactPhone = formatPhoneNumber(conversation.contact?.phone)
   const leadScore = conversation.leadScore ?? null
   const unreadCount = conversation.unread_count ?? 0
-  const isUnread = unreadCount > 0 || Boolean(conversation.unread)
+  const isUnread = unreadCount > 0 || Boolean(conversation.unread) || Boolean(conversation.manual_unread)
   const unreadAriaLabel = isUnread
     ? unreadCount > 0
       ? t(unreadCount === 1 ? "chats.unreadAriaSingular" : "chats.unreadAriaPlural", {

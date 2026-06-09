@@ -426,6 +426,8 @@
       "assign": "Asignar",
       "archive": "Archivar",
       "unarchive": "Desarchivar",
+      "markRead": "Marcar leídas",
+      "markUnread": "Marcar no leídas",
       "delete": "Eliminar",
       "clear": "Limpiar",
       "deleteConfirmTitle": "Eliminar conversaciones",

@@ -27,6 +27,7 @@ import {
   archiveConversation,
   bulkArchiveConversations,
   bulkDeleteConversations,
+  bulkMarkReadConversations,
   getChannelConversations,
   getConversationMessages,
   getConversations,
@@ -77,6 +78,8 @@ import {
   CheckSquare,
   FileText,
   Loader2,
+  Mail,
+  MailOpen,
   Menu,
   MoreHorizontal,
   Plus,
@@ -753,9 +756,9 @@ export default function ChatsPage() {
     router.push(`/chats?chat=${conversationId}`)
 
     const target = conversationsRef.current.find((c) => c.id === conversationId)
-    if (target?.unread || (target?.unread_count ?? 0) > 0) {
+    if (target?.unread || (target?.unread_count ?? 0) > 0 || target?.manual_unread) {
       setConversations((prev) => prev.map((c) => (
-        c.id === conversationId ? { ...c, unread: false, unread_count: 0 } : c
+        c.id === conversationId ? { ...c, unread: false, unread_count: 0, manual_unread: false } : c
       )))
 
       markConversationAsRead(conversationId)
@@ -778,11 +781,12 @@ export default function ChatsPage() {
 
     const originalUnread = Boolean(target.unread)
     const originalUnreadCount = target.unread_count ?? 0
-    const isCurrentlyUnread = originalUnread || originalUnreadCount > 0
+    const originalManualUnread = Boolean(target.manual_unread)
+    const isCurrentlyUnread = originalUnread || originalUnreadCount > 0 || originalManualUnread
 
     setConversations((prev) => prev.map((c) => (
       c.id === conversationId
-        ? { ...c, unread: !isCurrentlyUnread, unread_count: isCurrentlyUnread ? 0 : 1 }
+        ? { ...c, unread: !isCurrentlyUnread, unread_count: isCurrentlyUnread ? 0 : c.unread_count, manual_unread: !isCurrentlyUnread }
         : c
     )))
 
@@ -793,7 +797,7 @@ export default function ChatsPage() {
     const revertOptimisticUpdate = () => {
       setConversations((prev) => prev.map((c) => (
         c.id === conversationId
-          ? { ...c, unread: originalUnread, unread_count: originalUnreadCount }
+          ? { ...c, unread: originalUnread, unread_count: originalUnreadCount, manual_unread: originalManualUnread }
           : c
       )))
     }
@@ -1198,6 +1202,36 @@ export default function ChatsPage() {
     }
   }, [selectedConversationIds, addToast, t, refreshConversations, handleExitSelectionMode])
 
+  const handleBulkMarkRead = useCallback(async (read: boolean) => {
+    if (selectedConversationIds.size === 0) return
+    setBulkSubmitting(true)
+    try {
+      const result = await bulkMarkReadConversations({
+        ids: Array.from(selectedConversationIds),
+        read,
+      })
+      addToast({
+        type: result.failed > 0 ? "info" : "success",
+        title: result.failed > 0
+          ? t("chats.bulk.result.partial", { updated: result.updated, failed: result.failed })
+          : t("chats.bulk.result.success", { updated: result.updated }),
+      })
+      await refreshConversations()
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("conversations:unread-changed"))
+      }
+      handleExitSelectionMode()
+    } catch (err) {
+      addToast({
+        type: "error",
+        title: t("chats.bulk.errors.apply"),
+        description: err instanceof Error ? err.message : "",
+      })
+    } finally {
+      setBulkSubmitting(false)
+    }
+  }, [selectedConversationIds, addToast, t, refreshConversations, handleExitSelectionMode])
+
   const allVisibleSelected = useMemo(
     () => visibleConversations.length > 0 && visibleConversations.every((c) => selectedConversationIds.has(c.id)),
     [visibleConversations, selectedConversationIds],
@@ -1411,6 +1445,26 @@ export default function ChatsPage() {
                   )}
                   <Button
                     size="sm"
+                    variant="outline"
+                    onClick={() => handleBulkMarkRead(true)}
+                    disabled={bulkSubmitting}
+                    className="gap-2"
+                  >
+                    {bulkSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MailOpen className="h-3.5 w-3.5" />}
+                    {t("chats.bulk.markRead")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleBulkMarkRead(false)}
+                    disabled={bulkSubmitting}
+                    className="gap-2"
+                  >
+                    {bulkSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+                    {t("chats.bulk.markUnread")}
+                  </Button>
+                  <Button
+                    size="sm"
                     variant="destructive"
                     onClick={() => setBulkDeleteOpen(true)}
                     disabled={bulkSubmitting}
@@ -1487,7 +1541,7 @@ export default function ChatsPage() {
                   setCurrentConversation(prev => prev ? { ...prev, assigneeId: String(assigneeId) } : prev)
                 }}
                 onToggleArchive={handleToggleArchive}
-                isUnread={Boolean(activeConversation.unread || (activeConversation.unread_count ?? 0) > 0)}
+                isUnread={Boolean(activeConversation.unread || (activeConversation.unread_count ?? 0) > 0 || activeConversation.manual_unread)}
                 onToggleReadStatus={() => handleToggleReadStatus(activeConversation.id)}
                 tags={currentConversation?.tags || activeConversation?.tags || []}
                 onTagsChange={handleConversationTagsChange}
