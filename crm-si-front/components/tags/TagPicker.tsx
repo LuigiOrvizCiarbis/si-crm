@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Check, Loader2, Plus, TagIcon } from "lucide-react"
+import { Check, Loader2, Plus, Search, TagIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -20,6 +20,12 @@ interface TagPickerProps {
   buttonLabel?: string
   compact?: boolean
   className?: string
+  /**
+   * "popover": botón que abre un popover (default).
+   * "inline": busqueda + lista renderizadas directamente, pensado para sheets/drawers
+   * mobile donde un popover anidado no funciona bien. Usa la paleta oscura del chat.
+   */
+  variant?: "popover" | "inline"
 }
 
 const DEFAULT_COLORS = ["#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#64748b"]
@@ -32,8 +38,10 @@ export function TagPicker({
   buttonLabel = "Etiquetas",
   compact = false,
   className,
+  variant = "popover",
 }: TagPickerProps) {
   const { addToast } = useToast()
+  const isInline = variant === "inline"
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [tags, setTags] = useState<Tag[]>([])
@@ -46,8 +54,10 @@ export function TagPicker({
   const filteredTags = tags.filter((tag) => tag.name.toLowerCase().includes(normalizedQuery))
   const canCreate = normalizedQuery.length > 0 && !tags.some((tag) => tag.name.toLowerCase() === normalizedQuery)
 
+  const shouldLoad = isInline || open
+
   useEffect(() => {
-    if (!open) return
+    if (!shouldLoad) return
 
     let cancelled = false
     setLoading(true)
@@ -69,7 +79,7 @@ export function TagPicker({
     return () => {
       cancelled = true
     }
-  }, [open, addToast])
+  }, [shouldLoad, addToast])
 
   const attachTag = async (tag: Tag) => {
     if (selectedIds.has(tag.id)) return
@@ -135,6 +145,99 @@ export function TagPicker({
     }
   }
 
+  const renderList = () => {
+    if (loading) {
+      return (
+        <div
+          className={cn(
+            "flex items-center gap-2 px-2 py-6 text-sm",
+            isInline ? "text-[#9AA4B2]" : "text-muted-foreground",
+          )}
+        >
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Cargando etiquetas
+        </div>
+      )
+    }
+
+    return (
+      <>
+        {filteredTags.map((tag) => {
+          const selected = selectedIds.has(tag.id)
+          const saving = savingId === tag.id
+          return (
+            <button
+              key={tag.id}
+              type="button"
+              className={cn(
+                "flex w-full items-center gap-3 rounded-md px-2 text-left text-sm disabled:cursor-wait disabled:opacity-60",
+                isInline
+                  ? "py-2.5 text-[#D8DEE9] active:bg-[#1A1F2B] hover:bg-[#1A1F2B]"
+                  : "py-2 hover:bg-accent",
+              )}
+              disabled={saving}
+              onClick={() => (selected ? removeTag(tag) : attachTag(tag))}
+            >
+              <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: tag.color }} />
+              <span className="min-w-0 flex-1 truncate">{tag.name}</span>
+              {saving ? (
+                <Loader2 className={cn("h-4 w-4 animate-spin", isInline ? "text-[#9AA4B2]" : "text-muted-foreground")} />
+              ) : selected ? (
+                <Check className={cn("h-4 w-4", isInline ? "text-[#00E18C]" : "text-primary")} />
+              ) : null}
+            </button>
+          )
+        })}
+        {canCreate && (
+          <button
+            type="button"
+            className={cn(
+              "mt-1 flex w-full items-center gap-3 rounded-md border border-dashed px-2 text-left text-sm disabled:cursor-wait disabled:opacity-60",
+              isInline
+                ? "border-[#2A3344] py-2.5 text-[#9AA4B2] active:bg-[#1A1F2B] hover:bg-[#1A1F2B] hover:text-[#D8DEE9]"
+                : "py-2 text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
+            disabled={creating}
+            onClick={handleCreate}
+          >
+            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            Crear "{query.trim()}"
+          </button>
+        )}
+        {!filteredTags.length && !canCreate && (
+          <div className={cn("px-2 py-6 text-sm", isInline ? "text-[#9AA4B2]" : "text-muted-foreground")}>
+            No hay etiquetas.
+          </div>
+        )}
+      </>
+    )
+  }
+
+  if (isInline) {
+    return (
+      <div className={cn("space-y-3", className)}>
+        <TagChips
+          tags={value}
+          removable
+          onRemove={removeTag}
+          emptyLabel="Sin etiquetas"
+        />
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA4B2]" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Buscar o crear etiqueta"
+            className="h-10 border-[#1e2533] bg-[#0F1117] pl-9 text-[#D8DEE9] placeholder:text-[#9AA4B2]/70 focus-visible:border-[#00F7FF]/60 focus-visible:ring-[#00F7FF]/20"
+          />
+        </div>
+        <div className="max-h-48 overflow-y-auto rounded-lg border border-[#1e2533] bg-[#0F1117] p-1.5">
+          {renderList()}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={cn("space-y-2", className)}>
       {!compact && (
@@ -152,7 +255,7 @@ export function TagPicker({
             {buttonLabel}
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-80 p-0" sideOffset={8}>
+        <PopoverContent align="start" className="w-80 max-w-[calc(100vw-2rem)] p-0" sideOffset={8}>
           <div className="border-b p-3">
             <Input
               value={query}
@@ -161,52 +264,7 @@ export function TagPicker({
               className="h-9"
             />
           </div>
-          <div className="max-h-72 overflow-y-auto p-2">
-            {loading ? (
-              <div className="flex items-center gap-2 px-2 py-6 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Cargando etiquetas
-              </div>
-            ) : (
-              <>
-                {filteredTags.map((tag) => {
-                  const selected = selectedIds.has(tag.id)
-                  const saving = savingId === tag.id
-                  return (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm hover:bg-accent disabled:cursor-wait disabled:opacity-60"
-                      disabled={saving}
-                      onClick={() => (selected ? removeTag(tag) : attachTag(tag))}
-                    >
-                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: tag.color }} />
-                      <span className="min-w-0 flex-1 truncate">{tag.name}</span>
-                      {saving ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      ) : selected ? (
-                        <Check className="h-4 w-4 text-primary" />
-                      ) : null}
-                    </button>
-                  )
-                })}
-                {canCreate && (
-                  <button
-                    type="button"
-                    className="mt-1 flex w-full items-center gap-3 rounded-md border border-dashed px-2 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground disabled:cursor-wait disabled:opacity-60"
-                    disabled={creating}
-                    onClick={handleCreate}
-                  >
-                    {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                    Crear "{query.trim()}"
-                  </button>
-                )}
-                {!filteredTags.length && !canCreate && (
-                  <div className="px-2 py-6 text-sm text-muted-foreground">No hay etiquetas.</div>
-                )}
-              </>
-            )}
-          </div>
+          <div className="max-h-72 overflow-y-auto p-2">{renderList()}</div>
         </PopoverContent>
       </Popover>
     </div>
