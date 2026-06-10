@@ -21,7 +21,7 @@ class TagController extends Controller
 
         if ($request->filled('search')) {
             $search = trim((string) $request->query('search'));
-            $query->where('name', 'like', "%{$search}%");
+            $query->whereLike('name', "%{$search}%", caseSensitive: false);
         }
 
         if ($request->filled('type')) {

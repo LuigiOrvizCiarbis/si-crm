@@ -13,7 +13,11 @@ class MessageHotkeyController extends Controller
 {
     private const TRIGGER_REGEX = '/^[a-z0-9_-]+$/';
 
-    private const TENANT_MANAGER_ROLES = ['Owner', 'Admin'];
+    /**
+     * Mirrors the frontend's isAdminRole() check (lib/permissions.ts): roles can
+     * be renamed per tenant, so we detect managers by permissions, not by name.
+     */
+    private const TENANT_MANAGER_PERMISSIONS = ['users.view', 'invitations.create'];
 
     public function index(Request $request): JsonResponse
     {
@@ -145,7 +149,8 @@ class MessageHotkeyController extends Controller
 
     private function canManageTenantHotkeys($user): bool
     {
-        return $user->hasAnyRole(self::TENANT_MANAGER_ROLES);
+        return $user->isTenantOwner()
+            || $user->hasAllPermissions(self::TENANT_MANAGER_PERMISSIONS);
     }
 
     private function scopeOf(MessageHotkey $hotkey): string

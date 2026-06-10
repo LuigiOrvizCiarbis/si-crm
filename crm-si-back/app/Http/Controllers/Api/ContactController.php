@@ -32,8 +32,8 @@ class ContactController extends Controller
 
         if ($search !== '') {
             $q->where(function ($w) use ($search) {
-                $w->where('name', 'like', "%$search%")
-                    ->orWhere('phone', 'like', "%$search%");
+                $w->whereLike('name', "%$search%", caseSensitive: false)
+                    ->orWhereLike('phone', "%$search%", caseSensitive: false);
             });
         }
 
