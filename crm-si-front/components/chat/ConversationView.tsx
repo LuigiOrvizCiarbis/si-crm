@@ -4,12 +4,11 @@ import { ConversationHeader } from './ConversationHeader'
 import { MessageList } from './MessageList'
 import { MessageInput } from './MessageInput'
 import { AISuggestions } from './AISuggestions'
-import { ChatQuickBar } from '../ChatQuickBar'
 import { Conversation } from '@/data/types'
 import { sendMessage } from '@/lib/api/messages'
 import { getConversationWithMessages } from '@/lib/api/conversations'
 import { useToast } from '@/components/Toast'
-import { aiSuggestions, teamMembers } from '@/data/constants'
+import { aiSuggestions } from '@/data/constants'
 import { useState } from 'react'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -105,8 +104,6 @@ export function ConversationView({
                 placeholder={t("chats.messagePlaceholder")}
                 expansionContext={expansionContext}
             />
-
-            <ChatQuickBar teamMembers={teamMembers} />
         </>
     )
 }

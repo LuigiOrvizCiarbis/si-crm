@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useToast } from "@/components/Toast"
-import { Archive, Settings, Loader2, Mail, MailOpen } from "lucide-react"
+import { Archive, Loader2, Mail, MailOpen, Tag as TagLucideIcon } from "lucide-react"
 import { getPipelineStages, PipelineStage } from "@/lib/api/pipeline"
 import { getUsers } from "@/lib/api/users"
 import { updateConversationStage, assignConversationUser } from "@/lib/api/conversations"
@@ -67,12 +67,7 @@ export function ChatQuickBar({
 }: ChatQuickBarProps) {
   const { addToast } = useToast()
   const { t } = useTranslation()
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [tempValues, setTempValues] = useState({
-    stageId: value.stageId, // Usar stageId
-    priority: value.priority || "baja",
-    assigneeId: (typeof value.assigneeId === 'number' || typeof value.assigneeId === 'string') ? String(value.assigneeId) : '',
-  })
+  const [isTagsSheetOpen, setIsTagsSheetOpen] = useState(false)
 
   const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([])
   const [isLoadingStages, setIsLoadingStages] = useState(true)
@@ -170,15 +165,6 @@ export function ChatQuickBar({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [onToggleArchive, value.archived, addToast, t])
 
-  useEffect(() => {
-    setTempValues({
-      stageId: value.stageId,
-      priority: value.priority || "baja",
-      assigneeId: (typeof value.assigneeId === 'number' || typeof value.assigneeId === 'string') ? String(value.assigneeId) : '',
-    });
-  }, [value.stageId, value.priority, value.assigneeId]);
-
-
   const handlePriorityChange = (priority: Priority) => {
     onChangePriority(priority)
     addToast({
@@ -224,27 +210,6 @@ export function ChatQuickBar({
     })
   }
 
-  const handleSaveDrawer = () => {
-    if (tempValues.stageId !== value.stageId) {
-      handleStageChange(tempValues.stageId as unknown as number);
-    }
-    if (tempValues.priority !== value.priority) {
-      handlePriorityChange(tempValues.priority);
-    }
-    if (String(tempValues.assigneeId) !== String(value.assigneeId)) {
-      const parsed = toNumber(tempValues.assigneeId)
-      if (parsed === undefined) {
-        addToast({ type: "error", title: t("chats.invalidUser"), description: t("chats.invalidUserDesc") })
-      } else {
-        handleAssigneeChange(parsed)
-      }
-    }
-    setIsDrawerOpen(false);
-  };
-
-
-
-
   const getPriorityColor = (priority: Priority) => {
     switch (priority) {
       case "baja":
@@ -275,10 +240,6 @@ export function ChatQuickBar({
     }
   }
 
-  useEffect(() => {
-   
-  }, [value, pipelineStages]);
-
   return (
     // Derivados calculados para selects
     (() => {
@@ -287,9 +248,6 @@ export function ChatQuickBar({
       const selectedAssigneeId = toNumber(value.assigneeId) ?? desktopFallbackId ?? ''
       const selectedAssigneeName = effectiveTeam.find((m) => String(m.id) === String(selectedAssigneeId))?.name || t("chats.select")
       const selectedStageName = pipelineStages.find((s) => s.id === value.stageId)?.name || t("chats.select")
-      const mobileEffectiveTeam = effectiveTeam
-      const mobileFallbackId = mobileEffectiveTeam[0]?.id
-      const selectedTempAssigneeId = toNumber(tempValues.assigneeId) ?? mobileFallbackId ?? ''
 
       return (
     <div className="sticky top-0 z-10 bg-[#0F1117]/80 backdrop-blur rounded-xl border border-[#1e2533] p-2">
@@ -411,16 +369,99 @@ export function ChatQuickBar({
       </div>
 
       {/* Mobile Layout */}
-      <div className="md:hidden flex items-center justify-between">
-        <div className="text-sm text-[#D8DEE9]">
-          <span className="text-[#9AA4B2]">{t("chats.stageLabel")}:</span> {selectedStageName} •
-          <span className="text-[#9AA4B2]"> {t("chats.priorityLabel")}:</span>{" "}
-          <span className={getPriorityColor(value.priority || "baja")}>
-            {getPriorityLabel(value.priority || "baja")}
-          </span>
+      <div className="md:hidden flex flex-col gap-2">
+        {/* Selects editables inline */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-xl border border-[#1e2533] bg-[#131722] px-2.5 py-1.5 text-[12px] text-[#9AA4B2]">
+            <span>{t("chats.stageLabel")}:</span>
+            {isLoadingStages ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <select
+                value={String(value.stageId ?? "")}
+                onChange={(e) => handleStageChange(Number(e.target.value))}
+                className="max-w-[7.5rem] truncate bg-transparent text-sm text-[#D8DEE9] focus:outline-none"
+              >
+                {pipelineStages.map((stage) => (
+                  <option key={stage.id} value={String(stage.id)}>
+                    {stage.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1.5 rounded-xl border border-[#1e2533] bg-[#131722] px-2.5 py-1.5 text-[12px] text-[#9AA4B2]">
+            <span>{t("chats.priorityLabel")}:</span>
+            <select
+              value={value.priority || "baja"}
+              onChange={(e) => handlePriorityChange(e.target.value as Priority)}
+              className={`bg-transparent text-sm focus:outline-none ${getPriorityColor(value.priority || "baja")}`}
+            >
+              <option value="baja">{t("chats.priorityLow")}</option>
+              <option value="media">{t("chats.priorityMedium")}</option>
+              <option value="alta">{t("chats.priorityHigh")}</option>
+              <option value="hot">{t("chats.priorityHot")}</option>
+            </select>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1.5 rounded-xl border border-[#1e2533] bg-[#131722] px-2.5 py-1.5 text-[12px] text-[#9AA4B2]">
+            <span>{t("chats.assignToLabel")}:</span>
+            {isLoadingUsers ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <select
+                value={String(selectedAssigneeId)}
+                onChange={(e) => handleAssigneeChange(Number(e.target.value))}
+                className="max-w-[7.5rem] truncate bg-transparent text-sm text-[#D8DEE9] focus:outline-none"
+              >
+                {effectiveTeam.map((member) => (
+                  <option key={member.id} value={String(member.id)}>
+                    {member.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
 
+        <div className="flex items-center justify-between gap-2">
+        <TagChips tags={tags} maxVisible={3} />
+
         <div className="flex items-center gap-2">
+          <Sheet open={isTagsSheetOpen} onOpenChange={setIsTagsSheetOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="relative p-2 rounded-lg border border-[#1e2533] hover:bg-[#1A1F2B] text-[#D8DEE9]"
+                title="Etiquetas"
+                aria-label="Etiquetas"
+              >
+                <TagLucideIcon className="w-4 h-4" />
+                {tags.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#00F7FF] px-1 text-[10px] font-semibold leading-none text-black">
+                    {tags.length}
+                  </span>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto bg-[#0F1117] border-[#1e2533]">
+              <SheetHeader>
+                <SheetTitle className="text-[#D8DEE9]">Etiquetas</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4">
+                <TagPicker
+                  target="conversation"
+                  targetId={chatId}
+                  value={tags}
+                  onChange={onTagsChange}
+                  variant="inline"
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+
           {onToggleReadStatus && (
             <Button
               variant="ghost"
@@ -442,118 +483,7 @@ export function ChatQuickBar({
           >
             <Archive className="w-4 h-4" />
           </Button>
-
-          <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="px-3 py-1.5 rounded-xl border border-[#1e2533] bg-white/5 text-sm text-[#D8DEE9]"
-              >
-                <Settings className="w-4 h-4 mr-1" />
-                {t("chats.manage")}
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="bg-[#0F1117] border-[#1e2533]">
-              <SheetHeader>
-                <SheetTitle className="text-[#D8DEE9]">{t("chats.manageChat")}</SheetTitle>
-              </SheetHeader>
-              <div className="space-y-4 mt-4">
-                {/* Etapa */}
-                <div>
-                  <label className="block text-sm font-medium text-[#9AA4B2] mb-2">{t("chats.stageLabel")}</label>
-                  <select
-                    value={String(tempValues.stageId ?? "")}
-                    onChange={(e) => setTempValues((prev) => ({ ...prev, stageId: Number(e.target.value) }))}
-                    className="w-full bg-[#131722] border border-[#1e2533] rounded-xl px-3 py-2 text-[#D8DEE9] focus:outline-none focus:border-[#00F7FF]"
-                  >
-                    {isLoadingStages ? (
-                      <option value="">{t("chats.loading")}</option>
-                    ) : (
-                      pipelineStages.map((stage) => (
-                        <option key={stage.id} value={String(stage.id)}>
-                          {stage.name}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-
-                {/* Prioridad */}
-                <div>
-                  <label className="block text-sm font-medium text-[#9AA4B2] mb-2">{t("chats.priorityLabel")}</label>
-                  <select
-                    value={tempValues.priority}
-                    onChange={(e) => setTempValues((prev) => ({ ...prev, priority: e.target.value as Priority }))}
-                    className="w-full bg-[#131722] border border-[#1e2533] rounded-xl px-3 py-2 text-[#D8DEE9] focus:outline-none focus:border-[#00F7FF]"
-                  >
-                    <option value="baja">{t("chats.priorityLow")}</option>
-                    <option value="media">{t("chats.priorityMedium")}</option>
-                    <option value="alta">{t("chats.priorityHigh")}</option>
-                    <option value="hot">{t("chats.priorityHot")}</option>
-                  </select>
-                </div>
-
-                {/* Derivar a (shadcn Select) */}
-                <div>
-                  <label className="block text-sm font-medium text-[#9AA4B2] mb-2">{t("chats.assignToLabel")}</label>
-                  {isLoadingUsers ? (
-                    <div className="flex items-center gap-2 text-[#9AA4B2] text-sm"><Loader2 className="h-4 w-4 animate-spin" /> {t("chats.loadingUsers")}</div>
-                  ) : (
-                    <Select
-                      value={String(selectedTempAssigneeId)}
-                      onValueChange={(val) => setTempValues((prev) => ({ ...prev, assigneeId: val }))}
-                    >
-                      <SelectTrigger className="w-full h-auto border-[#1e2533] bg-[#131722] text-[#D8DEE9] text-sm focus:ring-0 focus:ring-offset-0">
-                        <SelectValue placeholder={t("chats.selectUser")} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#0F1117] border-[#1e2533] text-[#D8DEE9] max-h-64 overflow-y-auto">
-                        {mobileEffectiveTeam.map((member) => (
-                          <SelectItem key={member.id} value={String(member.id)} className="focus:bg-[#1A1F2B] focus:text-[#D8DEE9] cursor-pointer">
-                            {member.name} ({member.role})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[#9AA4B2] mb-2">Etiquetas</label>
-                  <div className="rounded-xl border border-[#1e2533] bg-[#131722] p-3">
-                    <TagPicker
-                      target="conversation"
-                      targetId={chatId}
-                      value={tags}
-                      onChange={onTagsChange}
-                      buttonLabel="Gestionar etiquetas"
-                    />
-                  </div>
-                </div>
-
-                {/* Buttons */}
-                <div className="flex gap-2 pt-4">
-                  <Button onClick={handleSaveDrawer} className="flex-1 bg-[#00F7FF] text-black hover:bg-[#00F7FF]/90">
-                    {t("common.save")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setTempValues({
-                        stageId: value.stageId || 1,
-                        priority: value.priority || "baja",
-                        assigneeId: (typeof value.assigneeId === 'number' || typeof value.assigneeId === 'string') ? String(value.assigneeId) : '',
-                      })
-                      setIsDrawerOpen(false)
-                    }}
-                    className="flex-1 border-[#1e2533] text-[#D8DEE9] hover:bg-[#1A1F2B]"
-                  >
-                    {t("common.cancel")}
-                  </Button>
-                </div>
-              </div>
-            </SheetContent>
-          </Sheet>
+        </div>
         </div>
       </div>
     </div>
