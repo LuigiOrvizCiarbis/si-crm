@@ -63,6 +63,7 @@ interface PipelineStage {
   id: number
   name: string
   sort_order: number
+  color?: string | null
 }
 
 interface Column {
@@ -346,6 +347,12 @@ const COLUMN_COLOR_MAP: Record<string, string> = {
   "bg-lime-500": "#84CC16",
 }
 
+function resolveColumnColor(color: string | null | undefined): string {
+  if (!color) return "#3B82F6"
+  if (color.startsWith("#")) return color
+  return COLUMN_COLOR_MAP[color] ?? "#3B82F6"
+}
+
 function KanbanColumn({ column, opportunities }: { column: Column; opportunities: Opportunity[] }) {
   const { setNodeRef, isOver } = useDroppable({
     id: getColumnDropId(column.id),
@@ -354,7 +361,7 @@ function KanbanColumn({ column, opportunities }: { column: Column; opportunities
   const totalValue = opportunities.reduce((sum, item) => sum + Number(item.value || 0), 0)
   const wonCount = opportunities.filter((item) => item.status === "won").length
   const avgProb = opportunities.length > 0 ? Math.round((wonCount / opportunities.length) * 100) : 0
-  const stripeColor = COLUMN_COLOR_MAP[column.color] ?? "#3B82F6"
+  const stripeColor = resolveColumnColor(column.color)
 
   return (
     <div className="flex-1 min-w-80">
@@ -438,19 +445,19 @@ export function KanbanBoard({ refreshKey = 0 }: KanbanBoardProps) {
         pipeline_stage_id: toStageId(opportunity.pipeline_stage_id),
       }))
 
+      const fallbackColors = ["bg-blue-500", "bg-yellow-500", "bg-orange-500", "bg-green-500", "bg-purple-500"]
+
       const columnsData: Column[] = stages.map((stage: PipelineStage, index: number) => {
         const stageId = Number(stage.id)
         const stageOpportunities = normalizedOpportunities.filter(
           (opportunity: Opportunity) => opportunity.pipeline_stage_id === stageId
         )
 
-        const colors = ["bg-blue-500", "bg-yellow-500", "bg-orange-500", "bg-green-500", "bg-purple-500"]
-
         return {
           id: stage.id,
           title: stage.name,
           opportunities: stageOpportunities,
-          color: colors[index % colors.length],
+          color: stage.color || fallbackColors[index % fallbackColors.length],
         }
       })
 

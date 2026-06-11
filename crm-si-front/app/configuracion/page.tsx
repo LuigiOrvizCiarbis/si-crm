@@ -14,6 +14,7 @@ import { SucursalesCard } from "@/components/config/SucursalesCard"
 import { TeamInvitationsCard } from "@/components/config/TeamInvitationsCard"
 import { MessageHotkeysCard } from "@/components/config/MessageHotkeysCard"
 import { ContactFieldsCard } from "@/components/config/ContactFieldsCard"
+import { PipelineStagesCard } from "@/components/config/PipelineStagesCard"
 import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 import { useTranslation } from "@/hooks/useTranslation"
 
@@ -45,6 +46,7 @@ export default function ConfiguracionPage() {
           <TeamInvitationsCard />
           <MessageHotkeysCard />
           <ContactFieldsCard />
+          <PipelineStagesCard />
          {/*  <ApiKeysCard />
           <BillingCard /> */}
         </div>

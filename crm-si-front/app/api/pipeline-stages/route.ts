@@ -1,44 +1,33 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server"
+import { proxyToLaravel } from "@/lib/api/proxy-helper"
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
 
-export async function GET(request: NextRequest) {
-  const auth = request.headers.get("authorization");
-  const token = auth?.replace("Bearer ", "");
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get("authorization")
+  if (!authHeader) return NextResponse.json({ message: "No auth" }, { status: 401 })
 
-
-  if (!token) {
-    return NextResponse.json({ error: "Authorization header required" }, { status: 401 });
+  try {
+    const { data, status } = await proxyToLaravel("/api/pipeline-stages", authHeader)
+    return NextResponse.json(data, { status })
+  } catch {
+    return NextResponse.json({ message: "No reachable backend" }, { status: 503 })
   }
+}
 
-  // Lista de posibles URLs del backend
-  const candidateUrls = [
-    process.env.API_INTERNAL_URL,
-    "http://host.docker.internal:8000",
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
-    "http://app:80"
-  ].filter((url): url is string => !!url);
+export async function POST(req: NextRequest) {
+  const authHeader = req.headers.get("authorization")
+  if (!authHeader) return NextResponse.json({ message: "No auth" }, { status: 401 })
 
-  const uniqueUrls = [...new Set(candidateUrls)];
+  const body = await req.json()
 
-  for (const baseUrl of uniqueUrls) {
-    try {
-      const response = await fetch(`${baseUrl}/api/pipeline-stages`, {
-        method: "GET",
-         headers: { Accept: "application/json", 
-            Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return NextResponse.json(data);
-      }
-    } catch (error) {
-      // Continue to next URL
-    }
+  try {
+    const { data, status } = await proxyToLaravel("/api/pipeline-stages", authHeader, {
+      method: "POST",
+      body: JSON.stringify(body),
+    })
+    return NextResponse.json(data, { status })
+  } catch {
+    return NextResponse.json({ message: "No reachable backend" }, { status: 503 })
   }
-
-  return NextResponse.json({ error: "Backend connection failed" }, { status: 502 });
 }

@@ -32,34 +32,37 @@ class PipelineStageSeeder extends Seeder
             $stages = [
                 [
                     'name' => 'Capturados',
-
+                    'color' => '#3B82F6',
                     'sort_order' => 1,
                     'is_default' => true,
                 ],
                 [
                     'name' => 'Calificados',
-
+                    'color' => '#EAB308',
                     'sort_order' => 2,
                     'is_default' => false,
                 ],
                 [
                     'name' => 'Negociación',
-
+                    'color' => '#F97316',
                     'sort_order' => 3,
                     'is_default' => false,
                 ],
                 [
                     'name' => 'Cierre',
+                    'color' => '#8B5CF6',
                     'sort_order' => 4,
                     'is_default' => false,
                 ],
                 [
                     'name' => 'Ganado',
+                    'color' => '#22C55E',
                     'sort_order' => 5,
                     'is_default' => false,
                 ],
                 [
                     'name' => 'Perdido',
+                    'color' => '#EF4444',
                     'sort_order' => 6,
                     'is_default' => false,
                 ],
@@ -69,6 +72,7 @@ class PipelineStageSeeder extends Seeder
                 PipelineStage::create([
                     'tenant_id' => $tenant->id,
                     'name' => $stage['name'],
+                    'color' => $stage['color'],
                     'sort_order' => $stage['sort_order'],
                     'is_default' => $stage['is_default'],
                 ]);

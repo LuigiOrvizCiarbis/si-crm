@@ -4,38 +4,49 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PipelineStage;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 
 class PipelineStageController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): Collection
     {
+        $this->authorize('viewAny', PipelineStage::class);
+
         return PipelineStage::orderBy('sort_order', 'asc')->get();
     }
 
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
+        $this->authorize('create', PipelineStage::class);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'color' => ['sometimes', 'string', 'regex:/^#([0-9A-Fa-f]{6})$/'],
         ]);
 
-        // Calcular el orden para ponerlo al final
         $maxOrder = PipelineStage::max('sort_order') ?? 0;
 
         $stage = PipelineStage::create([
             'name' => $validated['name'],
+            'color' => $validated['color'] ?? '#3B82F6',
             'sort_order' => $maxOrder + 1,
         ]);
 
         return response()->json($stage, 201);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, string $id): JsonResponse
     {
         $stage = PipelineStage::findOrFail($id);
 
+        $this->authorize('update', $stage);
+
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
+            'color' => ['sometimes', 'string', 'regex:/^#([0-9A-Fa-f]{6})$/'],
             'sort_order' => 'sometimes|integer',
         ]);
 
@@ -44,21 +55,21 @@ class PipelineStageController extends Controller
         return response()->json($stage);
     }
 
-    public function destroy($id)
+    public function destroy(string $id): Response
     {
         $stage = PipelineStage::findOrFail($id);
 
-        // Opcional: Mover conversaciones a una etapa por defecto antes de borrar
-        // o dejar que se pongan en null (según la migración)
+        $this->authorize('delete', $stage);
 
         $stage->delete();
 
         return response()->noContent();
     }
 
-    // Método para reordenar todas las etapas (Drag & Drop de columnas)
-    public function reorder(Request $request)
+    public function reorder(Request $request): JsonResponse
     {
+        $this->authorize('reorder', PipelineStage::class);
+
         $request->validate([
             'stages' => 'required|array',
             'stages.*.id' => 'required|exists:pipeline_stages,id',

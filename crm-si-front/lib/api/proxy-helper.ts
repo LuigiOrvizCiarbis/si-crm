@@ -1,3 +1,17 @@
+import { NextResponse } from "next/server";
+
+/**
+ * Construye la respuesta del proxy a partir del resultado de proxyToLaravel.
+ * Los status 204/205 no admiten body: NextResponse.json lanzaría, por lo que
+ * devolvemos una respuesta vacía. Para el resto serializamos el body.
+ */
+export function proxyResponse(data: unknown, status: number): NextResponse {
+  if (status === 204 || status === 205) {
+    return new NextResponse(null, { status });
+  }
+  return NextResponse.json(data, { status });
+}
+
 /**
  * Helper para API routes que actúan como proxy al backend Laravel.
  * Sigue el patrón multi-URL del proyecto para funcionar en Docker y local.
