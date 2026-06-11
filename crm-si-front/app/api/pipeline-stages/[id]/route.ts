@@ -9,7 +9,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json()
 
   try {
-    const { data, status } = await proxyToLaravel(`/api/contact-fields/${id}`, authHeader, {
+    const { data, status } = await proxyToLaravel(`/api/pipeline-stages/${id}`, authHeader, {
       method: "PUT",
       body: JSON.stringify(body),
     })
@@ -26,7 +26,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { id } = await params
 
   try {
-    const { data, status } = await proxyToLaravel(`/api/contact-fields/${id}`, authHeader, {
+    const { data, status } = await proxyToLaravel(`/api/pipeline-stages/${id}`, authHeader, {
       method: "DELETE",
     })
     return proxyResponse(data, status)

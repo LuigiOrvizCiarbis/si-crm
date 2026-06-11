@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { proxyToLaravel } from "@/lib/api/proxy-helper";
+import { proxyResponse, proxyToLaravel } from "@/lib/api/proxy-helper";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -18,7 +18,7 @@ async function proxy(req: NextRequest, { params }: RouteContext, method: string)
       authHeader,
       { method, ...(body ? { body } : {}) }
     );
-    return NextResponse.json(data, { status });
+    return proxyResponse(data, status);
   } catch {
     return NextResponse.json({ message: "No reachable backend" }, { status: 503 });
   }

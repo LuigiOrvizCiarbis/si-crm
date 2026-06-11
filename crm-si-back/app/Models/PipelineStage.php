@@ -13,6 +13,7 @@ class PipelineStage extends Model
     protected $fillable = [
         'tenant_id',
         'name',
+        'color',
         'sort_order',
         'is_default',
     ];

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { proxyToLaravel } from "@/lib/api/proxy-helper";
+import { proxyResponse, proxyToLaravel } from "@/lib/api/proxy-helper";
 
 type RouteContext = { params: Promise<{ id: string; tagId: string }> };
 
@@ -13,7 +13,7 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
     const { data, status } = await proxyToLaravel(`/api/conversations/${id}/tags/${tagId}`, authHeader, {
       method: "DELETE",
     });
-    return NextResponse.json(data, { status });
+    return proxyResponse(data, status);
   } catch {
     return NextResponse.json({ message: "No reachable backend" }, { status: 503 });
   }

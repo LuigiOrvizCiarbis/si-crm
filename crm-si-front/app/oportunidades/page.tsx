@@ -19,9 +19,16 @@ export default function OportunidadesPage() {
     setRefreshKey((prev) => prev + 1)
   }
 
+  const handleStagesChanged = (): void => {
+    setRefreshKey((prev) => prev + 1)
+  }
+
   return (
     <SidebarLayout>
-      <PipelineCompactHeader onNewOpportunity={handleNewOpportunity} />
+      <PipelineCompactHeader
+        onNewOpportunity={handleNewOpportunity}
+        onStagesChanged={handleStagesChanged}
+      />
 
       <div className="flex-1 overflow-y-auto">
         <div className="px-4 md:px-6 lg:px-8 py-6 space-y-6">

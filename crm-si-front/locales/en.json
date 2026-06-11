@@ -225,6 +225,24 @@
     "errors": {
       "loadSummaryFailed": "Failed to load pipeline summary",
       "retry": "Retry"
+    },
+    "stages": {
+      "manage": "Manage stages",
+      "manageDesc": "Create, rename, reorder and delete your sales pipeline stages.",
+      "cardTitle": "Pipeline stages",
+      "add": "Add",
+      "namePlaceholder": "Stage name",
+      "empty": "No stages yet. Add the first one.",
+      "editHint": "Edit the name or color and click away to save. Drag to reorder.",
+      "createdTitle": "Stage created",
+      "deletedTitle": "Stage deleted",
+      "deleteTitle": "Delete stage",
+      "deleteConfirm": "Are you sure you want to delete the stage \"{{name}}\"? Opportunities in this stage will become unassigned.",
+      "errorTitle": "Error",
+      "errorCreate": "Could not create the stage.",
+      "errorUpdate": "Could not update the stage.",
+      "errorDelete": "Could not delete the stage.",
+      "errorReorder": "Could not reorder the stages."
     }
   },
   "auth": {
@@ -616,7 +634,8 @@
     "close": "Close",
     "loading": "Loading...",
     "error": "Error",
-    "success": "Success"
+    "success": "Success",
+    "delete": "Delete"
   },
   "roles": {
     "title": "Roles and permissions",
@@ -667,7 +686,8 @@
       "users": "Users",
       "invitations": "Invitations",
       "roles": "Roles",
-      "permissions": "Permissions"
+      "permissions": "Permissions",
+      "branches": "Branches"
     },
     "perms": {
       "conversations.view_any": "View all conversations",

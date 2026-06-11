@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { proxyToLaravel } from "@/lib/api/proxy-helper"
+import { proxyResponse, proxyToLaravel } from "@/lib/api/proxy-helper"
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authHeader = req.headers.get("authorization")
@@ -13,7 +13,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       method: "PUT",
       body: JSON.stringify(body),
     })
-    return NextResponse.json(data, { status })
+    return proxyResponse(data, status)
   } catch {
     return NextResponse.json({ message: "No reachable backend" }, { status: 503 })
   }
@@ -29,7 +29,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const { data, status } = await proxyToLaravel(`/api/message-hotkeys/${id}`, authHeader, {
       method: "DELETE",
     })
-    return NextResponse.json(data, { status })
+    return proxyResponse(data, status)
   } catch {
     return NextResponse.json({ message: "No reachable backend" }, { status: 503 })
   }

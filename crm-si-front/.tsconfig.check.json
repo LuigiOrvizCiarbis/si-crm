@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false, "skipLibCheck": true, "noEmit": true },
+  "include": [
+    "lib/api/proxy-helper.ts",
+    "app/api/pipeline-stages/[id]/route.ts",
+    "app/api/tasks/[id]/route.ts",
+    "app/api/messages/[id]/route.ts",
+    "app/api/opportunities/[id]/route.ts",
+    "app/api/contacts/[id]/route.ts",
+    "app/api/contacts/[id]/tags/[tagId]/route.ts",
+    "app/api/conversations/[id]/tags/[tagId]/route.ts",
+    "app/api/tags/[id]/route.ts",
+    "app/api/roles/[id]/route.ts",
+    "app/api/notes/[id]/route.ts",
+    "app/api/branches/[id]/route.ts",
+    "app/api/contact-fields/[id]/route.ts",
+    "app/api/invitations/[id]/route.ts",
+    "app/api/message-hotkeys/[id]/route.ts",
+    "next-env.d.ts"
+  ]
+}

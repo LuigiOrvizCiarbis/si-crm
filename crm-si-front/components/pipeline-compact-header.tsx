@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import { Filter, MessageSquare, Plus, Search, Users } from "lucide-react"
+import { Filter, MessageSquare, Plus, Search, Settings2, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -13,6 +13,16 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { PipelineStagesManager } from "@/components/pipeline-stages-manager"
+import { usePermission } from "@/hooks/usePermission"
 import {
   Select,
   SelectContent,
@@ -27,6 +37,7 @@ interface PipelineCompactHeaderProps {
   onSearch?: (query: string) => void
   onFilterChannel?: (channel: string) => void
   onFilterSalesperson?: (salesperson: string) => void
+  onStagesChanged?: () => void
 }
 
 export function PipelineCompactHeader({
@@ -34,8 +45,10 @@ export function PipelineCompactHeader({
   onSearch,
   onFilterChannel,
   onFilterSalesperson,
+  onStagesChanged,
 }: PipelineCompactHeaderProps) {
   const { t } = useTranslation()
+  const canManageStages = usePermission("pipeline_stages.manage")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedChannel, setSelectedChannel] = useState("all")
   const [selectedSalesperson, setSelectedSalesperson] = useState("all")
@@ -161,6 +174,23 @@ export function PipelineCompactHeader({
       </div>
 
       <div className="flex items-center gap-2 ml-auto">
+        {canManageStages && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 bg-transparent">
+                <Settings2 className="h-4 w-4 mr-2" />
+                {t("pipeline.stages.manage")}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>{t("pipeline.stages.manage")}</DialogTitle>
+                <DialogDescription>{t("pipeline.stages.manageDesc")}</DialogDescription>
+              </DialogHeader>
+              <PipelineStagesManager onStagesChanged={onStagesChanged} />
+            </DialogContent>
+          </Dialog>
+        )}
         <Button onClick={onNewOpportunity} size="sm" className="h-9">
           <Plus className="h-4 w-4 mr-2" />
           {t("pipeline.newOpportunity")}

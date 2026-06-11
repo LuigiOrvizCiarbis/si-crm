@@ -225,6 +225,24 @@
     "errors": {
       "loadSummaryFailed": "No se pudo cargar el resumen del pipeline",
       "retry": "Reintentar"
+    },
+    "stages": {
+      "manage": "Gestionar etapas",
+      "manageDesc": "Crea, renombra, reordena y elimina las etapas de tu pipeline de ventas.",
+      "cardTitle": "Etapas del pipeline",
+      "add": "Agregar",
+      "namePlaceholder": "Nombre de la etapa",
+      "empty": "Aún no hay etapas. Agrega la primera.",
+      "editHint": "Edita el nombre o color y haz clic fuera para guardar. Arrastra para reordenar.",
+      "createdTitle": "Etapa creada",
+      "deletedTitle": "Etapa eliminada",
+      "deleteTitle": "Eliminar etapa",
+      "deleteConfirm": "¿Seguro que quieres eliminar la etapa \"{{name}}\"? Las oportunidades en esta etapa quedarán sin asignar.",
+      "errorTitle": "Error",
+      "errorCreate": "No se pudo crear la etapa.",
+      "errorUpdate": "No se pudo actualizar la etapa.",
+      "errorDelete": "No se pudo eliminar la etapa.",
+      "errorReorder": "No se pudo reordenar las etapas."
     }
   },
   "auth": {
@@ -616,7 +634,8 @@
     "close": "Cerrar",
     "loading": "Cargando...",
     "error": "Error",
-    "success": "Éxito"
+    "success": "Éxito",
+    "delete": "Eliminar"
   },
   "roles": {
     "title": "Roles y permisos",
@@ -667,7 +686,8 @@
       "users": "Usuarios",
       "invitations": "Invitaciones",
       "roles": "Roles",
-      "permissions": "Permisos"
+      "permissions": "Permisos",
+      "branches": "Sucursales"
     },
     "perms": {
       "conversations.view_any": "Ver todas las conversaciones",

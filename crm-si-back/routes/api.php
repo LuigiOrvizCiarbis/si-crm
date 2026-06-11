@@ -377,8 +377,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/conversations/{id}/messages', [ConversationController::class, 'fetchMessages']);
 
-    Route::apiResource('pipeline-stages', PipelineStageController::class);
     Route::post('pipeline-stages/reorder', [PipelineStageController::class, 'reorder']);
+    Route::apiResource('pipeline-stages', PipelineStageController::class);
     Route::get('opportunities/summary', [OpportunityController::class, 'summary']);
     Route::apiResource('opportunities', OpportunityController::class);
     Route::patch('opportunities/{id}/stage', [OpportunityController::class, 'updateStage']);
