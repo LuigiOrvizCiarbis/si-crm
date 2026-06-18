@@ -150,7 +150,12 @@ class WhatsAppController extends Controller
             ]);
 
             if ($response->successful()) {
-                return $response->json('access_token');
+                $token = $response->json('access_token');
+
+                // El token del Embedded Signup nace con ~60 días de vida.
+                // Lo convertimos a permanente (expires_at=0) antes de persistirlo,
+                // así el cliente no se cae a los 60 días del onboarding.
+                return $this->extendTokenToPermanent($token);
             }
 
             Log::error('Token exchange failed', [
@@ -164,6 +169,31 @@ class WhatsAppController extends Controller
         }
 
         return null;
+    }
+
+    private function extendTokenToPermanent(string $token): string
+    {
+        try {
+            $response = Http::get('https://graph.facebook.com/v21.0/oauth/access_token', [
+                'grant_type' => 'fb_exchange_token',
+                'client_id' => config('services.facebook.app_id'),
+                'client_secret' => config('services.facebook.app_secret'),
+                'fb_exchange_token' => $token,
+            ]);
+
+            if ($response->successful() && $response->json('access_token')) {
+                return $response->json('access_token');
+            }
+
+            Log::warning('No se pudo extender el token a permanente, se usa el de 60 días', [
+                'status' => $response->status(),
+                'error' => $this->describeMetaError($response->json()),
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Excepción extendiendo token a permanente', $this->describeException($e));
+        }
+
+        return $token;
     }
 
     private function saveChannel(Request $request, string $businessToken): Channel
