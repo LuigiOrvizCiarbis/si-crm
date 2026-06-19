@@ -63,6 +63,7 @@ import { FilteredConversationsHeader } from "@/components/chat/FilteredConversat
 import { ChannelsList } from "@/components/chat/ChannelsList"
 import { getChannels } from "@/lib/api/channels"
 import { updateContact } from "@/lib/api/contacts"
+import { isExpectedBusinessErrorMessage } from "@/lib/observability/sentry"
 import { ChannelHeader } from "@/components/chat/AccountHeader"
 import { useConversationFilters } from "@/hooks/useConversationFilters"
 import { TagFilterMenu } from "@/components/tags/TagFilterMenu"
@@ -1058,7 +1059,11 @@ export default function ChatsPage() {
         return [updatedConversation, ...newConversations];
       });
     } catch (error) {
-      console.error('[ChatsPage] Error sending message:', error);
+      const errorMessage = error instanceof Error ? error.message : undefined;
+
+      if (!isExpectedBusinessErrorMessage(errorMessage)) {
+        console.error('[ChatsPage] Error sending message:', error);
+      }
 
       if (optimisticMessage.media_url) {
         URL.revokeObjectURL(optimisticMessage.media_url);
@@ -1067,7 +1072,7 @@ export default function ChatsPage() {
       addToast({
         type: "error",
         title: t("chats.sendMessageError"),
-        description: error instanceof Error ? error.message : t("chats.sendMessageErrorDesc")
+        description: errorMessage || t("chats.sendMessageErrorDesc")
       });
 
       setMessage(textToSend);

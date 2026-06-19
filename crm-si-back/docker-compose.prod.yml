@@ -11,6 +11,7 @@ services:
     environment:
       APP_ENV: production
       APP_DEBUG: "false"
+      SENTRY_ENVIRONMENT: production
       DB_CONNECTION: pgsql
       DB_HOST: db
       DB_PORT: "5432"
@@ -71,6 +72,7 @@ services:
     environment:
       APP_ENV: production
       APP_DEBUG: "false"
+      SENTRY_ENVIRONMENT: production
       DB_CONNECTION: pgsql
       DB_HOST: db
       DB_PORT: "5432"

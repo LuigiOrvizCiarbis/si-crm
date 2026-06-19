@@ -100,14 +100,20 @@ class MessageController extends Controller
             $tokenExpired = str_contains($e->getMessage(), '"code":190')
                 || str_contains($e->getMessage(), 'OAuthException');
 
-            Log::error('No se pudo enviar el mensaje por WhatsApp', [
+            $logContext = [
                 'conversation_id' => $conversation->id,
                 'tenant_id' => $request->user()->tenant_id,
                 'user_id' => $request->user()->id,
                 'type' => $type,
                 'token_expired' => $tokenExpired,
                 'error' => $e->getMessage(),
-            ]);
+            ];
+
+            if ($tokenExpired) {
+                Log::warning('Token de WhatsApp expirado o revocado al enviar mensaje', $logContext);
+            } else {
+                Log::error('No se pudo enviar el mensaje por WhatsApp', $logContext);
+            }
 
             $errorMessage = $tokenExpired
                 ? 'La conexión de WhatsApp expiró. Reconectá el canal desde Configuración para volver a enviar mensajes.'

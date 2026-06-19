@@ -7,6 +7,7 @@ import { AISuggestions } from './AISuggestions'
 import { Conversation } from '@/data/types'
 import { sendMessage } from '@/lib/api/messages'
 import { getConversationWithMessages } from '@/lib/api/conversations'
+import { isExpectedBusinessErrorMessage } from '@/lib/observability/sentry'
 import { useToast } from '@/components/Toast'
 import { aiSuggestions } from '@/data/constants'
 import { useState } from 'react'
@@ -62,11 +63,14 @@ export function ConversationView({
             onConversationUpdate(updated)
 
         } catch (error) {
-            console.error('[ConversationView] Error sending message:', error)
+            const errorMessage = error instanceof Error ? error.message : undefined
+            if (!isExpectedBusinessErrorMessage(errorMessage)) {
+                console.error('[ConversationView] Error sending message:', error)
+            }
             addToast({
                 type: "error",
                 title: t("chats.sendMessageError"),
-                description: error instanceof Error ? error.message : t("chats.unknownError"),
+                description: errorMessage || t("chats.unknownError"),
             })
         } finally {
             setIsSending(false)
