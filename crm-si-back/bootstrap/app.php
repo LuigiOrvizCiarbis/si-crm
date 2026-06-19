@@ -9,6 +9,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Sentry\Laravel\Integration;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -44,11 +45,14 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            // Cualquier otra excepción es un error interno: ocultar detalles, loguear
-            report($e);
-
+            // Cualquier otra excepción es un error interno: ocultamos los detalles
+            // al cliente. El reporte (logs + Sentry) lo maneja la pipeline de
+            // excepciones de Laravel vía Integration::handles(); no llamamos
+            // report() acá para no duplicar el evento en Sentry.
             return new JsonResponse([
                 'message' => 'Ocurrió un error interno. Inténtalo de nuevo más tarde.',
             ], 500);
         });
+
+        Integration::handles($exceptions);
     })->create();

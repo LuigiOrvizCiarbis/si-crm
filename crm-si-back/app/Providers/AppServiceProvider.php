@@ -28,9 +28,13 @@ use App\Policies\TagPolicy;
 use App\Policies\TaskPolicy;
 use App\Policies\UserPolicy;
 use App\Policies\WhatsAppTemplatePolicy;
+use Illuminate\Auth\Events\Authenticated;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Sentry\Laravel\Integration;
+use Sentry\State\Scope;
 use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
@@ -125,6 +129,37 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return session()->get('pulse_authorized', false);
+        });
+
+        $this->configureSentryUserContext();
+    }
+
+    /**
+     * Adjunta el usuario autenticado y su tenant a cada evento de Sentry.
+     * Esto es lo que permite, ante un error reportado, saber qué cliente
+     * (tenant) y qué usuario lo sufrió — clave para soporte. No envía PII
+     * extra: solo id, email y name del propio usuario logueado.
+     */
+    private function configureSentryUserContext(): void
+    {
+        if (! app()->bound('sentry')) {
+            return;
+        }
+
+        Event::listen(function (Authenticated $event): void {
+            $user = $event->user;
+
+            Integration::configureScope(static function (Scope $scope) use ($user): void {
+                $scope->setUser([
+                    'id' => $user->id,
+                    'email' => $user->email ?? null,
+                    'name' => $user->name ?? null,
+                ]);
+
+                if (isset($user->tenant_id)) {
+                    $scope->setTag('tenant_id', (string) $user->tenant_id);
+                }
+            });
         });
     }
 }
