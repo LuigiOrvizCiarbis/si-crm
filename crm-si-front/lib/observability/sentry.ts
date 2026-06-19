@@ -34,6 +34,14 @@ const EXPECTED_BUSINESS_PATTERNS = [
   /validaci[oó]n/i,
 ];
 
+export function isExpectedBusinessErrorMessage(message: unknown) {
+  if (typeof message !== "string") {
+    return false;
+  }
+
+  return EXPECTED_BUSINESS_PATTERNS.some((pattern) => pattern.test(message));
+}
+
 export function sanitizeApiPayload(payload: ApiPayload) {
   return {
     message: typeof payload?.message === "string" ? payload.message : undefined,
@@ -56,7 +64,7 @@ export function isExpectedBusinessError(status: number, payload: ApiPayload) {
     .filter((value) => value != null)
     .join(" ");
 
-  return EXPECTED_BUSINESS_PATTERNS.some((pattern) => pattern.test(haystack));
+  return isExpectedBusinessErrorMessage(haystack);
 }
 
 export function classifyApiFailure(status: number, payload: ApiPayload) {
