@@ -1,4 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
+
+function sanitizeBackendError(payload: any) {
+  return {
+    message: typeof payload?.message === "string" ? payload.message : undefined,
+    error: typeof payload?.error === "string" ? payload.error : undefined,
+    code: typeof payload?.code === "string" || typeof payload?.code === "number" ? payload.code : undefined,
+  };
+}
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -15,6 +24,7 @@ export async function POST(req: NextRequest) {
 
   // Read body once before the retry loop (streams can only be consumed once)
   let fetchBody: FormData | string;
+  let requestMeta: Record<string, unknown> = {};
   const headers: Record<string, string> = {
     "Authorization": authHeader,
     "Accept": "application/json",
@@ -22,8 +32,20 @@ export async function POST(req: NextRequest) {
 
   if (isMultipart) {
     fetchBody = await req.formData();
+    requestMeta = {
+      conversationId: fetchBody.get("conversation_id"),
+      type: fetchBody.get("type"),
+      hasImage: fetchBody.has("image"),
+      hasAudio: fetchBody.has("audio"),
+    };
   } else {
-    fetchBody = JSON.stringify(await req.json());
+    const jsonBody = await req.json();
+    fetchBody = JSON.stringify(jsonBody);
+    requestMeta = {
+      conversationId: jsonBody?.conversation_id,
+      type: jsonBody?.type,
+      contentLength: typeof jsonBody?.content === "string" ? jsonBody.content.length : undefined,
+    };
     headers["Content-Type"] = "application/json";
   }
 
@@ -33,6 +55,22 @@ export async function POST(req: NextRequest) {
       const res = await fetch(url, { method: "POST", headers, body: fetchBody });
       const data = await res.json().catch(() => ({}));
       if (res.ok || res.status >= 400) {
+        if (!res.ok) {
+          Sentry.captureMessage("message_send_backend_failed", {
+            level: res.status >= 500 ? "error" : "warning",
+            tags: {
+              feature: "chats",
+              action: "send_message",
+              backend_status: String(res.status),
+            },
+            extra: {
+              backendBase: base,
+              backendError: sanitizeBackendError(data),
+              request: requestMeta,
+            },
+          });
+        }
+
         return NextResponse.json(data, { status: res.status });
       }
     } catch {

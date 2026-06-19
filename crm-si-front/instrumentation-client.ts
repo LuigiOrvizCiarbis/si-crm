@@ -10,7 +10,10 @@ Sentry.init({
   integrations: [
     Sentry.replayIntegration(),
     Sentry.consoleLoggingIntegration({
-      levels: ["log", "warn", "error"],
+      levels: ["debug", "info", "warn", "error", "log", "assert", "trace"],
+    }),
+    Sentry.captureConsoleIntegration({
+      levels: ["error"],
     }),
   ],
 
