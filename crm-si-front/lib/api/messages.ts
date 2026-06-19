@@ -57,7 +57,10 @@ export async function sendMessage(conversationId: number, content: string, media
   });
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throwApiError(res.status, data, "No se pudo enviar el mensaje");
+  if (!res.ok) {
+    throwApiError(res.status, data, "No se pudo enviar el mensaje");
+  }
+
   return data.data;
 }
 

@@ -1,4 +1,65 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
+
+function sanitizeProxyPayload(payload: any) {
+  return {
+    message: typeof payload?.message === "string" ? payload.message : undefined,
+    error: typeof payload?.error === "string" ? payload.error : undefined,
+    code: typeof payload?.code === "string" || typeof payload?.code === "number" ? payload.code : undefined,
+  };
+}
+
+function reportProxyResponseError({
+  endpoint,
+  method,
+  status,
+  base,
+  payload,
+}: {
+  endpoint: string;
+  method: string;
+  status: number;
+  base: string;
+  payload: any;
+}) {
+  Sentry.captureMessage("laravel_proxy_response_failed", {
+    level: status >= 500 ? "error" : "warning",
+    tags: {
+      feature: "api-proxy",
+      endpoint,
+      method,
+      backend_status: String(status),
+    },
+    extra: {
+      backendBase: base,
+      backendError: sanitizeProxyPayload(payload),
+    },
+  });
+}
+
+function reportProxyConnectionError({
+  endpoint,
+  method,
+  base,
+  error,
+}: {
+  endpoint: string;
+  method: string;
+  base: string;
+  error: any;
+}) {
+  Sentry.captureException(error, {
+    tags: {
+      feature: "api-proxy",
+      endpoint,
+      method,
+    },
+    extra: {
+      backendBase: base,
+      errorCode: error?.code,
+    },
+  });
+}
 
 /**
  * Construye la respuesta del proxy a partir del resultado de proxyToLaravel.
@@ -57,6 +118,16 @@ export async function proxyToLaravel(
 
       const data = await res.json().catch(() => ({}));
 
+      if (!res.ok) {
+        reportProxyResponseError({
+          endpoint,
+          method,
+          status: res.status,
+          base,
+          payload: data,
+        });
+      }
+
       // Retornar si es exitoso o error cliente (400-499)
       if (res.ok || (res.status >= 400 && res.status < 500)) {
         return { data, status: res.status };
@@ -73,6 +144,13 @@ export async function proxyToLaravel(
       continue;
 
     } catch (err: any) {
+      reportProxyConnectionError({
+        endpoint,
+        method,
+        base,
+        error: err,
+      });
+
       if (!isRetryableMethod) {
         throw err;
       }
