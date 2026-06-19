@@ -5,3 +5,5 @@ CLAUDE.md
 crm-si-back/docker-compose.yml
 .tmp/
 .claude
+crm-si-back/.env.local
+crm-si-front/.vscode/mcp.json

@@ -94,16 +94,28 @@ class MessageController extends Controller
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         } catch (\RuntimeException $e) {
-            Log::warning('No se pudo enviar el mensaje por WhatsApp', [
+            // El mensaje de la excepción incluye el body crudo de Meta; detectamos
+            // el code 190 (token expirado/revocado) para dar una instrucción accionable
+            // al usuario en lugar de un genérico.
+            $tokenExpired = str_contains($e->getMessage(), '"code":190')
+                || str_contains($e->getMessage(), 'OAuthException');
+
+            Log::error('No se pudo enviar el mensaje por WhatsApp', [
                 'conversation_id' => $conversation->id,
                 'tenant_id' => $request->user()->tenant_id,
+                'user_id' => $request->user()->id,
                 'type' => $type,
+                'token_expired' => $tokenExpired,
                 'error' => $e->getMessage(),
             ]);
 
-            return response()->json([
-                'message' => 'No se pudo enviar el mensaje a WhatsApp. Verifica la configuración del canal e inténtalo de nuevo.',
-            ], 502);
+            $errorMessage = $tokenExpired
+                ? 'La conexión de WhatsApp expiró. Reconectá el canal desde Configuración para volver a enviar mensajes.'
+                : 'No se pudo enviar el mensaje a WhatsApp. Verifica la configuración del canal e inténtalo de nuevo.';
+
+            // 422: es un problema de configuración del canal (dependencia upstream),
+            // no una caída de gateway. Así el front muestra el mensaje al usuario.
+            return response()->json(['message' => $errorMessage], 422);
         }
 
         return response()->json(['data' => $message], 201);

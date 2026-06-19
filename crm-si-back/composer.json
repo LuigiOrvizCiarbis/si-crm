@@ -13,6 +13,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "predis/predis": "^3.2",
+        "sentry/sentry-laravel": "^4.26",
         "spatie/laravel-permission": "^6.10"
     },
     "require-dev": {

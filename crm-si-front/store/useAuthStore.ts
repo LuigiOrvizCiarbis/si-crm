@@ -1,6 +1,22 @@
 import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
+import * as Sentry from "@sentry/nextjs"
 import { disconnectPusher } from "@/lib/pusher"
+
+/**
+ * Identifica al usuario en Sentry para que cada error reportado indique
+ * qué usuario y qué tenant (cliente) lo sufrió — clave para soporte.
+ */
+function setSentryUser(user: User | null) {
+  if (!user) {
+    Sentry.setUser(null)
+    return
+  }
+  Sentry.setUser({ id: user.id, email: user.email, username: user.name })
+  if (user.tenant_id != null) {
+    Sentry.setTag("tenant_id", String(user.tenant_id))
+  }
+}
 
 export interface UserTenant {
   id: number
@@ -69,6 +85,7 @@ export const useAuthStore = create<AuthState>()(
       _hasHydrated: false,
 
       setAuth: (user, token, rememberMe = false, emailVerified = false, role = null, permissions = []) => {
+        setSentryUser(user)
         set({
           user,
           token,
@@ -100,6 +117,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         disconnectPusher()
+        setSentryUser(null)
         set({
           user: null,
           token: null,
@@ -127,6 +145,9 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true)
+        if (state?.user) {
+          setSentryUser(state.user)
+        }
       },
       partialize: (state) => ({
         user: state.user,
