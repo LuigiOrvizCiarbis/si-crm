@@ -7,8 +7,12 @@ import * as Sentry from "@sentry/nextjs";
 Sentry.init({
   dsn: "https://d36663d50a51938390976cc31b5a512e@o4511590296518657.ingest.us.sentry.io/4511590347898880",
 
-  // Add optional integrations for additional features
-  integrations: [Sentry.replayIntegration()],
+  integrations: [
+    Sentry.replayIntegration(),
+    Sentry.consoleLoggingIntegration({
+      levels: ["log", "warn", "error"],
+    }),
+  ],
 
   // 100% en dev para ver todo; 10% en prod para no quemar la cuota de Sentry.
   tracesSampleRate: process.env.NODE_ENV === "development" ? 1.0 : 0.1,
