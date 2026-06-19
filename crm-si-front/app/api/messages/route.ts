@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as Sentry from "@sentry/nextjs";
+import { proxyResponse, proxyToLaravel } from "@/lib/api/proxy-helper";
 
-function sanitizeBackendError(payload: any) {
-  return {
-    message: typeof payload?.message === "string" ? payload.message : undefined,
-    error: typeof payload?.error === "string" ? payload.error : undefined,
-    code: typeof payload?.code === "string" || typeof payload?.code === "number" ? payload.code : undefined,
-  };
+function resolveBackendBases() {
+  const stripSlash = (url?: string) => (url || "").replace(/\/$/, "");
+
+  return [
+    stripSlash(process.env.API_INTERNAL_URL),
+    stripSlash(process.env.NEXT_PUBLIC_API_URL),
+    "http://localhost:8000",
+    "http://host.docker.internal:8000",
+  ].filter(Boolean);
 }
 
 export async function POST(req: NextRequest) {
@@ -18,17 +21,10 @@ export async function POST(req: NextRequest) {
   const contentType = req.headers.get("content-type") || "";
   const isMultipart = contentType.includes("multipart/form-data");
 
-  const publicBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-  const internalBase = (process.env.API_INTERNAL_URL || "").replace(/\/$/, "");
-  const bases = [internalBase, publicBase, "http://localhost:8000", "http://host.docker.internal:8000"].filter(Boolean);
-
   // Read body once before the retry loop (streams can only be consumed once)
   let fetchBody: FormData | string;
   let requestMeta: Record<string, unknown> = {};
-  const headers: Record<string, string> = {
-    "Authorization": authHeader,
-    "Accept": "application/json",
-  };
+  const headers: Record<string, string> = {};
 
   if (isMultipart) {
     fetchBody = await req.formData();
@@ -49,35 +45,22 @@ export async function POST(req: NextRequest) {
     headers["Content-Type"] = "application/json";
   }
 
-  for (const base of bases) {
-    try {
-      const url = `${base}/api/messages`;
-      const res = await fetch(url, { method: "POST", headers, body: fetchBody });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok || res.status >= 400) {
-        if (!res.ok) {
-          Sentry.captureMessage("message_send_backend_failed", {
-            level: res.status >= 500 ? "error" : "warning",
-            tags: {
-              feature: "chats",
-              action: "send_message",
-              backend_status: String(res.status),
-            },
-            extra: {
-              backendBase: base,
-              backendError: sanitizeBackendError(data),
-              request: requestMeta,
-            },
-          });
-        }
+  const { data, status } = await proxyToLaravel("/api/messages", authHeader, {
+    method: "POST",
+    body: fetchBody,
+    headers,
+    rawBody: isMultipart,
+    baseUrls: resolveBackendBases(),
+    observability: {
+      responseErrorName: "message_send_backend_failed",
+      connectionErrorName: "message_send_backend_connection_failed",
+      feature: "chats",
+      action: "send_message",
+      requestMeta,
+    },
+  });
 
-        return NextResponse.json(data, { status: res.status });
-      }
-    } catch {
-      continue;
-    }
-  }
-  return NextResponse.json({ message: "No reachable backend" }, { status: 500 });
+  return proxyResponse(data, status);
 }
 
 export async function GET(req: NextRequest) {
@@ -86,30 +69,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: "No authorization token provided" }, { status: 401 });
   }
 
-  const body = await req.json();
-  const publicBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-  const internalBase = (process.env.API_INTERNAL_URL || "").replace(/\/$/, "");
-  const bases = [internalBase, publicBase, "http://localhost:8000", "http://host.docker.internal:8000"].filter(Boolean);
+  const { data, status } = await proxyToLaravel("/api/messages", authHeader, {
+    method: "GET",
+    baseUrls: resolveBackendBases(),
+    observability: {
+      feature: "chats",
+      action: "list_messages",
+    },
+  });
 
-  for (const base of bases) {
-    try {
-      const url = `${base}/api/messages`;
-      const res = await fetch(url, {
-        method: "GET",
-        headers: {
-          "Authorization": authHeader,
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok || res.status >= 400) {
-        return NextResponse.json(data, { status: res.status });
-      }
-    } catch {
-      continue;
-    }
-  }
-  return NextResponse.json({ message: "No reachable backend" }, { status: 500 });
+  return proxyResponse(data, status);
 }

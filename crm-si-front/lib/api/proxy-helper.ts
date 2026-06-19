@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
-import * as Sentry from "@sentry/nextjs";
+import { reportApiFailure, reportConnectionFailure } from "@/lib/observability/sentry";
 
-function sanitizeProxyPayload(payload: any) {
-  return {
-    message: typeof payload?.message === "string" ? payload.message : undefined,
-    error: typeof payload?.error === "string" ? payload.error : undefined,
-    code: typeof payload?.code === "string" || typeof payload?.code === "number" ? payload.code : undefined,
-  };
-}
+type ProxyObservabilityOptions = {
+  responseErrorName?: string;
+  connectionErrorName?: string;
+  feature?: string;
+  action?: string;
+  requestMeta?: Record<string, unknown>;
+};
+
+type ProxyToLaravelOptions = RequestInit & {
+  rawBody?: boolean;
+  baseUrls?: string[];
+  observability?: ProxyObservabilityOptions;
+};
 
 function reportProxyResponseError({
   endpoint,
@@ -15,25 +21,26 @@ function reportProxyResponseError({
   status,
   base,
   payload,
+  observability,
 }: {
   endpoint: string;
   method: string;
   status: number;
   base: string;
   payload: any;
+  observability?: ProxyObservabilityOptions;
 }) {
-  Sentry.captureMessage("laravel_proxy_response_failed", {
-    level: status >= 500 ? "error" : "warning",
-    tags: {
-      feature: "api-proxy",
-      endpoint,
-      method,
-      backend_status: String(status),
-    },
-    extra: {
-      backendBase: base,
-      backendError: sanitizeProxyPayload(payload),
-    },
+  reportApiFailure({
+    name: observability?.responseErrorName || "laravel_proxy_response_failed",
+    status,
+    payload,
+    source: "proxy",
+    feature: observability?.feature || "api-proxy",
+    action: observability?.action,
+    endpoint,
+    method,
+    backendBase: base,
+    requestMeta: observability?.requestMeta,
   });
 }
 
@@ -42,22 +49,22 @@ function reportProxyConnectionError({
   method,
   base,
   error,
+  observability,
 }: {
   endpoint: string;
   method: string;
   base: string;
   error: any;
+  observability?: ProxyObservabilityOptions;
 }) {
-  Sentry.captureException(error, {
-    tags: {
-      feature: "api-proxy",
-      endpoint,
-      method,
-    },
-    extra: {
-      backendBase: base,
-      errorCode: error?.code,
-    },
+  reportConnectionFailure({
+    name: observability?.connectionErrorName || "laravel_proxy_connection_failed",
+    error,
+    source: "proxy",
+    feature: observability?.feature || "api-proxy",
+    endpoint,
+    method,
+    backendBase: base,
   });
 }
 
@@ -80,20 +87,23 @@ export function proxyResponse(data: unknown, status: number): NextResponse {
 export async function proxyToLaravel(
   endpoint: string,
   authHeader: string,
-  options: RequestInit & { rawBody?: boolean } = {}
+  options: ProxyToLaravelOptions = {}
 ) {
   const stripSlash = (url?: string) => (url || "").replace(/\/$/, "");
   const method = (options.method || "GET").toUpperCase();
   const isRetryableMethod = method === "GET" || method === "HEAD" || method === "OPTIONS";
-  
-  const bases = [
+
+  const defaultBases = [
     stripSlash(process.env.API_INTERNAL_URL),       // Env: producción o local
     "http://host.docker.internal:8000",             // Docker fallback
     "http://localhost:8000",                        // Local fallback
   ].filter(Boolean);
 
-  const { rawBody, ...fetchOptions } = options;
+  const bases = (options.baseUrls || defaultBases).map(stripSlash).filter(Boolean);
+  const { rawBody, baseUrls, observability, ...fetchOptions } = options;
   const tried: string[] = [];
+  let lastConnectionError: unknown;
+  let lastConnectionBase: string | undefined;
 
   for (const base of bases) {
     const url = `${base}${endpoint}`;
@@ -125,6 +135,7 @@ export async function proxyToLaravel(
           status: res.status,
           base,
           payload: data,
+          observability,
         });
       }
 
@@ -144,20 +155,32 @@ export async function proxyToLaravel(
       continue;
 
     } catch (err: any) {
-      reportProxyConnectionError({
-        endpoint,
-        method,
-        base,
-        error: err,
-      });
-
       if (!isRetryableMethod) {
+        reportProxyConnectionError({
+          endpoint,
+          method,
+          base,
+          error: err,
+          observability,
+        });
         throw err;
       }
 
+      lastConnectionError = err;
+      lastConnectionBase = base;
       console.warn(`[Proxy] Failed ${base}:`, err.message);
       continue;
     }
+  }
+
+  if (lastConnectionError && lastConnectionBase) {
+    reportProxyConnectionError({
+      endpoint,
+      method,
+      base: lastConnectionBase,
+      error: lastConnectionError,
+      observability,
+    });
   }
 
   // Todos los backends fallaron o devolvieron 5xx: mensaje genérico

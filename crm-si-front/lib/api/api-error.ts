@@ -1,25 +1,24 @@
-import * as Sentry from "@sentry/nextjs";
+import { classifyApiFailure, reportApiFailure } from "@/lib/observability/sentry";
 
 const GENERIC_ERROR = "Ocurrió un error inesperado. Inténtalo de nuevo más tarde.";
 
-function sanitizeApiPayload(payload: any) {
-  return {
-    message: typeof payload?.message === "string" ? payload.message : undefined,
-    error: typeof payload?.error === "string" ? payload.error : undefined,
-    code: typeof payload?.code === "string" || typeof payload?.code === "number" ? payload.code : undefined,
-  };
-}
-
 function reportApiError(status: number, payload: any, fallback?: string) {
-  Sentry.captureMessage("api_request_failed", {
-    level: status >= 500 ? "error" : "warning",
-    tags: {
-      feature: "api",
-      http_status: String(status),
-    },
+  const classification = classifyApiFailure(status, payload);
+
+  // El server/proxy ya conserva estos casos como eventos `info`; reportarlos
+  // también en el cliente duplica issues sin aportar señal de incidente.
+  if (classification.expected) {
+    return;
+  }
+
+  reportApiFailure({
+    name: "api_request_failed",
+    status,
+    payload,
+    fallback,
+    source: "client",
+    feature: "api",
     extra: {
-      fallback,
-      apiError: sanitizeApiPayload(payload),
       page:
         typeof window !== "undefined"
           ? {
