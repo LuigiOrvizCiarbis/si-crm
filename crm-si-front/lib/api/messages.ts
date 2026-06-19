@@ -1,7 +1,6 @@
 import { Message } from "@/data/types";
 import { getAuthToken } from "./auth-token";
 import { throwApiError } from "./api-error";
-import * as Sentry from "@sentry/nextjs";
 
 function resolveMediaType(file: File): "image" | "audio" {
   if (file.type.startsWith("audio/")) {
@@ -9,46 +8,6 @@ function resolveMediaType(file: File): "image" | "audio" {
   }
 
   return "image";
-}
-
-function sanitizeApiError(payload: any) {
-  return {
-    message: typeof payload?.message === "string" ? payload.message : undefined,
-    error: typeof payload?.error === "string" ? payload.error : undefined,
-    code: typeof payload?.code === "string" || typeof payload?.code === "number" ? payload.code : undefined,
-  };
-}
-
-function reportSendMessageFailure({
-  status,
-  payload,
-  conversationId,
-  type,
-  contentLength,
-  hasMedia,
-}: {
-  status: number;
-  payload: any;
-  conversationId: number;
-  type: "text" | "image" | "audio";
-  contentLength?: number;
-  hasMedia: boolean;
-}) {
-  Sentry.captureMessage("message_send_failed", {
-    level: status >= 500 ? "error" : "warning",
-    tags: {
-      feature: "chats",
-      action: "send_message",
-      http_status: String(status),
-      message_type: type,
-    },
-    extra: {
-      conversationId,
-      contentLength,
-      hasMedia,
-      apiError: sanitizeApiError(payload),
-    },
-  });
 }
 
 export async function sendMessage(conversationId: number, content: string, media?: File) {
@@ -74,15 +33,6 @@ export async function sendMessage(conversationId: number, content: string, media
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      reportSendMessageFailure({
-        status: res.status,
-        payload: data,
-        conversationId,
-        type,
-        contentLength: type === "image" ? content.length : undefined,
-        hasMedia: true,
-      });
-
       throwApiError(
         res.status,
         data,
@@ -108,15 +58,6 @@ export async function sendMessage(conversationId: number, content: string, media
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    reportSendMessageFailure({
-      status: res.status,
-      payload: data,
-      conversationId,
-      type: "text",
-      contentLength: content.length,
-      hasMedia: false,
-    });
-
     throwApiError(res.status, data, "No se pudo enviar el mensaje");
   }
 
