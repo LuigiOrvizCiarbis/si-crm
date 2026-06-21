@@ -22,6 +22,8 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Sentry\Severity;
+use Sentry\State\Scope;
 
 class WhatsAppMessageService
 {
@@ -204,6 +206,10 @@ class WhatsAppMessageService
 
         if (! $phoneNumberId) {
             Log::warning("{$context}: phone_number_id ausente en metadata");
+            $this->reportDroppedWebhook(
+                "{$context}: phone_number_id ausente en metadata",
+                ['context' => $context]
+            );
 
             return null;
         }
@@ -214,11 +220,37 @@ class WhatsAppMessageService
 
         if (! $whatsappConfig || $whatsappConfig->channels->isEmpty()) {
             Log::warning("{$context}: canal no encontrado para phone_number_id: {$phoneNumberId}");
+            // Un mensaje de cliente que no matchea ningún canal se pierde en silencio.
+            // Lo reportamos como issue en Sentry para detectar config rota / tenant mal armado.
+            $this->reportDroppedWebhook(
+                "{$context}: canal no encontrado para phone_number_id",
+                ['context' => $context, 'phone_number_id' => $phoneNumberId]
+            );
 
             return null;
         }
 
         return $whatsappConfig->channels->first();
+    }
+
+    /**
+     * Reporta a Sentry un webhook entrante descartado en una rama crítica
+     * (sin canal resoluble → mensaje de cliente que se pierde). Se emite como
+     * captureMessage 'warning' para que genere un issue agrupable y alertable,
+     * además del Log::warning que ya queda en los logs.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    private function reportDroppedWebhook(string $message, array $context): void
+    {
+        if (! app()->bound('sentry')) {
+            return;
+        }
+
+        \Sentry\withScope(function (Scope $scope) use ($message, $context): void {
+            $scope->setContext('whatsapp_webhook', $context);
+            \Sentry\captureMessage($message, Severity::warning());
+        });
     }
 
     private function parseWebhookTimestamp(?string $timestamp): Carbon
