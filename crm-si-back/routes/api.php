@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WhatsAppTemplateController;
 use App\Http\Controllers\FacebookDataDeletionController;
+use App\Http\Controllers\HealthController;
 use App\Http\Controllers\WhatsAppController;
 use App\Models\Invitation;
 use App\Models\Scopes\TenantScope;
@@ -38,6 +39,12 @@ use Illuminate\Validation\Rules\Password as PasswordRule;
 use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+
+// Health check profundo (DB + Redis). 200 = ok, 503 = degraded.
+// En el grupo `api` (sin StartSession): no depende de la sesión Redis, así que
+// responde rápido incluso con Redis caído y puede reportar el 503 correctamente.
+// Lo consumen el healthcheck de Docker y el uptime externo (Better Stack).
+Route::get('health', HealthController::class);
 
 Route::post('login', function (Request $request): JsonResponse {
     $request->validate([

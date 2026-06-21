@@ -49,7 +49,8 @@ services:
           cpus: "1.0"
           memory: 512M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      # /api/health valida DB + Redis (no solo que PHP responda). 503 si algo está caído.
+      test: ["CMD", "curl", "-f", "http://localhost:80/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -98,7 +99,9 @@ services:
           cpus: "0.5"
           memory: 128M
     healthcheck:
-      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"localhost\", 8080) ? 0 : 1);'"]
+      # Reverb expone un endpoint de health propio en /up (responde "OK" por HTTP).
+      # Confirma que el servidor WebSocket procesa requests, no solo que el puerto está abierto.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/up || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
