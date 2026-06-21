@@ -63,7 +63,7 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:80/ || exit 1
+    CMD curl -f http://localhost:80/api/health || exit 1
 
 ENTRYPOINT ["entrypoint.sh"]
 CMD ["apache2-foreground"]
