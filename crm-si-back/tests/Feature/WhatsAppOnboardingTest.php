@@ -100,6 +100,61 @@ class WhatsAppOnboardingTest extends TestCase
         $this->assertSame('TOKEN_OWNER', Crypt::decryptString(WhatsAppConfig::first()->bussines_token));
     }
 
+    public function test_onboarding_fails_when_phone_number_cannot_be_registered(): void
+    {
+        [$tenant, $user] = $this->createTenantAndUser();
+        Sanctum::actingAs($user);
+
+        Http::fake(function ($request) {
+            $url = (string) $request->url();
+
+            if (str_contains($url, '/oauth/access_token')) {
+                return Http::response(['access_token' => 'TOKEN_AAA', 'token_type' => 'bearer'], 200);
+            }
+            if (str_contains($url, '/WABA_AAA/phone_numbers')) {
+                return Http::response(['data' => [['id' => 'PHONE_111', 'display_phone_number' => '+54 11 1111-1111']]], 200);
+            }
+            // El register falla, p. ej. número con 2FA activo.
+            if (str_contains($url, '/PHONE_111/register')) {
+                return Http::response(['error' => ['code' => 133005, 'message' => 'PIN required']], 400);
+            }
+
+            return Http::response(['error' => ['message' => "unmapped url {$url}"]], 404);
+        });
+
+        $response = $this->postJson(self::ENDPOINT, $this->payload('WABA_AAA', 'PHONE_111', 'CODE_AAA'));
+
+        $response->assertStatus(422)->assertJsonPath('success', false);
+    }
+
+    public function test_onboarding_succeeds_when_number_is_already_registered(): void
+    {
+        [$tenant, $user] = $this->createTenantAndUser();
+        Sanctum::actingAs($user);
+
+        Http::fake(function ($request) {
+            $url = (string) $request->url();
+
+            if (str_contains($url, '/oauth/access_token')) {
+                return Http::response(['access_token' => 'TOKEN_AAA', 'token_type' => 'bearer'], 200);
+            }
+            if (str_contains($url, '/WABA_AAA/phone_numbers')) {
+                return Http::response(['data' => [['id' => 'PHONE_111', 'display_phone_number' => '+54 11 1111-1111']]], 200);
+            }
+            // Onboarding normal: Meta ya registró el número.
+            if (str_contains($url, '/PHONE_111/register')) {
+                return Http::response(['error' => ['code' => 133015, 'message' => 'Phone number already registered']], 400);
+            }
+
+            return Http::response(['success' => true], 200);
+        });
+
+        $response = $this->postJson(self::ENDPOINT, $this->payload('WABA_AAA', 'PHONE_111', 'CODE_AAA'));
+
+        $response->assertOk()->assertJsonPath('success', true);
+        $this->assertSame(1, Channel::where('tenant_id', $tenant->id)->count());
+    }
+
     /**
      * @return array{0: Tenant, 1: User}
      */
@@ -166,6 +221,7 @@ class WhatsAppOnboardingTest extends TestCase
                     ], 200);
                 }
                 if (str_contains($url, "/{$entry['waba']}/subscribed_apps")
+                    || str_contains($url, "/{$entry['phone']}/register")
                     || str_contains($url, "/{$entry['phone']}/smb_app_data")) {
                     return Http::response(['success' => true], 200);
                 }
