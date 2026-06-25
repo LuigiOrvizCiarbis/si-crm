@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Search, Filter, Plus, Upload, MoreVertical, Phone, Mail, MessageSquare, Users, Loader2, Calendar, Hash, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Tags } from "lucide-react"
+import { MoreVertical, Phone, Mail, MessageSquare, Users, Loader2, Calendar, Hash, X, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, Tags } from "lucide-react"
 import { ImportContactsDialog } from "./import-contacts-dialog"
 import { BulkTagsDialog } from "./contacts/bulk-tags-dialog"
 import { getAuthToken } from "@/lib/api/auth-token"
@@ -27,7 +27,6 @@ import type { Tag } from "@/lib/api/tags"
 import { useAutosave } from "@/lib/hooks/useAutosave"
 import { cn } from "@/lib/utils"
 import { EditableCell } from "@/components/editable-cell"
-import { TagFilterMenu } from "@/components/tags/TagFilterMenu"
 import { TagChips } from "@/components/tags/TagChips"
 import { TagPicker } from "@/components/tags/TagPicker"
 import { useToast } from "@/components/Toast"
@@ -260,27 +259,21 @@ function SortableHeader({
 }
 
 interface ContactsListProps {
-  hideToolbar?: boolean
   searchTerm?: string
   onSearchTermChange?: (value: string) => void
+  sourceFilter?: string
+  tagFilterSlugs?: string[]
 }
 
-export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, onSearchTermChange }: ContactsListProps = {}) {
+export function ContactsList({
+  searchTerm = "",
+  onSearchTermChange,
+  sourceFilter = "all",
+  tagFilterSlugs = [],
+}: ContactsListProps = {}) {
   const { t } = useTranslation()
   const router = useRouter()
   const { addToast } = useToast()
-  const [searchTermInternal, setSearchTermInternal] = useState("")
-  const isSearchControlled = searchTermProp !== undefined
-  const searchTerm = isSearchControlled ? searchTermProp : searchTermInternal
-  const setSearchTerm = (value: string) => {
-    if (isSearchControlled) {
-      onSearchTermChange?.(value)
-    } else {
-      setSearchTermInternal(value)
-    }
-  }
-  const [sourceFilter, setSourceFilter] = useState<string>("all")
-  const [tagFilterSlugs, setTagFilterSlugs] = useState<string[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(20)
@@ -474,11 +467,14 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
   useEffect(() => {
     const handleNewContact = () => setDialogOpen(true)
     const handleExportCsv = () => exportCSV()
+    const handleImportCsv = () => setImportOpen(true)
     window.addEventListener("contacts-new-contact", handleNewContact)
     window.addEventListener("contacts-export-csv", handleExportCsv)
+    window.addEventListener("contacts-import-csv", handleImportCsv)
     return () => {
       window.removeEventListener("contacts-new-contact", handleNewContact)
       window.removeEventListener("contacts-export-csv", handleExportCsv)
+      window.removeEventListener("contacts-import-csv", handleImportCsv)
     }
   }, [contacts])
 
@@ -956,51 +952,6 @@ export function ContactsList({ hideToolbar = false, searchTerm: searchTermProp, 
 
   return (
     <div className="space-y-4">
-      {!hideToolbar && (
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex-1 max-w-md">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder={t("contactsPage.searchPlaceholder")}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Filter className="w-4 h-4 mr-2" />
-                  {t("contactsPage.filters.status")}: {sourceFilter === "all" ? t("contactsPage.filters.all") : sourceLabels[sourceFilter] || sourceFilter}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => setSourceFilter("all")}>{t("contactsPage.filters.all")}</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSourceFilter("whatsapp")}>WhatsApp</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSourceFilter("instagram")}>Instagram</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSourceFilter("facebook")}>Facebook</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSourceFilter("manual")}>Manual</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-              <Upload className="w-4 h-4 mr-2" />
-              Importar CSV
-            </Button>
-            <TagFilterMenu
-              selectedSlugs={tagFilterSlugs}
-              onChange={setTagFilterSlugs}
-            />
-            <Button size="sm" onClick={() => setDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              {t("contactsPage.actions.newContact")}
-            </Button>
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-col gap-3 rounded-lg border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           {paginationMeta.total > 0 ? (

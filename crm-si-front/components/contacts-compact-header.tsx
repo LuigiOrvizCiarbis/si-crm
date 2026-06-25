@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Download, Plus, Search } from "lucide-react"
+import { Download, Plus, Search, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -11,37 +11,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { TagFilterMenu } from "@/components/tags/TagFilterMenu"
 import { useTranslation } from "@/hooks/useTranslation"
 
 interface ContactsCompactHeaderProps {
   searchQuery?: string
   onSearch?: (query: string) => void
-  onStatusFilter?: (status: string) => void
+  sourceFilter?: string
+  onSourceFilter?: (source: string) => void
+  tagFilterSlugs?: string[]
+  onTagFilter?: (slugs: string[]) => void
   onExportCSV?: () => void
+  onImportCSV?: () => void
   onNewContact?: () => void
 }
 
 export function ContactsCompactHeader({
   searchQuery: searchQueryProp,
   onSearch,
-  onStatusFilter,
+  sourceFilter = "all",
+  onSourceFilter,
+  tagFilterSlugs = [],
+  onTagFilter,
   onExportCSV,
+  onImportCSV,
   onNewContact,
 }: ContactsCompactHeaderProps) {
   const { t } = useTranslation()
   const [searchQueryInternal, setSearchQueryInternal] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
   const isSearchControlled = searchQueryProp !== undefined
   const searchQuery = isSearchControlled ? searchQueryProp : searchQueryInternal
 
   const handleSearchChange = (value: string): void => {
     if (!isSearchControlled) setSearchQueryInternal(value)
     onSearch?.(value)
-  }
-
-  const handleStatusChange = (value: string): void => {
-    setStatusFilter(value)
-    onStatusFilter?.(value)
   }
 
   return (
@@ -66,18 +69,33 @@ export function ContactsCompactHeader({
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <Select value={statusFilter} onValueChange={handleStatusChange}>
+          <Select value={sourceFilter} onValueChange={(value) => onSourceFilter?.(value)}>
             <SelectTrigger className="w-[140px] h-9 hidden sm:flex">
               <SelectValue placeholder={t("contactsPage.filters.status")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("contactsPage.filters.all")}</SelectItem>
-              <SelectItem value="lead">{t("contactsPage.filters.lead")}</SelectItem>
-              <SelectItem value="qualified">{t("contactsPage.filters.qualified")}</SelectItem>
-              <SelectItem value="customer">{t("contactsPage.filters.customer")}</SelectItem>
-              <SelectItem value="inactive">{t("contactsPage.filters.inactive")}</SelectItem>
+              <SelectItem value="whatsapp">WhatsApp</SelectItem>
+              <SelectItem value="instagram">Instagram</SelectItem>
+              <SelectItem value="facebook">Facebook</SelectItem>
+              <SelectItem value="manual">Manual</SelectItem>
             </SelectContent>
           </Select>
+
+          <TagFilterMenu
+            selectedSlugs={tagFilterSlugs}
+            onChange={(slugs) => onTagFilter?.(slugs)}
+          />
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onImportCSV}
+            className="hidden md:flex gap-2 h-9 bg-transparent"
+          >
+            <Upload className="w-4 h-4" />
+            {t("contactsPage.actions.importCsv")}
+          </Button>
 
           <Button
             variant="outline"

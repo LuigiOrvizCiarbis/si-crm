@@ -9,6 +9,8 @@ import { SidebarLayout } from "@/components/SidebarLayout"
 export default function ContactosPage() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [searchQuery, setSearchQuery] = useState("")
+  const [sourceFilter, setSourceFilter] = useState("all")
+  const [tagFilterSlugs, setTagFilterSlugs] = useState<string[]>([])
 
   const handleNewContact = (): void => {
     window.dispatchEvent(new CustomEvent("contacts-new-contact"))
@@ -18,19 +20,33 @@ export default function ContactosPage() {
     window.dispatchEvent(new CustomEvent("contacts-export-csv"))
   }
 
+  const handleImportCSV = (): void => {
+    window.dispatchEvent(new CustomEvent("contacts-import-csv"))
+  }
+
   return (
     <SidebarLayout>
       <ContactsCompactHeader
         searchQuery={searchQuery}
         onSearch={setSearchQuery}
+        sourceFilter={sourceFilter}
+        onSourceFilter={setSourceFilter}
+        tagFilterSlugs={tagFilterSlugs}
+        onTagFilter={setTagFilterSlugs}
         onExportCSV={handleExportCSV}
+        onImportCSV={handleImportCSV}
         onNewContact={handleNewContact}
       />
 
       <div className="flex-1 overflow-y-auto">
         <div className="px-4 md:px-6 lg:px-8 py-6 space-y-6">
           <ContactsStats refreshKey={refreshKey} />
-          <ContactsList hideToolbar searchTerm={searchQuery} onSearchTermChange={setSearchQuery} />
+          <ContactsList
+            searchTerm={searchQuery}
+            onSearchTermChange={setSearchQuery}
+            sourceFilter={sourceFilter}
+            tagFilterSlugs={tagFilterSlugs}
+          />
         </div>
       </div>
     </SidebarLayout>

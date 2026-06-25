@@ -102,6 +102,7 @@
     },
     "actions": {
       "exportCsv": "Exportar CSV",
+      "importCsv": "Importar CSV",
       "newContact": "Nuevo contacto"
     },
     "stats": {
