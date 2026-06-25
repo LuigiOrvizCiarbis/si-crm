@@ -37,6 +37,26 @@ class WhatsAppController extends Controller
             $config = $channel->whatsappConfig;
             $warnings = [];
 
+            // Registrar el número en Cloud API. Obligatorio en coexistencia
+            // (featureType=whatsapp_business_app_onboarding): Meta crea y verifica
+            // el número pero el register es nuestro. Sin él, las llamadas siguientes
+            // devuelven 133010 "Account not registered" y el número no rutea.
+            // Falla dura: no devolvemos success:true para que el front reintente.
+            $registerOk = $this->registerPhoneNumber($config, $businessToken);
+            if (! $registerOk) {
+                Log::error('handleAuth: no se pudo registrar el número en Cloud API', [
+                    'tenant_id' => $channel->tenant_id,
+                    'phone_number_id' => $config->phone_number_id,
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pudo registrar el número en WhatsApp Cloud API. '.
+                        'Si el número tiene verificación en dos pasos activada, desactivala en la app '.
+                        'de WhatsApp Business e intentá de nuevo.',
+                ], 422);
+            }
+
             $webhookOk = $this->subscribeToWebhooks($config);
             if (! $webhookOk) {
                 $warnings[] = 'No se pudo suscribir a los webhooks de Meta. Los mensajes entrantes pueden no llegar.';
@@ -345,6 +365,63 @@ class WhatsAppController extends Controller
         }
 
         return null;
+    }
+
+    private function registerPhoneNumber(WhatsAppConfig $whatsAppConfig, string $token): bool
+    {
+        $phoneNumberId = $whatsAppConfig->phone_number_id;
+
+        if (! $phoneNumberId) {
+            Log::warning('registerPhoneNumber: phone_number_id no disponible, registro omitido');
+
+            return false;
+        }
+
+        $version = config('services.facebook.graph_version', 'v21.0');
+
+        try {
+            $response = Http::withToken($token)
+                ->post("https://graph.facebook.com/{$version}/{$phoneNumberId}/register", [
+                    'messaging_product' => 'whatsapp',
+                ]);
+
+            if ($response->successful()) {
+                Log::info('registerPhoneNumber: número registrado en Cloud API', [
+                    'phone_number_id' => $phoneNumberId,
+                ]);
+
+                return true;
+            }
+
+            $body = $response->json();
+            $errorCode = data_get($body, 'error.code');
+            $errorMessage = strtolower((string) data_get($body, 'error.message', ''));
+
+            $alreadyRegistered = in_array($errorCode, [133015], true)
+                || str_contains($errorMessage, 'already registered')
+                || str_contains($errorMessage, 'already been registered');
+
+            if ($alreadyRegistered) {
+                Log::info('registerPhoneNumber: número ya estaba registrado (idempotente)', [
+                    'phone_number_id' => $phoneNumberId,
+                    'error_code' => $errorCode,
+                ]);
+
+                return true;
+            }
+
+            Log::error('registerPhoneNumber failed', [
+                'status' => $response->status(),
+                'error' => $this->describeMetaError($body),
+                'phone_number_id' => $phoneNumberId,
+            ]);
+
+            return false;
+        } catch (\Throwable $e) {
+            Log::error('registerPhoneNumber exception', $this->describeException($e));
+
+            return false;
+        }
     }
 
     private function subscribeToWebhooks(WhatsAppConfig $whatsAppConfig): bool
