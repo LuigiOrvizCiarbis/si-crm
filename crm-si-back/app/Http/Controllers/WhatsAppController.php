@@ -52,8 +52,8 @@ class WhatsAppController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'No se pudo registrar el número en WhatsApp Cloud API. '.
-                        'Si el número tiene verificación en dos pasos activada, desactivala en la app '.
-                        'de WhatsApp Business e intentá de nuevo.',
+                        'Si el número ya tenía verificación en dos pasos configurada con un PIN propio, '.
+                        'desactivala en la app de WhatsApp Business e intentá de nuevo.',
                 ], 422);
             }
 
@@ -379,13 +379,23 @@ class WhatsAppController extends Controller
 
         $version = config('services.facebook.graph_version', 'v21.0');
 
+        // El endpoint /register exige siempre un `pin` de 6 dígitos (two-step
+        // verification). En el alta de un número nuevo, ese PIN lo define el partner
+        // (nosotros) y queda seteado como el two-step del número. Lo persistimos
+        // porque en re-registros futuros Meta pedirá ese mismo PIN. Si ya hay uno
+        // guardado lo reusamos; si no, generamos uno nuevo.
+        $pin = $whatsAppConfig->getDecryptedRegistrationPin() ?? $this->generateRegistrationPin();
+
         try {
             $response = Http::withToken($token)
                 ->post("https://graph.facebook.com/{$version}/{$phoneNumberId}/register", [
                     'messaging_product' => 'whatsapp',
+                    'pin' => $pin,
                 ]);
 
             if ($response->successful()) {
+                $whatsAppConfig->setEncryptedRegistrationPin($pin);
+
                 Log::info('registerPhoneNumber: número registrado en Cloud API', [
                     'phone_number_id' => $phoneNumberId,
                 ]);
@@ -422,6 +432,14 @@ class WhatsAppController extends Controller
 
             return false;
         }
+    }
+
+    /**
+     * Genera un PIN de 6 dígitos para la verificación en dos pasos del número.
+     */
+    private function generateRegistrationPin(): string
+    {
+        return str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     }
 
     private function subscribeToWebhooks(WhatsAppConfig $whatsAppConfig): bool
