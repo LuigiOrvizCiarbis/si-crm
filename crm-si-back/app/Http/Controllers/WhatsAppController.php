@@ -379,6 +379,19 @@ class WhatsAppController extends Controller
 
         $version = config('services.facebook.graph_version', 'v21.0');
 
+        // Flujo coexistencia (WhatsApp Business App / SMB): Meta registra el número
+        // solo durante el Embedded Signup. La doc dice explícitamente "skip the phone
+        // number registration step as the number is already registered" y el endpoint
+        // /register devuelve "Register endpoint is not available for SMB businesses".
+        // Si el número ya está en la Business App, saltamos el register (éxito).
+        if ($this->isOnBusinessApp($phoneNumberId, $token)) {
+            Log::info('registerPhoneNumber: número en coexistencia (SMB), register omitido', [
+                'phone_number_id' => $phoneNumberId,
+            ]);
+
+            return true;
+        }
+
         // El endpoint /register exige siempre un `pin` de 6 dígitos (two-step
         // verification). En el alta de un número nuevo, ese PIN lo define el partner
         // (nosotros) y queda seteado como el two-step del número. Lo persistimos
@@ -420,6 +433,17 @@ class WhatsAppController extends Controller
                 return true;
             }
 
+            // Red de seguridad: si el chequeo is_on_biz_app falló o dio falso negativo
+            // pero el número es SMB, Meta rechaza el register con este mensaje. Para
+            // coexistencia el register no aplica → lo tratamos como éxito, no error.
+            if (str_contains($errorMessage, 'not available for smb')) {
+                Log::info('registerPhoneNumber: register no disponible para SMB, omitido (idempotente)', [
+                    'phone_number_id' => $phoneNumberId,
+                ]);
+
+                return true;
+            }
+
             Log::error('registerPhoneNumber failed', [
                 'status' => $response->status(),
                 'error' => $this->describeMetaError($body),
@@ -440,6 +464,40 @@ class WhatsAppController extends Controller
     private function generateRegistrationPin(): string
     {
         return str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Indica si el número está conectado a la WhatsApp Business App (coexistencia/SMB).
+     * En ese caso Meta ya lo registró y el endpoint /register no aplica.
+     * Docs: GET /{phone_number_id}?fields=is_on_biz_app,platform_type
+     *
+     * Ante cualquier error de la consulta devuelve false: que el register lo intente
+     * y, si es SMB, el manejo del error "not available for SMB" actúa de red de seguridad.
+     */
+    private function isOnBusinessApp(string $phoneNumberId, string $token): bool
+    {
+        $version = config('services.facebook.graph_version', 'v21.0');
+
+        try {
+            $response = Http::withToken($token)
+                ->get("https://graph.facebook.com/{$version}/{$phoneNumberId}", [
+                    'fields' => 'is_on_biz_app,platform_type',
+                ]);
+
+            if ($response->successful()) {
+                return (bool) $response->json('is_on_biz_app', false);
+            }
+
+            Log::warning('isOnBusinessApp: no se pudo consultar el estado del número', [
+                'status' => $response->status(),
+                'error' => $this->describeMetaError($response->json()),
+                'phone_number_id' => $phoneNumberId,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('isOnBusinessApp exception', $this->describeException($e));
+        }
+
+        return false;
     }
 
     private function subscribeToWebhooks(WhatsAppConfig $whatsAppConfig): bool
