@@ -20,10 +20,12 @@ class WhatsAppConfig extends Model
         'webhook_url',
         'verify_token',
         'bussines_token',
+        'registration_pin',
     ];
 
     protected $hidden = [
         'bussines_token',
+        'registration_pin',
     ];
 
     /**
@@ -65,6 +67,32 @@ class WhatsAppConfig extends Model
     public function setEncryptedToken(string $token): void
     {
         $this->bussines_token = Crypt::encryptString($token);
+        $this->save();
+    }
+
+    public function getDecryptedRegistrationPin(): ?string
+    {
+        if (! $this->registration_pin) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($this->registration_pin);
+        } catch (\Exception $e) {
+            Log::error('Error decrypting registration pin for config '.$this->id, [
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Establecer el PIN de registro (two-step verification) encriptado
+     */
+    public function setEncryptedRegistrationPin(string $pin): void
+    {
+        $this->registration_pin = Crypt::encryptString($pin);
         $this->save();
     }
 }
