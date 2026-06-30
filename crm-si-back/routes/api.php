@@ -374,6 +374,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('message-hotkeys', MessageHotkeyController::class)->except(['show']);
 
     Route::get('channels', [ChannelController::class, 'index']);
+    Route::patch('channels/{id}', [ChannelController::class, 'update']);
     Route::get('channels/{id}/users', [ChannelController::class, 'users']);
     Route::post('channels/{id}/users', [ChannelController::class, 'addUser']);
     Route::delete('channels/{id}/users/{userId}', [ChannelController::class, 'removeUser']);

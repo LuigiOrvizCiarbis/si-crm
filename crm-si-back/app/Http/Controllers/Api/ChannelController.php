@@ -99,6 +99,20 @@ class ChannelController extends Controller
         ]);
     }
 
+    public function update(Request $request, $id)
+    {
+        $channel = Channel::findOrFail($id);
+        $this->authorize('update', $channel);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $channel->update(['name' => $validated['name']]);
+
+        return response()->json(['data' => $channel->refresh()]);
+    }
+
     public function assignBranch(Request $request, $id)
     {
         $channel = Channel::findOrFail($id);

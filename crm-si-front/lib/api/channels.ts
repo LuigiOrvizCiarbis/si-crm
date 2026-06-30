@@ -23,3 +23,26 @@ export async function getChannels(): Promise<Channel[]> {
 
   return json.data ?? [];
 }
+
+export async function updateChannelName(id: number, name: string): Promise<Channel> {
+  const token = getAuthToken();
+  if (!token) throw new Error("No authentication token found");
+
+  const response = await fetch(`/api/channels/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ name }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throwApiError(response.status, error, "Error al actualizar el canal");
+  }
+
+  const json = await response.json();
+
+  return json.data;
+}
