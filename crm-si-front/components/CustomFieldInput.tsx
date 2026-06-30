@@ -1,11 +1,12 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
+import { CheckIcon, ChevronDownIcon, XIcon } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -13,6 +14,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import { cn } from "@/lib/utils"
 import type { ContactField } from "@/lib/api/contact-fields"
 
 interface CustomFieldInputProps {
@@ -21,9 +32,13 @@ interface CustomFieldInputProps {
   onChange: (next: unknown) => void
   disabled?: boolean
   className?: string
+  /** Abre los pickers desplegables al montar (edición inline en celdas). */
+  autoOpen?: boolean
+  /** Se llama al cerrar un picker desplegable (para finalizar la edición inline). */
+  onPickerClose?: () => void
 }
 
-export function CustomFieldInput({ field, value, onChange, disabled, className }: CustomFieldInputProps) {
+export function CustomFieldInput({ field, value, onChange, disabled, className, autoOpen, onPickerClose }: CustomFieldInputProps) {
   const id = `cf-${field.key}`
   const choices = field.options?.choices ?? []
 
@@ -103,30 +118,16 @@ export function CustomFieldInput({ field, value, onChange, disabled, className }
       case "multi_select": {
         const selected = Array.isArray(value) ? (value as string[]) : []
         return (
-          <div className="space-y-2">
-            {choices.map((choice) => {
-              const checked = selected.includes(choice)
-              return (
-                <div key={choice} className="flex items-center gap-2">
-                  <Checkbox
-                    id={`${id}-${choice}`}
-                    checked={checked}
-                    onCheckedChange={(next) => {
-                      const value = Boolean(next)
-                      const updated = value
-                        ? Array.from(new Set([...selected, choice]))
-                        : selected.filter((c) => c !== choice)
-                      onChange(updated)
-                    }}
-                    disabled={disabled}
-                  />
-                  <Label htmlFor={`${id}-${choice}`} className="text-sm font-normal">
-                    {choice}
-                  </Label>
-                </div>
-              )
-            })}
-          </div>
+          <MultiSelectField
+            id={id}
+            label={field.label}
+            choices={choices}
+            selected={selected}
+            disabled={disabled}
+            autoOpen={autoOpen}
+            onPickerClose={onPickerClose}
+            onChange={(next) => onChange(next)}
+          />
         )
       }
       case "email":
@@ -163,12 +164,128 @@ export function CustomFieldInput({ field, value, onChange, disabled, className }
       default:
         return null
     }
-  }, [field.type, value, choices, disabled, id])
+  }, [field.type, field.label, value, choices, disabled, id, autoOpen, onPickerClose])
 
   return (
     <div className={`space-y-1 ${className ?? ""}`}>
       {labelNode}
       {inputNode}
     </div>
+  )
+}
+
+interface MultiSelectFieldProps {
+  id: string
+  label: string
+  choices: string[]
+  selected: string[]
+  disabled?: boolean
+  autoOpen?: boolean
+  onPickerClose?: () => void
+  onChange: (next: string[]) => void
+}
+
+function MultiSelectField({ id, label, choices, selected, disabled, autoOpen, onPickerClose, onChange }: MultiSelectFieldProps) {
+  const [open, setOpen] = useState(Boolean(autoOpen))
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next)
+    if (!next) onPickerClose?.()
+  }
+
+  const toggle = (choice: string) => {
+    const next = selected.includes(choice)
+      ? selected.filter((c) => c !== choice)
+      : Array.from(new Set([...selected, choice]))
+    onChange(next)
+  }
+
+  const remove = (choice: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    onChange(selected.filter((c) => c !== choice))
+  }
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <button
+          id={id}
+          type="button"
+          role="combobox"
+          aria-expanded={open}
+          aria-label={label || undefined}
+          disabled={disabled}
+          className={cn(
+            "flex min-h-9 w-full items-center gap-1.5 rounded-md border border-input bg-transparent px-2.5 py-1.5 text-left text-sm shadow-xs transition-[color,box-shadow] outline-none",
+            "hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+          )}
+        >
+          <span className="flex flex-1 flex-wrap items-center gap-1 overflow-hidden">
+            {selected.length === 0 ? (
+              <span className="text-muted-foreground">Seleccionar…</span>
+            ) : (
+              selected.map((choice) => (
+                <Badge
+                  key={choice}
+                  variant="secondary"
+                  className="h-5 gap-1 rounded-sm px-1.5 font-normal"
+                >
+                  <span className="truncate">{choice}</span>
+                  <span
+                    role="button"
+                    tabIndex={-1}
+                    aria-label={`Quitar ${choice}`}
+                    onClick={(e) => remove(choice, e)}
+                    className="-mr-0.5 flex size-3.5 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+                  >
+                    <XIcon className="size-3" />
+                  </span>
+                </Badge>
+              ))
+            )}
+          </span>
+          <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-(--radix-popover-trigger-width) min-w-56 p-0"
+        onOpenAutoFocus={(e) => choices.length > 8 ? undefined : e.preventDefault()}
+      >
+        <Command>
+          {choices.length > 8 ? <CommandInput placeholder="Buscar…" className="h-9" /> : null}
+          <CommandList>
+            <CommandEmpty>Sin resultados</CommandEmpty>
+            <CommandGroup>
+              {choices.map((choice) => {
+                const checked = selected.includes(choice)
+                return (
+                  <CommandItem
+                    key={choice}
+                    value={choice}
+                    onSelect={() => toggle(choice)}
+                    className="gap-2.5"
+                  >
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-all duration-150",
+                        checked
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-input bg-input/30 text-transparent",
+                      )}
+                    >
+                      <CheckIcon className="size-3.5" />
+                    </span>
+                    <span className="truncate">{choice}</span>
+                  </CommandItem>
+                )
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   )
 }
