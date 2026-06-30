@@ -61,7 +61,7 @@ import { MessageInput } from "@/components/chat/MessageInput"
 import { ConversationList } from "@/components/chat/ConversationList"
 import { FilteredConversationsHeader } from "@/components/chat/FilteredConversationsHeader"
 import { ChannelsList } from "@/components/chat/ChannelsList"
-import { getChannels } from "@/lib/api/channels"
+import { getChannels, updateChannelName } from "@/lib/api/channels"
 import { updateContact } from "@/lib/api/contacts"
 import { isExpectedBusinessErrorMessage } from "@/lib/observability/sentry"
 import { ChannelHeader } from "@/components/chat/AccountHeader"
@@ -206,6 +206,7 @@ export default function ChatsPage() {
   const { launchWhatsAppSignup, isFacebookSDKLoaded } = useFacebookSDK()
   const currentUserId = user?.id
   const isAdmin = (permissions ?? []).includes("conversations.view_any")
+  const canUpdateChannels = (permissions ?? []).includes("channels.update")
 
   const chatIdFromUrl = searchParams.get("chat")
 
@@ -844,6 +845,18 @@ export default function ChatsPage() {
 
   }, [router])
 
+  const handleRenameChannel = useCallback(async (channelId: number, name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    try {
+      const updated = await updateChannelName(channelId, trimmed)
+      setChannels((prev) => prev.map((c) => (c.id === channelId ? { ...c, name: updated.name } : c)))
+      addToast({ type: "success", title: t("chats.renameChannelSuccess") })
+    } catch {
+      addToast({ type: "error", title: t("chats.renameChannelError") })
+    }
+  }, [addToast, t])
+
   const handleSendTemplate = (content: string) => {
     if (!selectedConversationId) return;
 
@@ -1314,6 +1327,7 @@ export default function ChatsPage() {
           isLoading={isChannelsLoading}
           error={null}
           onChannelSelect={onChannelSelect}
+          onRenameChannel={canUpdateChannels ? handleRenameChannel : undefined}
         />
       </div>
 
