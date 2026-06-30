@@ -148,7 +148,7 @@ const COLUMN_SORT_FIELDS: Partial<Record<ColumnId, SortField>> = {
 
 function formatCustomValue(value: unknown, type: string | undefined): string {
   if (value === null || value === undefined || value === "") return "—"
-  if (Array.isArray(value)) return value.join(", ")
+  if (Array.isArray(value)) return value.length > 0 ? value.join(", ") : "—"
   if (typeof value === "boolean") return value ? "Sí" : "No"
   if (type === "date" && typeof value === "string") {
     try {
@@ -900,12 +900,17 @@ export function ContactsList({
                   }
                 }}
                 onKeyDown={(e) => {
+                  // En multi_select, Enter alterna opciones dentro del picker; cerrar
+                  // la edición lo maneja onPickerClose al cerrar el desplegable.
+                  if (e.key === "Enter" && field.type === "multi_select") return
                   if (e.key === "Escape" || e.key === "Enter") setEditingCell(null)
                 }}
               >
                 <CustomFieldInput
                   field={{ ...field, label: "" }}
                   value={raw}
+                  autoOpen
+                  onPickerClose={() => setEditingCell(null)}
                   onChange={(next) => {
                     handleCustomCellSave(contact, key, next)
                     // Single-value pickers terminan la edición tras elegir.
