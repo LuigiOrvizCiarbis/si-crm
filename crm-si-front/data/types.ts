@@ -72,7 +72,7 @@ export interface Conversation {
   unread_count?: number,
   messages?: Message[]
   tags?: Tag[]
-
+  matchedMessageSnippet?: string
 }
 
 export interface Tag {

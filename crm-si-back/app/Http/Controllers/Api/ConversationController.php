@@ -12,6 +12,7 @@ use App\Models\PipelineStage;
 use App\Services\WhatsAppMessageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
@@ -20,6 +21,10 @@ class ConversationController extends Controller
     public function index(Request $request)
     {
         $this->authorize('viewAny', Conversation::class);
+
+        $request->validate([
+            'search' => 'sometimes|string|min:2|max:100',
+        ]);
 
         $contactId = $request->query('contact_id');
         $channelId = $request->query('channel_id');
@@ -81,6 +86,28 @@ class ConversationController extends Controller
             $q->where('conversations.branch_id', (int) $request->query('branch_id'));
         }
 
+        $search = trim((string) $request->query('search', ''));
+        if ($search !== '' && mb_strlen($search) >= 2) {
+            $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search);
+            // ilike usa el índice pg_trgm en Postgres; en SQLite (tests) LIKE ya es case-insensitive
+            $likeOperator = Conversation::query()->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+
+            // ESCAPE explícito: SQLite no tiene carácter de escape por defecto en LIKE.
+            // La relación messages() usa withTrashed(), por eso el whereNull explícito.
+            $q->whereHas('messages', function ($mq) use ($escaped, $likeOperator) {
+                $mq->whereNull('messages.deleted_at')
+                    ->whereRaw("content {$likeOperator} ? escape '\\'", ["%{$escaped}%"]);
+            });
+
+            $q->select('conversations.*')->addSelect([
+                'matched_message_snippet' => Message::select('content')
+                    ->whereColumn('messages.conversation_id', 'conversations.id')
+                    ->whereRaw("content {$likeOperator} ? escape '\\'", ["%{$escaped}%"])
+                    ->orderByDesc('created_at')
+                    ->limit(1),
+            ]);
+        }
+
         if ($request->query('summary') === 'unread_count') {
             $messageUnreadCount = (clone $q)
                 ->reorder()
@@ -134,6 +161,9 @@ class ConversationController extends Controller
                 'updated_at' => $conversation->updated_at,
                 'messages' => $conversation->messages,
                 'tags' => $conversation->tags,
+                'matched_message_snippet' => $conversation->matched_message_snippet !== null
+                    ? Str::limit($conversation->matched_message_snippet, 120)
+                    : null,
             ];
         }, $data);
 

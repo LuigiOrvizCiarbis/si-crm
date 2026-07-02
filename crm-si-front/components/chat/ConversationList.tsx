@@ -7,7 +7,7 @@ import { LeadScoreBadge } from "@/components/Badges"
 import { PlatformIcon } from "@/components/chat/PlatformIcon"
 import { EmptyState } from "@/components/EmptyState"
 import { SkeletonList } from "@/components/Skeleton"
-import { MessageSquare } from "lucide-react"
+import { Loader2, MessageSquare } from "lucide-react"
 import { Conversation, Channel } from "@/data/types"
 import { channelTypeToFilterType } from "@/data/enums"
 import { useTranslation } from "@/hooks/useTranslation"
@@ -193,6 +193,8 @@ interface ConversationListProps {
   selectionMode?: boolean
   selectedIds?: Set<number>
   onToggleSelect?: (conversationId: number) => void
+  messageResults?: Conversation[]
+  isSearchingMessages?: boolean
 }
 
 export function ConversationList({
@@ -205,6 +207,8 @@ export function ConversationList({
   selectionMode = false,
   selectedIds,
   onToggleSelect,
+  messageResults = [],
+  isSearchingMessages = false,
 }: ConversationListProps) {
   const { t } = useTranslation()
   const resolvedEmptyState = emptyState ?? {
@@ -229,7 +233,9 @@ export function ConversationList({
     )
   }
 
-  if (conversations.length === 0) {
+  const hasMessageResults = messageResults.length > 0
+
+  if (conversations.length === 0 && !hasMessageResults && !isSearchingMessages) {
     return (
       <div className="flex-1 p-4 overflow-y-auto">
         <EmptyState
@@ -257,6 +263,31 @@ export function ConversationList({
           />
         ))}
       </div>
+      {(hasMessageResults || isSearchingMessages) && (
+        <div className="mt-4">
+          <div className="flex items-center gap-2 px-1 pb-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t("chats.messageResults")}
+            </p>
+            {isSearchingMessages && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+          </div>
+          <div className="space-y-2">
+            {messageResults.map((conversation) => (
+              <ConversationCard
+                key={`message-result-${conversation.id}`}
+                conversation={
+                  conversation.matchedMessageSnippet
+                    ? { ...conversation, last_message: conversation.matchedMessageSnippet }
+                    : conversation
+                }
+                channel={conversation.channel || channelMap.get(conversation.channelId)}
+                isSelected={selectedConversationId === conversation.id}
+                onClick={onConversationClick}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
