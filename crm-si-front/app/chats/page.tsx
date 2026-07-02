@@ -20,6 +20,7 @@ const ContactInfoPanel = dynamic(
 import { useChatState } from "@/hooks/useChatState"
 import { useToast } from "@/components/Toast"
 import { FilterType, Channel, Conversation, Message } from "@/data/types"
+import { filterTypeToChannelType } from "@/data/enums"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ChatQuickBar } from "@/components/ChatQuickBar"
@@ -34,6 +35,7 @@ import {
   getConversationWithMessages,
   markConversationAsRead,
   markConversationAsUnread,
+  searchConversationsByContent,
 } from "@/lib/api/conversations"
 const BulkTagsConversationsDialog = dynamic(
   () => import("@/components/chat/BulkTagsConversationsDialog").then(m => m.BulkTagsConversationsDialog),
@@ -223,6 +225,8 @@ export default function ChatsPage() {
   const [tagFilterSlugs, setTagFilterSlugs] = useState<string[]>([])
   const [viewType, setViewType] = useState<ConversationView>("inbox")
   const [searchQuery, setSearchQuery] = useState("")
+  const [messageSearchResults, setMessageSearchResults] = useState<Conversation[]>([])
+  const [isSearchingMessages, setIsSearchingMessages] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isChannelsLoading, setIsChannelsLoading] = useState(false)
   const [message, setMessage] = useState("")
@@ -589,6 +593,60 @@ export default function ChatsPage() {
       )
     })
   }, [tagFilteredConversations, searchQuery, viewType])
+
+  // Búsqueda server-side por contenido de mensajes (debounce; el filtro client-side sigue instantáneo)
+  useEffect(() => {
+    const query = searchQuery.trim()
+    if (query.length < 2) {
+      setMessageSearchResults([])
+      setIsSearchingMessages(false)
+      return
+    }
+
+    let cancelled = false
+    setIsSearchingMessages(true)
+    const timeout = setTimeout(async () => {
+      try {
+        const results = await searchConversationsByContent(query, { channelId: selectedChannelId })
+        if (!cancelled) setMessageSearchResults(results)
+      } catch {
+        if (!cancelled) setMessageSearchResults([])
+      } finally {
+        if (!cancelled) setIsSearchingMessages(false)
+      }
+    }, 400)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeout)
+    }
+  }, [searchQuery, selectedChannelId])
+
+  // Los resultados por contenido respetan los mismos filtros activos que la lista
+  // principal (tipo de canal, no-leídos, tags y vista), además del dedupe.
+  const messageOnlyResults = useMemo(() => {
+    if (searchQuery.trim().length < 2) return []
+
+    const visibleIds = new Set(visibleConversations.map((c) => c.id))
+    const tagSet = new Set(tagFilterSlugs)
+    const targetType = activeFilter !== "todos" && activeFilter !== "no-leidos"
+      ? filterTypeToChannelType(activeFilter)
+      : null
+    const matchingChannelIds = targetType
+      ? new Set(channels.filter((ch) => ch.type === targetType).map((ch) => ch.id))
+      : null
+
+    return messageSearchResults.filter((conversation) => {
+      if (visibleIds.has(conversation.id)) return false
+      if (matchingChannelIds && !matchingChannelIds.has(conversation.channelId)) return false
+      if (activeFilter === "no-leidos" && !((conversation.unread_count ?? 0) > 0 || conversation.unread)) return false
+      if (tagSet.size > 0 && !conversation.tags?.some((tag) => tagSet.has(tag.slug))) return false
+      if (viewType === "archived") return Boolean(conversation.archived)
+      if (conversation.archived) return false
+      if (viewType === "unread" && !conversation.unread) return false
+      return true
+    })
+  }, [messageSearchResults, visibleConversations, searchQuery, activeFilter, channels, tagFilterSlugs, viewType])
 
   // Parallel initial fetch: channels + conversations (independent — partial success OK)
   useEffect(() => {
@@ -1514,10 +1572,12 @@ export default function ChatsPage() {
                 selectionMode={selectionMode}
                 selectedIds={selectedConversationIds}
                 onToggleSelect={handleToggleSelectConversation}
+                messageResults={messageOnlyResults}
+                isSearchingMessages={isSearchingMessages}
                 emptyState={{
-                  title: searchQuery ? "Sin resultados" : t("chats.noConversations"),
+                  title: searchQuery ? t("chats.noSearchResults") : t("chats.noConversations"),
                   description: searchQuery
-                    ? "No hay conversaciones que coincidan con la búsqueda."
+                    ? t("chats.noSearchResultsDesc")
                     : selectedChannelId
                     ? `${activeChannel?.name}`
                     : t("chats.noConversationsDesc"),

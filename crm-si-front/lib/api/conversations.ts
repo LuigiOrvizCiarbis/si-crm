@@ -22,6 +22,7 @@ function mapConversation(c: any): Conversation {
     unread_count: c.unread_count,
     messages: c.messages,
     tags: c.tags,
+    matchedMessageSnippet: c.matched_message_snippet ?? undefined,
   };
 }
 
@@ -85,6 +86,16 @@ async function getAllConversations(params: URLSearchParams = new URLSearchParams
 
 export async function getConversations(): Promise<Conversation[]> {
   return getAllConversations();
+}
+
+export async function searchConversationsByContent(
+  query: string,
+  options: { channelId?: number | null } = {},
+): Promise<Conversation[]> {
+  const params = new URLSearchParams({ search: query, per_page: "50" });
+  if (options.channelId) params.set("channel_id", String(options.channelId));
+  const { data } = await fetchConversationsPage(params, requireToken());
+  return data;
 }
 
 export async function getConversationUnreadCount(): Promise<number> {

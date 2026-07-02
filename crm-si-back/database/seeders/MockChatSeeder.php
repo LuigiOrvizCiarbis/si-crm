@@ -84,6 +84,19 @@ class MockChatSeeder extends Seeder
                     ['in', 'Bárbaro, mañana hago el pedido', 5],
                 ],
             ],
+            [
+                // Pensada para probar la búsqueda por contenido: "presupuesto" y "100%"
+                // solo existen en mensajes viejos, nunca en el preview (último mensaje).
+                'contact' => ['name' => 'Carlos Ruiz', 'phone' => '+5491199887766'],
+                'messages' => [
+                    ['in', 'Buenas! Necesito un presupuesto para 10 licencias', 400],
+                    ['out', 'Hola Carlos, te lo armo hoy mismo.', 395],
+                    ['in', '¿Tienen descuento por volumen?', 380],
+                    ['out', 'Sí, hasta un 100% de bonificación en el primer mes.', 375],
+                    ['in', 'Excelente, quedo a la espera entonces', 370],
+                    ['out', 'Listo, cualquier cosa me escribís.', 365],
+                ],
+            ],
         ];
 
         foreach ($scripts as $script) {
