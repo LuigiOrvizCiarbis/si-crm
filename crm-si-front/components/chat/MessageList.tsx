@@ -1,7 +1,8 @@
 import { Message } from "@/data/types"
-import { useEffect, useRef, useLayoutEffect, useState } from "react"
-import { Loader2, MoreHorizontal, Pencil, Trash2, Music2 } from "lucide-react"
+import { useEffect, useRef, useLayoutEffect, useState, useMemo, useCallback } from "react"
+import { Loader2, MoreHorizontal, Pencil, Trash2, Music2, Search, X, ChevronUp, ChevronDown } from "lucide-react"
 import { useTranslation } from "@/hooks/useTranslation"
+import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +30,46 @@ interface MessageListProps {
   onDeleteMessage?: (message: Message) => void
   currentUserId?: number
   isAdmin?: boolean
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+/**
+ * Resalta las coincidencias de `query` dentro de `text`.
+ * Marca la coincidencia activa con un color distinto para la navegación.
+ */
+function highlightText(
+  text: string,
+  query: string,
+  activeKey: string | null,
+  matchKeyPrefix: string,
+): React.ReactNode {
+  if (!query) return text
+  const regex = new RegExp(`(${escapeRegExp(query)})`, "gi")
+  const parts = text.split(regex)
+  let matchIndex = 0
+  return parts.map((part, i) => {
+    if (part.toLowerCase() === query.toLowerCase()) {
+      const key = `${matchKeyPrefix}-${matchIndex++}`
+      const isActive = key === activeKey
+      return (
+        <mark
+          key={i}
+          data-match-key={key}
+          className={
+            isActive
+              ? "rounded bg-orange-400 px-0.5 text-black"
+              : "rounded bg-yellow-300/70 px-0.5 text-black"
+          }
+        >
+          {part}
+        </mark>
+      )
+    }
+    return part
+  })
 }
 
 function parseTemplateContent(content: string): { isTemplate: boolean; title: string; body: string } {
@@ -194,6 +235,105 @@ export function MessageList({
   const lastMessageIdRef = useRef<number | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Message | null>(null)
 
+  // --- Búsqueda dentro de la conversación ---
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeMatch, setActiveMatch] = useState(0)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  const normalizedQuery = searchQuery.trim()
+
+  // Texto sobre el que se busca en cada mensaje. Debe coincidir con el texto
+  // realmente resaltado en el render (plantillas muestran solo el cuerpo).
+  const getSearchableText = useCallback((msg: Message): string => {
+    if (msg.deleted_at) return ""
+    const content = msg.content || ""
+    const mediaUrl = msg.media_full_url || msg.media_url
+
+    // El audio solo renderiza el reproductor (nombre de archivo), nunca msg.content:
+    // no debe generar coincidencias fantasma.
+    if (msg.message_type === "audio" && mediaUrl) return ""
+
+    // Imagen/sticker con media renderizan el caption (msg.content) tal cual.
+    // Sin media caen al render de texto genérico, también sobre msg.content.
+    if ((msg.message_type === "image" || msg.message_type === "sticker") && mediaUrl) {
+      return content
+    }
+
+    const parsed = parseTemplateContent(content)
+    if (parsed.isTemplate) return parsed.body
+    return content
+  }, [])
+
+  // Lista ordenada de claves de coincidencia para navegar (prev/siguiente).
+  const matchKeys = useMemo(() => {
+    if (!normalizedQuery) return [] as string[]
+    const lower = normalizedQuery.toLowerCase()
+    const keys: string[] = []
+    for (const msg of messages) {
+      const text = getSearchableText(msg).toLowerCase()
+      if (!text) continue
+      let from = 0
+      let n = 0
+      let idx = text.indexOf(lower, from)
+      while (idx !== -1) {
+        keys.push(`msg-${msg.id}-${n}`)
+        n++
+        from = idx + lower.length
+        idx = text.indexOf(lower, from)
+      }
+    }
+    return keys
+  }, [messages, normalizedQuery, getSearchableText])
+
+  const matchCount = matchKeys.length
+  const activeMatchKey = matchCount > 0 ? matchKeys[Math.min(activeMatch, matchCount - 1)] : null
+
+  // Reiniciar el índice activo cuando cambia la búsqueda o los resultados.
+  useEffect(() => {
+    setActiveMatch(0)
+  }, [normalizedQuery, matchCount])
+
+  // Enfocar el input al abrir el buscador.
+  useEffect(() => {
+    if (searchOpen) {
+      searchInputRef.current?.focus()
+    } else {
+      setSearchQuery("")
+      setActiveMatch(0)
+    }
+  }, [searchOpen])
+
+  // Hacer scroll a la coincidencia activa.
+  useEffect(() => {
+    if (!activeMatchKey || !scrollRef.current) return
+    const el = scrollRef.current.querySelector(`[data-match-key="${activeMatchKey}"]`)
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" })
+    }
+  }, [activeMatchKey])
+
+  const goToNextMatch = useCallback(() => {
+    if (matchCount === 0) return
+    setActiveMatch((prev) => (prev + 1) % matchCount)
+  }, [matchCount])
+
+  const goToPrevMatch = useCallback(() => {
+    if (matchCount === 0) return
+    setActiveMatch((prev) => (prev - 1 + matchCount) % matchCount)
+  }, [matchCount])
+
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault()
+      if (event.shiftKey) goToPrevMatch()
+      else goToNextMatch()
+    } else if (event.key === "Escape") {
+      event.preventDefault()
+      setSearchOpen(false)
+    }
+  }
+
   useLayoutEffect(() => {
     if (scrollRef.current && prevScrollHeightRef.current > 0) {
       const newScrollHeight = scrollRef.current.scrollHeight
@@ -205,6 +345,8 @@ export function MessageList({
 
   useEffect(() => {
     if (messages.length === 0) return
+    // No robar el scroll a la coincidencia activa mientras se busca.
+    if (searchOpen && normalizedQuery) return
 
     const lastMsg = messages[messages.length - 1]
 
@@ -249,11 +391,95 @@ export function MessageList({
 
   return (
     <>
-      <div
-        ref={scrollRef}
-        className="flex-1 p-4 overflow-y-auto min-h-0"
-        onScroll={handleScroll}
-      >
+      {/* Contenedor relativo para superponer el buscador sobre los mensajes */}
+      <div className="relative flex flex-1 min-h-0 flex-col">
+        {/* Botón lupa flotante (cuando el buscador está cerrado) */}
+        {!searchOpen && (
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-card/90 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted hover:text-foreground"
+            title={t("chats.searchInChat")}
+            aria-label={t("chats.searchInChat")}
+          >
+            <Search className="h-4 w-4" />
+          </button>
+        )}
+
+        {/* Barra de búsqueda flotante */}
+        {searchOpen && (
+          <div className="absolute inset-x-3 top-3 z-10 flex items-center gap-1 rounded-full border border-border bg-card/95 py-1 pl-3 pr-1 shadow-lg backdrop-blur duration-150 animate-in fade-in slide-in-from-top-2">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder={t("chats.searchInChat")}
+              className="h-8 flex-1 border-0 bg-transparent px-1 text-sm shadow-none focus-visible:ring-0"
+              aria-label={t("chats.searchInChat")}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("")
+                  searchInputRef.current?.focus()
+                }}
+                className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                title={t("chats.searchClear")}
+                aria-label={t("chats.searchClear")}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <span className="min-w-[3rem] shrink-0 px-1 text-center text-xs tabular-nums text-muted-foreground">
+              {normalizedQuery
+                ? matchCount > 0
+                  ? `${activeMatch + 1}/${matchCount}`
+                  : t("chats.searchNoResults")
+                : ""}
+            </span>
+            <div className="mx-0.5 h-5 w-px shrink-0 bg-border" />
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={goToPrevMatch}
+                disabled={matchCount === 0}
+                className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                title={t("chats.searchPrev")}
+                aria-label={t("chats.searchPrev")}
+              >
+                <ChevronUp className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={goToNextMatch}
+                disabled={matchCount === 0}
+                className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                title={t("chats.searchNext")}
+                aria-label={t("chats.searchNext")}
+              >
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSearchOpen(false)}
+                className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title={t("chats.searchClose")}
+                aria-label={t("chats.searchClose")}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div
+          ref={scrollRef}
+          className={`flex-1 p-4 overflow-y-auto min-h-0 transition-[padding] ${searchOpen ? "pt-16" : ""}`}
+          onScroll={handleScroll}
+        >
         {isLoadingMore && (
           <div className="flex justify-center py-2">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -278,6 +504,7 @@ export function MessageList({
             const parsed = !isImage && !isSticker && !isAudio && !isDeleted
               ? parseTemplateContent(msg.content || "")
               : { isTemplate: false, title: "", body: "" }
+            const matchKeyPrefix = `msg-${msg.id}`
 
             return (
               <div
@@ -329,20 +556,32 @@ export function MessageList({
                       <p className="text-xs opacity-70 line-through whitespace-pre-wrap [overflow-wrap:anywhere]">
                         {msg.original_content}
                       </p>
-                      <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{msg.content}</p>
+                      <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">
+                        {normalizedQuery
+                          ? highlightText(msg.content || "", normalizedQuery, activeMatchKey, matchKeyPrefix)
+                          : msg.content}
+                      </p>
                     </div>
                   ) : isImage && imageUrl ? (
                     <div className="space-y-1">
                       <MessageBubbleImage mediaUrl={imageUrl} isUser={isUser} />
                       {msg.content && (
-                        <p className="text-sm mt-1">{msg.content}</p>
+                        <p className="text-sm mt-1">
+                          {normalizedQuery
+                            ? highlightText(msg.content, normalizedQuery, activeMatchKey, matchKeyPrefix)
+                            : msg.content}
+                        </p>
                       )}
                     </div>
                   ) : isSticker && stickerUrl ? (
                     <div className="space-y-1">
                       <MessageBubbleSticker mediaUrl={stickerUrl} />
                       {msg.content && (
-                        <p className="text-sm mt-1">{msg.content}</p>
+                        <p className="text-sm mt-1">
+                          {normalizedQuery
+                            ? highlightText(msg.content, normalizedQuery, activeMatchKey, matchKeyPrefix)
+                            : msg.content}
+                        </p>
                       )}
                     </div>
                   ) : isAudio && audioUrl ? (
@@ -354,12 +593,18 @@ export function MessageList({
                       </span>
                       {parsed.body && (
                         <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">
-                          {parsed.body}
+                          {normalizedQuery
+                            ? highlightText(parsed.body, normalizedQuery, activeMatchKey, matchKeyPrefix)
+                            : parsed.body}
                         </p>
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">{msg.content}</p>
+                    <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">
+                      {normalizedQuery
+                        ? highlightText(msg.content || "", normalizedQuery, activeMatchKey, matchKeyPrefix)
+                        : msg.content}
+                    </p>
                   )}
                   {(msg.delivered_at || msg.created_at) && (
                     <div className="flex items-center gap-1">
@@ -405,6 +650,7 @@ export function MessageList({
               </div>
             )
           })}
+          </div>
         </div>
       </div>
 
