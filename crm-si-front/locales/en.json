@@ -280,6 +280,12 @@
   },
   "chats": {
     "title": "Chats",
+    "searchInChat": "Search in conversation",
+    "searchNoResults": "No results",
+    "searchPrev": "Previous",
+    "searchNext": "Next",
+    "searchClear": "Clear",
+    "searchClose": "Close search",
     "all": "ALL",
     "unread": "UNREAD",
     "connectChannel": "Connect channel",
