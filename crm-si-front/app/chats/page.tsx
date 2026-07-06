@@ -26,6 +26,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { ChatQuickBar } from "@/components/ChatQuickBar"
 import {
   archiveConversation,
+  setAiAutoreply,
   bulkArchiveConversations,
   bulkDeleteConversations,
   bulkMarkReadConversations,
@@ -932,13 +933,14 @@ export default function ChatsPage() {
 
     setCurrentConversation((prev) => {
       if (!prev) return prev;
-      return { ...prev, messages: [...(prev.messages || []), optimisticMessage] };
+      // Handoff: enviar una plantilla también apaga la auto-respuesta IA en el backend.
+      return { ...prev, aiAutoreplyEnabled: false, messages: [...(prev.messages || []), optimisticMessage] };
     });
 
     setConversations((prevConversations) => {
       const index = prevConversations.findIndex((c) => c.id === selectedConversationId);
       if (index === -1) return prevConversations;
-      const updated = { ...prevConversations[index], last_message: content, updated_at: new Date().toISOString() };
+      const updated = { ...prevConversations[index], aiAutoreplyEnabled: false, last_message: content, updated_at: new Date().toISOString() };
       const next = [...prevConversations];
       next.splice(index, 1);
       return [updated, ...next];
@@ -1012,6 +1014,33 @@ export default function ChatsPage() {
       addToast({
         type: "error",
         title: t("chats.archiveError") || "Error al archivar",
+        description: error instanceof Error ? error.message : t("chats.unknownError"),
+      });
+    }
+  }, [selectedConversationId, addToast, t]);
+
+  const handleToggleAiAutoreply = useCallback(async (enabled: boolean) => {
+    if (!selectedConversationId) return;
+
+    const targetId = selectedConversationId;
+    const current = conversationsRef.current.find((c) => c.id === targetId);
+    const previous = Boolean(current?.aiAutoreplyEnabled);
+
+    setConversations((prev) => prev.map((c) =>
+      c.id === targetId ? { ...c, aiAutoreplyEnabled: enabled } : c
+    ));
+    setCurrentConversation((prev) => (prev && prev.id === targetId ? { ...prev, aiAutoreplyEnabled: enabled } : prev));
+
+    try {
+      await setAiAutoreply(targetId, enabled);
+    } catch (error) {
+      setConversations((prev) => prev.map((c) =>
+        c.id === targetId ? { ...c, aiAutoreplyEnabled: previous } : c
+      ));
+      setCurrentConversation((prev) => (prev && prev.id === targetId ? { ...prev, aiAutoreplyEnabled: previous } : prev));
+      addToast({
+        type: "error",
+        title: t("chats.aiAutoreplyError"),
         description: error instanceof Error ? error.message : t("chats.unknownError"),
       });
     }
@@ -1097,6 +1126,10 @@ export default function ChatsPage() {
 
         return {
           ...prev,
+          // Handoff: al responder un agente, el backend apaga la auto-respuesta
+          // IA. Reflejarlo aquí para que el switch no quede encendido (estado
+          // obsoleto) hasta un refetch.
+          aiAutoreplyEnabled: false,
           messages: (prev.messages || []).map((m: Message) =>
             String(m.id) === tempId
               ? {
@@ -1114,6 +1147,7 @@ export default function ChatsPage() {
 
         const updatedConversation = {
           ...prevConversations[index],
+          aiAutoreplyEnabled: false,
           last_message: normalizeIncomingTemplateContent(
             mediaType === "audio"
               ? "🎵 Audio"
@@ -1595,6 +1629,7 @@ export default function ChatsPage() {
                 onBack={handleBackToConversations}
                 onToggleContactInfo={() => setIsContactInfoOpen(!isContactInfoOpen)}
                 onRenameContact={handleRenameContact}
+                onToggleAiAutoreply={handleToggleAiAutoreply}
               />
               {/* Quick Bar */}
               <ChatQuickBar

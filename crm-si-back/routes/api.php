@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AiConfigController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\ChannelController;
 use App\Http\Controllers\Api\ContactController;
@@ -356,6 +357,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('contact-fields/{contact_field}', [ContactFieldController::class, 'destroy']);
     Route::post('contact-fields/reorder', [ContactFieldController::class, 'reorder']);
 
+    // Config de IA por tenant (proveedor + API key BYOK).
+    Route::get('ai-config', [AiConfigController::class, 'show']);
+    Route::get('ai-config/models', [AiConfigController::class, 'models']);
+    Route::put('ai-config', [AiConfigController::class, 'update']);
+
     Route::get('conversations', [ConversationController::class, 'index']);
     Route::post('conversations/bulk-tags', [ConversationController::class, 'bulkTags']);
     Route::post('conversations/bulk-assign', [ConversationController::class, 'bulkAssign']);
@@ -392,6 +398,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('opportunities/{id}/stage', [OpportunityController::class, 'updateStage']);
     Route::patch('conversations/{id}/stage', [ConversationController::class, 'updateStage']);
     Route::patch('conversations/{id}/archive', [ConversationController::class, 'archive']);
+    Route::patch('conversations/{id}/ai-autoreply', [ConversationController::class, 'aiAutoreply']);
     Route::post('conversations/{id}/read', [ConversationController::class, 'markAsRead']);
     Route::post('conversations/{id}/unread', [ConversationController::class, 'markAsUnread']);
 

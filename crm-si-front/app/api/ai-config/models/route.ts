@@ -8,15 +8,17 @@ export async function GET(request: NextRequest) {
 
   if (!authHeader) {
     return NextResponse.json(
-      { error: "Authorization token missing" },
+      { error: "Authorization header required" },
       { status: 401 }
     );
   }
 
   try {
-    const { data, status } = await proxyToLaravel("/api/users", authHeader, {
-      cache: "no-store",
-    });
+    const { data, status } = await proxyToLaravel(
+      "/api/ai-config/models",
+      authHeader,
+      { cache: "no-store", timeoutMs: 12000 }
+    );
     return NextResponse.json(data, { status });
   } catch {
     return NextResponse.json(

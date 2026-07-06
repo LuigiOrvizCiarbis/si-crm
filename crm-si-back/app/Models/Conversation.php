@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $last_message_at
  * @property string|null $last_message_content
  * @property int|null $pipeline_stage_id
+ * @property bool $ai_autoreply_enabled
  * @property Carbon|null $archived_at
  */
 class Conversation extends Model
@@ -43,6 +44,7 @@ class Conversation extends Model
         'last_message_at',
         'last_message_content',
         'pipeline_stage_id',
+        'ai_autoreply_enabled',
         'archived_at',
     ];
 
@@ -50,6 +52,7 @@ class Conversation extends Model
 
     protected $casts = [
         'manual_unread' => 'boolean',
+        'ai_autoreply_enabled' => 'boolean',
         'last_message_at' => 'datetime',
         'archived_at' => 'datetime',
         'created_at' => 'datetime',

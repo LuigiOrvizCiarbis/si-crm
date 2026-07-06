@@ -157,6 +157,7 @@ class ConversationController extends Controller
                 'assigned_to' => $conversation->assigned_to,
                 'archived_at' => $conversation->archived_at,
                 'archived' => $conversation->archived,
+                'ai_autoreply_enabled' => (bool) $conversation->ai_autoreply_enabled,
                 'created_at' => $conversation->created_at,
                 'updated_at' => $conversation->updated_at,
                 'messages' => $conversation->messages,
@@ -417,6 +418,28 @@ class ConversationController extends Controller
                 'id' => $conversation->id,
                 'archived' => $conversation->archived,
                 'archived_at' => $conversation->archived_at,
+            ],
+        ]);
+    }
+
+    /**
+     * Activa o desactiva la auto-respuesta de IA para la conversación.
+     */
+    public function aiAutoreply(Request $request, $id): JsonResponse
+    {
+        $conversation = Conversation::where('id', $id)->firstOrFail();
+        $this->authorize('update', $conversation);
+
+        $validated = $request->validate([
+            'enabled' => 'required|boolean',
+        ]);
+
+        $conversation->update(['ai_autoreply_enabled' => $validated['enabled']]);
+
+        return response()->json([
+            'data' => [
+                'id' => $conversation->id,
+                'ai_autoreply_enabled' => $conversation->ai_autoreply_enabled,
             ],
         ]);
     }

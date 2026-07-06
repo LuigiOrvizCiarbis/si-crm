@@ -13,6 +13,13 @@ type ProxyToLaravelOptions = RequestInit & {
   rawBody?: boolean;
   baseUrls?: string[];
   observability?: ProxyObservabilityOptions;
+  /**
+   * Timeout por candidato en ms. Sin esto, un backend lento/inalcanzable
+   * cuelga el fetch hasta el timeout TCP del SO y, al probarse varias base
+   * URLs en secuencia, el request del proxy podría tardar mucho antes de
+   * fallar. Default: 15s. Se ignora si el caller pasa su propio `signal`.
+   */
+  timeoutMs?: number;
 };
 
 function reportProxyResponseError({
@@ -100,7 +107,8 @@ export async function proxyToLaravel(
   ].filter(Boolean);
 
   const bases = (options.baseUrls || defaultBases).map(stripSlash).filter(Boolean);
-  const { rawBody, baseUrls, observability, ...fetchOptions } = options;
+  const { rawBody, baseUrls, observability, timeoutMs, ...fetchOptions } = options;
+  const perRequestTimeout = timeoutMs ?? 15000;
   const tried: string[] = [];
   let lastConnectionError: unknown;
   let lastConnectionBase: string | undefined;
@@ -120,6 +128,8 @@ export async function proxyToLaravel(
 
       const res = await fetch(url, {
         ...fetchOptions,
+        // Timeout por candidato salvo que el caller ya haya provisto un signal.
+        signal: fetchOptions.signal ?? AbortSignal.timeout(perRequestTimeout),
         headers: {
           ...defaultHeaders,
           ...fetchOptions.headers,

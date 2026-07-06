@@ -7,3 +7,6 @@ crm-si-back/docker-compose.yml
 .claude
 crm-si-back/.env.local
 crm-si-front/.vscode/mcp.json
+DESIGN.md
+PRODUCT.md
+.impeccable/design.json

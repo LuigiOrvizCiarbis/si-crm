@@ -16,6 +16,9 @@ async function tryFetch(path: string): Promise<Response | null> {
         headers: {
           'Accept': 'application/json',
         },
+        // Timeout por candidato: un backend inalcanzable no debe colgar la
+        // verificación de email hasta el timeout TCP del SO.
+        signal: AbortSignal.timeout(15000),
       })
       return response
     } catch {

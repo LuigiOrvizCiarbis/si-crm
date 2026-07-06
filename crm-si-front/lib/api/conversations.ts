@@ -16,6 +16,7 @@ function mapConversation(c: any): Conversation {
     priority: c.priority,
     assigneeId: c.assigned_to,
     archived: c.archived,
+    aiAutoreplyEnabled: Boolean(c.ai_autoreply_enabled),
     channel: c.channel,
     last_message_at: c.last_message_at,
     created_at: c.created_at,
@@ -247,6 +248,29 @@ export async function archiveConversation(conversationId: number, archived: bool
 
   const payload = await res.json();
   return payload.data as { id: number; archived: boolean; archived_at: string | null };
+}
+
+export async function setAiAutoreply(conversationId: number, enabled: boolean) {
+  const token = getAuthToken();
+  if (!token) throw new Error("No token found");
+
+  const res = await fetch(`/api/conversations/${conversationId}/ai-autoreply`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ enabled }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throwApiError(res.status, errorData, "Error al actualizar la respuesta IA");
+  }
+
+  const payload = await res.json();
+  return payload.data as { id: number; ai_autoreply_enabled: boolean };
 }
 
 export type BulkConversationTagAction = "add" | "remove" | "replace";

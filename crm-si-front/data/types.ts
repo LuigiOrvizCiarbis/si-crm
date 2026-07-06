@@ -66,6 +66,7 @@ export interface Conversation {
   priority?: "baja" | "media" | "alta" | "hot"
   assigneeId?: number | string
   archived?: boolean,
+  aiAutoreplyEnabled?: boolean,
   channel?: Channel,
   last_message_at?: string,
   created_at?: string,

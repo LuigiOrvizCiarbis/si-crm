@@ -1,6 +1,6 @@
 import { Message } from "@/data/types"
 import { useEffect, useRef, useLayoutEffect, useState, useMemo, useCallback } from "react"
-import { Loader2, MoreHorizontal, Pencil, Trash2, Music2, Search, X, ChevronUp, ChevronDown } from "lucide-react"
+import { Loader2, MoreHorizontal, Pencil, Trash2, Music2, Search, X, ChevronUp, ChevronDown, Bot } from "lucide-react"
 import { useTranslation } from "@/hooks/useTranslation"
 import { Input } from "@/components/ui/input"
 import {
@@ -489,6 +489,7 @@ export function MessageList({
         <div className="space-y-4">
           {messages.map((msg) => {
             const isUser = msg.sender_type === "user"
+            const isBot = msg.sender_type === "system" && msg.direction === "outbound"
             const isDeleted = !!msg.deleted_at
             const isEdited = !!msg.edited_at && !isDeleted
             const hasOriginalContent =
@@ -509,7 +510,7 @@ export function MessageList({
             return (
               <div
                 key={msg.id}
-                className={`group/msg flex ${isUser ? "justify-end" : "justify-start"}`}
+                className={`group/msg flex ${isUser || isBot ? "justify-end" : "justify-start"}`}
               >
                 {/* Action button - before bubble for user messages */}
                 {isUser && hasActions(msg) && (
@@ -544,9 +545,17 @@ export function MessageList({
                 <div
                   className={`p-3 rounded-lg max-w-xs break-words overflow-hidden ${isUser
                       ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
+                      : isBot
+                        ? "border border-primary/30 bg-primary/10"
+                        : "bg-muted"
                     }`}
                 >
+                  {isBot && (
+                    <div className="mb-1 flex items-center gap-1 text-[11px] font-medium text-primary">
+                      <Bot className="h-3 w-3" />
+                      {t("chats.aiBadge")}
+                    </div>
+                  )}
                   {isDeleted ? (
                     <p className="text-sm italic opacity-60">
                       {t("chats.messageDeleted")}

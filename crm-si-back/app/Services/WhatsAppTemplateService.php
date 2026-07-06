@@ -35,6 +35,7 @@ class WhatsAppTemplateService
         $wabaId = $config->waba_id;
 
         $response = Http::withToken($token)
+            ->timeout(15)
             ->get('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$wabaId}/message_templates", [
                 'fields' => 'id,name,language,status,category,components',
                 'limit' => 250,
@@ -121,6 +122,7 @@ class WhatsAppTemplateService
         ];
 
         $response = Http::withToken($businessToken)
+            ->timeout(10)
             ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$businessPhoneId}/messages", $payload);
 
         if (! $response->successful()) {
@@ -143,6 +145,9 @@ class WhatsAppTemplateService
         $conversation->update([
             'last_message_at' => $message->created_at,
             'last_message_content' => $contentSummary,
+            // Handoff: si un agente envía una plantilla, el bot se apaga en esta
+            // conversación (mismo criterio que los send*FromCRM de texto/media).
+            'ai_autoreply_enabled' => false,
         ]);
 
         try {
