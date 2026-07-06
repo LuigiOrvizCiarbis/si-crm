@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { proxyToLaravel } from "@/lib/api/proxy-helper";
 
 export const dynamic = "force-dynamic";
 
@@ -7,10 +8,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const auth = request.headers.get("authorization");
-  const token = auth?.replace("Bearer ", "");
+  const authHeader = request.headers.get("authorization");
 
-  if (!token) {
+  if (!authHeader) {
     return NextResponse.json(
       { error: "Authorization header required" },
       { status: 401 }
@@ -19,44 +19,20 @@ export async function PATCH(
 
   const body = await request.json();
 
-  // Lista de posibles URLs del backend
-  const candidateUrls = [
-    process.env.API_INTERNAL_URL,
-    "http://host.docker.internal:8000",
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
-    "http://app:80",
-  ].filter((url): url is string => !!url);
-
-  const uniqueUrls = [...new Set(candidateUrls)];
-
-  const errors: any[] = [];
-
-  for (const baseUrl of uniqueUrls) {
-    try {
-      const response = await fetch(`${baseUrl}/api/conversations/${id}/stage`, {
+  try {
+    const { data, status } = await proxyToLaravel(
+      `/api/conversations/${id}/stage`,
+      authHeader,
+      {
         method: "PATCH",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(body),
-      });
-
-      if (response.ok || response.status >= 400) {
-        const data = await response.json().catch(() => ({}));
-        return NextResponse.json(data, { status: response.status });
       }
-    } catch (error: any) {
-      // Continue to next URL
-      console.error(`[PROXY] Connection to ${baseUrl} failed:`, error);
-      errors.push({ url: baseUrl, error: error.message });
-    }
+    );
+    return NextResponse.json(data, { status });
+  } catch {
+    return NextResponse.json(
+      { error: "Backend connection failed" },
+      { status: 503 }
+    );
   }
-
-  return NextResponse.json(
-    { error: "Backend connection failed", details: errors },
-    { status: 502 }
-  );
 }

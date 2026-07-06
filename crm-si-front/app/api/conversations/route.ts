@@ -1,40 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
+import { proxyToLaravel } from "@/lib/api/proxy-helper";
 
 export async function GET(req: NextRequest) {
-  const auth = req.headers.get("authorization");
-  const token = auth?.replace("Bearer ", "");
+  const authHeader = req.headers.get("authorization");
 
-  if (!token) return NextResponse.json({ message: "No auth" }, { status: 401 });
+  if (!authHeader) {
+    return NextResponse.json({ message: "No auth" }, { status: 401 });
+  }
 
-  const publicBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-  const internalBase = (process.env.API_INTERNAL_URL || "").replace(/\/$/, "");
-  const bases = [
-    internalBase,
-    publicBase,
+  const baseUrls = [
+    process.env.API_INTERNAL_URL,
+    process.env.NEXT_PUBLIC_API_URL,
     "http://localhost:8000",
     "http://host.docker.internal:8000",
-  ].filter(Boolean);
+  ].filter((url): url is string => !!url);
 
   const qs = req.nextUrl.search || "";
-  for (const base of bases) {
-    try {
-      const url = `${base}/api/conversations${qs}`;
-      const r = await fetch(url, {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await r.json().catch(() => ({}));
-      if (r.ok || r.status >= 400) {
-        return NextResponse.json(data, { status: r.status });
-      }
-    } catch {
-      continue;
-    }
+
+  try {
+    const { data, status } = await proxyToLaravel(
+      `/api/conversations${qs}`,
+      authHeader,
+      { baseUrls }
+    );
+    return NextResponse.json(data, { status });
+  } catch {
+    return NextResponse.json(
+      { message: "No reachable backend" },
+      { status: 503 }
+    );
   }
-  return NextResponse.json(
-    { message: "No reachable backend" },
-    { status: 500 }
-  );
 }

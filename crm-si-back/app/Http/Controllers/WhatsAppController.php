@@ -163,7 +163,7 @@ class WhatsAppController extends Controller
     private function exchangeCodeForToken(string $code): ?string
     {
         try {
-            $response = Http::get('https://graph.facebook.com/v21.0/oauth/access_token', [
+            $response = Http::timeout(10)->get('https://graph.facebook.com/v21.0/oauth/access_token', [
                 'client_id' => config('services.facebook.app_id'),
                 'client_secret' => config('services.facebook.app_secret'),
                 'code' => $code,
@@ -194,7 +194,7 @@ class WhatsAppController extends Controller
     private function extendTokenToPermanent(string $token): string
     {
         try {
-            $response = Http::get('https://graph.facebook.com/v21.0/oauth/access_token', [
+            $response = Http::timeout(10)->get('https://graph.facebook.com/v21.0/oauth/access_token', [
                 'grant_type' => 'fb_exchange_token',
                 'client_id' => config('services.facebook.app_id'),
                 'client_secret' => config('services.facebook.app_secret'),
@@ -339,6 +339,7 @@ class WhatsAppController extends Controller
 
         try {
             $response = Http::withToken($token)
+                ->timeout(15)
                 ->get("https://graph.facebook.com/{$version}/{$wabaId}/phone_numbers", [
                     'fields' => 'id,display_phone_number,verified_name',
                 ]);
@@ -401,6 +402,7 @@ class WhatsAppController extends Controller
 
         try {
             $response = Http::withToken($token)
+                ->timeout(15)
                 ->post("https://graph.facebook.com/{$version}/{$phoneNumberId}/register", [
                     'messaging_product' => 'whatsapp',
                     'pin' => $pin,
@@ -480,6 +482,7 @@ class WhatsAppController extends Controller
 
         try {
             $response = Http::withToken($token)
+                ->timeout(15)
                 ->get("https://graph.facebook.com/{$version}/{$phoneNumberId}", [
                     'fields' => 'is_on_biz_app,platform_type',
                 ]);
@@ -522,6 +525,7 @@ class WhatsAppController extends Controller
 
         try {
             $response = Http::withToken($token)
+                ->timeout(15)
                 ->post("https://graph.facebook.com/{$version}/{$wabaId}/subscribed_apps");
 
             if (! $response->successful()) {
@@ -564,6 +568,7 @@ class WhatsAppController extends Controller
 
         try {
             $response = Http::withToken($token)
+                ->timeout(15)
                 ->post("https://graph.facebook.com/{$version}/{$phoneNumberId}/smb_app_data", [
                     'messaging_product' => 'whatsapp',
                     'sync_type' => 'smb_app_state_sync',

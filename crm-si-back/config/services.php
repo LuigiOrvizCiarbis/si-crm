@@ -42,6 +42,13 @@ return [
         ],
     ],
 
+    // Config de IA. El proveedor, la API key, el modelo y el enabled son
+    // por-tenant (tabla ai_configs, BYOK). Acá solo queda lo global.
+    'ai' => [
+        // Cantidad de mensajes de historial que se mandan al modelo por respuesta.
+        'max_history' => env('AI_MAX_HISTORY', 20),
+    ],
+
     'facebook' => [
         'app_id' => env('FACEBOOK_APP_ID'),
         'app_secret' => env('FACEBOOK_APP_SECRET'),

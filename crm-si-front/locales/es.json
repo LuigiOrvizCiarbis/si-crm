@@ -281,6 +281,10 @@
   "chats": {
     "title": "Chats",
     "searchInChat": "Buscar en la conversación",
+    "aiAutoreply": "Respuesta IA",
+    "aiAutoreplyHint": "Responder automáticamente con IA. Se desactiva al responder un agente.",
+    "aiAutoreplyError": "Error al actualizar la respuesta IA",
+    "aiBadge": "Asistente IA",
     "searchNoResults": "Sin resultados",
     "searchPrev": "Anterior",
     "searchNext": "Siguiente",
@@ -608,6 +612,25 @@
       "created": "Atajo creado",
       "updated": "Atajo actualizado",
       "deleted": "Atajo eliminado"
+    },
+    "aiAssistant": {
+      "title": "Asistente de IA",
+      "enabled": "Auto-respuesta habilitada",
+      "enabledHint": "Responde automáticamente los mensajes entrantes usando tu proveedor de IA.",
+      "provider": "Proveedor",
+      "apiKey": "API Key",
+      "apiKeySet": "•••••••••••• (sin cambios)",
+      "apiKeyPlaceholder": "Pegá tu API key",
+      "apiKeyHint": "Se guarda encriptada y nunca se muestra. Dejá el campo vacío para no cambiarla.",
+      "model": "Modelo",
+      "modelPlaceholder": "Elegí un modelo",
+      "modelHint": "Modelos disponibles para tu API key. Actualizá la lista si cargaste una key nueva.",
+      "modelHintNoKey": "Cargá y guardá tu API key para traer los modelos disponibles.",
+      "fetchModels": "Traer modelos",
+      "modelsEmpty": "No se pudieron traer modelos. Revisá que la API key sea válida.",
+      "systemPrompt": "Instrucciones (system prompt)",
+      "systemPromptPlaceholder": "Sos un asistente de atención al cliente…",
+      "saved": "Configuración de IA guardada"
     }
   },
   "team": {
@@ -694,6 +717,7 @@
       "tasks": "Tareas",
       "tags": "Etiquetas",
       "channels": "Canales",
+      "ai_config": "Configuración de IA",
       "templates": "Plantillas WhatsApp",
       "analytics": "Analíticas",
       "users": "Usuarios",
@@ -758,6 +782,8 @@
       "channels.delete": "Eliminar canales",
       "channels.manage_users": "Gestionar usuarios del canal",
       "channels.connect_whatsapp": "Conectar WhatsApp",
+      "ai_config.view": "Ver configuración de IA",
+      "ai_config.manage": "Gestionar configuración de IA",
       "templates.view": "Ver plantillas",
       "templates.sync": "Sincronizar plantillas con Meta",
       "templates.send": "Enviar plantillas",

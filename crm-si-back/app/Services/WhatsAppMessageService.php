@@ -10,6 +10,8 @@ use App\Events\MessageDeleted;
 use App\Events\MessageEdited;
 use App\Events\MessageSent;
 use App\Events\TenantMessageReceived;
+use App\Jobs\GenerateAiReplyJob;
+use App\Models\AiConfig;
 use App\Models\Channel;
 use App\Models\Contact;
 use App\Models\Conversation;
@@ -178,6 +180,8 @@ class WhatsAppMessageService
                 'status' => 'open',
                 'last_message_at' => now(),
                 'branch_id' => $contact->branch_id ?? $channel->branch_id,
+                // El default de auto-respuesta IA se hereda de la config del canal.
+                'ai_autoreply_enabled' => (bool) $channel->whatsappConfig?->ai_autoreply_default,
             ]
         );
 
@@ -274,6 +278,7 @@ class WhatsAppMessageService
             $this->resolveOutboundWhatsAppContext($conversation);
 
         $uploadResponse = Http::withToken($businessToken)
+            ->timeout(30)
             ->attach('file', Storage::disk('public')->get($localMediaPath), basename($localMediaPath), ['Content-Type' => $mimeType])
             ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$businessPhoneId}/media", [
                 'messaging_product' => 'whatsapp',
@@ -301,6 +306,7 @@ class WhatsAppMessageService
         }
 
         $sendResponse = Http::withToken($businessToken)
+            ->timeout(10)
             ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$businessPhoneId}/messages", $messagePayload);
 
         if (! $sendResponse->successful()) {
@@ -329,6 +335,8 @@ class WhatsAppMessageService
         $conversation->update([
             'last_message_at' => $message->created_at,
             'last_message_content' => '📷 '.($caption ?: 'Imagen'),
+            // Handoff: si un humano responde, el bot se apaga en esta conversación.
+            'ai_autoreply_enabled' => false,
         ]);
 
         try {
@@ -352,6 +360,7 @@ class WhatsAppMessageService
             $this->resolveOutboundWhatsAppContext($conversation);
 
         $uploadResponse = Http::withToken($businessToken)
+            ->timeout(30)
             ->attach('file', Storage::disk('public')->get($localMediaPath), basename($localMediaPath), ['Content-Type' => $mimeType])
             ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$businessPhoneId}/media", [
                 'messaging_product' => 'whatsapp',
@@ -365,6 +374,7 @@ class WhatsAppMessageService
         $whatsappMediaId = $uploadResponse->json('id');
 
         $sendResponse = Http::withToken($businessToken)
+            ->timeout(10)
             ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$businessPhoneId}/messages", [
                 'messaging_product' => 'whatsapp',
                 'recipient_type' => 'individual',
@@ -399,6 +409,8 @@ class WhatsAppMessageService
         $conversation->update([
             'last_message_at' => $message->created_at,
             'last_message_content' => '🎵 Audio',
+            // Handoff: si un humano responde, el bot se apaga en esta conversación.
+            'ai_autoreply_enabled' => false,
         ]);
 
         try {
@@ -575,6 +587,7 @@ class WhatsAppMessageService
     {
 
         $metaResponse = Http::withToken($accessToken)
+            ->timeout(10)
             ->get("https://graph.facebook.com/v21.0/{$mediaId}");
 
         if (! $metaResponse->successful()) {
@@ -586,7 +599,7 @@ class WhatsAppMessageService
         $mediaUrl = $metaResponse->json('url');
         $mimeType = $metaResponse->json('mime_type', 'application/octet-stream');
 
-        $fileResponse = Http::withToken($accessToken)->get($mediaUrl);
+        $fileResponse = Http::withToken($accessToken)->timeout(30)->get($mediaUrl);
 
         if (! $fileResponse->successful()) {
             Log::error("Error descargando media de WhatsApp: {$fileResponse->status()}");
@@ -679,6 +692,7 @@ class WhatsAppMessageService
             }
 
             $response = Http::withToken($businessToken)
+                ->timeout(10)
                 ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$waConfig->phone_number_id}/messages", [
                     'messaging_product' => 'whatsapp',
                     'status' => 'read',
@@ -733,11 +747,22 @@ class WhatsAppMessageService
                 default => $messageData['content'] ?? '',
             };
 
+            $conversationUpdates = [
+                'last_message_at' => $message->created_at,
+                'last_message_content' => $lastContent,
+            ];
+
+            // Handoff: un eco saliente de un humano (respuesta desde el
+            // WhatsApp Business App vía processSmbMessageEchoes) apaga el bot,
+            // igual que los send*FromCRM. Sin esto, un INBOUND posterior podría
+            // disparar la auto-respuesta pese a que ya intervino una persona.
+            if ($message->direction === MessageDirection::OUTBOUND
+                && $message->sender_type === SenderType::USER) {
+                $conversationUpdates['ai_autoreply_enabled'] = false;
+            }
+
             Conversation::where('id', $messageData['conversation_id'])
-                ->update([
-                    'last_message_at' => $message->created_at,
-                    'last_message_content' => $lastContent,
-                ]);
+                ->update($conversationUpdates);
         }
 
         try {
@@ -747,7 +772,46 @@ class WhatsAppMessageService
             Log::error('Error broadcasting message: '.$e->getMessage());
         }
 
+        $this->maybeDispatchAiReply($message);
+
         return $message;
+    }
+
+    /**
+     * Despacha la generación de respuesta automática de IA si corresponde:
+     * mensaje entrante de texto del contacto, conversación con auto-respuesta
+     * activa y tenant con config de IA habilitada. El job revalida y aplica el
+     * gate BYOK (key propia) antes de responder.
+     *
+     * El delay + ShouldBeUnique del job agrupan ráfagas de mensajes
+     * consecutivos en una sola respuesta.
+     */
+    private function maybeDispatchAiReply(Message $message): void
+    {
+        if ($message->direction !== MessageDirection::INBOUND
+            || $message->sender_type !== SenderType::CONTACT
+            || $message->message_type !== MessageType::Text) {
+            return;
+        }
+
+        $conversation = Conversation::find($message->conversation_id);
+        if (! $conversation || ! $conversation->ai_autoreply_enabled) {
+            return;
+        }
+
+        // Chequeo barato para no encolar jobs no-op en tenants sin IA activa.
+        // El job hace la validación completa (incluye desencriptar la key).
+        $hasEnabledAiConfig = AiConfig::withoutGlobalScopes()
+            ->where('tenant_id', $message->tenant_id)
+            ->where('enabled', true)
+            ->exists();
+
+        if (! $hasEnabledAiConfig) {
+            return;
+        }
+
+        GenerateAiReplyJob::dispatch($conversation->id)
+            ->delay(now()->addSeconds(8));
     }
 
     /**
@@ -939,6 +1003,7 @@ class WhatsAppMessageService
             $this->resolveOutboundWhatsAppContext($conversation);
 
         $response = Http::withToken($businessToken)
+            ->timeout(10)
             ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$businessPhoneId}/messages", [
                 'messaging_product' => 'whatsapp',
                 'recipient_type' => 'individual',
@@ -970,6 +1035,8 @@ class WhatsAppMessageService
         $conversation->update([
             'last_message_at' => $message->created_at,
             'last_message_content' => $content,
+            // Handoff: si un humano responde, el bot se apaga en esta conversación.
+            'ai_autoreply_enabled' => false,
         ]);
 
         try {
@@ -977,6 +1044,64 @@ class WhatsAppMessageService
             broadcast(new TenantMessageReceived($message, $conversation->tenant_id));
         } catch (\Exception $e) {
             Log::error('Error broadcasting outbound message: '.$e->getMessage());
+        }
+
+        return $message;
+    }
+
+    /**
+     * Envía un mensaje de texto generado por el sistema (auto-respuesta IA).
+     * Igual que sendTextMessageFromCRM pero con sender_type SYSTEM y sin usuario,
+     * y sin handoff (el bot no se apaga a sí mismo).
+     */
+    public function sendSystemTextMessageFromCRM(Conversation $conversation, string $content): Message
+    {
+        ['to' => $to, 'business_phone_id' => $businessPhoneId, 'business_token' => $businessToken] =
+            $this->resolveOutboundWhatsAppContext($conversation);
+
+        // Timeout explícito: esta llamada corre en GenerateAiReplyJob (worker
+        // de colas). Sin timeout, un Graph API colgado bloquearía al worker
+        // indefinidamente y frenaría los jobs de auto-respuesta de otras
+        // conversaciones/tenants. tries=1 en el job evita duplicar el envío.
+        $response = Http::withToken($businessToken)
+            ->timeout(10)
+            ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$businessPhoneId}/messages", [
+                'messaging_product' => 'whatsapp',
+                'recipient_type' => 'individual',
+                'to' => $to,
+                'type' => 'text',
+                'text' => [
+                    'body' => $content,
+                ],
+            ]);
+
+        if (! $response->successful()) {
+            throw new \RuntimeException('Error enviando mensaje de IA a WhatsApp: '.$response->body());
+        }
+
+        $externalId = $response->json('messages.0.id');
+
+        $message = Message::create([
+            'tenant_id' => $conversation->tenant_id,
+            'conversation_id' => $conversation->id,
+            'sender_type' => SenderType::SYSTEM,
+            'content' => $content,
+            'direction' => MessageDirection::OUTBOUND,
+            'delivered_at' => now(),
+            'message_type' => MessageType::Text,
+            'external_id' => $externalId,
+        ]);
+
+        $conversation->update([
+            'last_message_at' => $message->created_at,
+            'last_message_content' => $content,
+        ]);
+
+        try {
+            broadcast(new MessageSent($message));
+            broadcast(new TenantMessageReceived($message, $conversation->tenant_id));
+        } catch (\Exception $e) {
+            Log::error('Error broadcasting AI outbound message: '.$e->getMessage());
         }
 
         return $message;

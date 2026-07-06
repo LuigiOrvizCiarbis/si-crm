@@ -281,6 +281,10 @@
   "chats": {
     "title": "Chats",
     "searchInChat": "Search in conversation",
+    "aiAutoreply": "AI reply",
+    "aiAutoreplyHint": "Reply automatically with AI. Turns off when an agent responds.",
+    "aiAutoreplyError": "Failed to update AI reply",
+    "aiBadge": "AI assistant",
     "searchNoResults": "No results",
     "searchPrev": "Previous",
     "searchNext": "Next",
@@ -608,6 +612,25 @@
       "created": "Hotkey created",
       "updated": "Hotkey updated",
       "deleted": "Hotkey deleted"
+    },
+    "aiAssistant": {
+      "title": "AI Assistant",
+      "enabled": "Auto-reply enabled",
+      "enabledHint": "Automatically reply to incoming messages using your AI provider.",
+      "provider": "Provider",
+      "apiKey": "API Key",
+      "apiKeySet": "•••••••••••• (unchanged)",
+      "apiKeyPlaceholder": "Paste your API key",
+      "apiKeyHint": "Stored encrypted and never shown. Leave empty to keep it unchanged.",
+      "model": "Model",
+      "modelPlaceholder": "Choose a model",
+      "modelHint": "Models available for your API key. Refresh the list if you added a new key.",
+      "modelHintNoKey": "Add and save your API key to fetch the available models.",
+      "fetchModels": "Fetch models",
+      "modelsEmpty": "Couldn't fetch models. Check that the API key is valid.",
+      "systemPrompt": "Instructions (system prompt)",
+      "systemPromptPlaceholder": "You are a customer support assistant…",
+      "saved": "AI configuration saved"
     }
   },
   "team": {
@@ -694,6 +717,7 @@
       "tasks": "Tasks",
       "tags": "Tags",
       "channels": "Channels",
+      "ai_config": "AI configuration",
       "templates": "WhatsApp templates",
       "analytics": "Analytics",
       "users": "Users",
@@ -758,6 +782,8 @@
       "channels.delete": "Delete channels",
       "channels.manage_users": "Manage channel users",
       "channels.connect_whatsapp": "Connect WhatsApp",
+      "ai_config.view": "View AI configuration",
+      "ai_config.manage": "Manage AI configuration",
       "templates.view": "View templates",
       "templates.sync": "Sync templates with Meta",
       "templates.send": "Send templates",

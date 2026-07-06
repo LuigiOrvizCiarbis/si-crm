@@ -21,6 +21,12 @@ class WhatsAppConfig extends Model
         'verify_token',
         'bussines_token',
         'registration_pin',
+        'ai_autoreply_default',
+        'ai_system_prompt',
+    ];
+
+    protected $casts = [
+        'ai_autoreply_default' => 'boolean',
     ];
 
     protected $hidden = [

@@ -85,6 +85,10 @@ class PermissionCatalog
                 'channels.manage_users',
                 'channels.connect_whatsapp',
             ],
+            'ai_config' => [
+                'ai_config.view',
+                'ai_config.manage',
+            ],
             'templates' => [
                 'templates.view',
                 'templates.sync',

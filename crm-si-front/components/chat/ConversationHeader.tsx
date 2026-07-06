@@ -1,8 +1,9 @@
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { LeadScoreBadge } from "@/components/Badges"
-import { ArrowLeft, Info, History, Pencil, Check, X, User, Plus } from "lucide-react"
+import { ArrowLeft, Info, History, Pencil, Check, X, User, Plus, Bot } from "lucide-react"
 import { Conversation } from "@/data/types"
 import { useEffect, useRef, useState } from "react"
 import { ContactHistoryDrawer } from "./ContactHistoryDrawer"
@@ -17,6 +18,7 @@ interface ConversationHeaderProps {
   onBack: () => void
   onToggleContactInfo: () => void
   onRenameContact?: (name: string) => Promise<void> | void
+  onToggleAiAutoreply?: (enabled: boolean) => Promise<void> | void
 }
 
 export function ConversationHeader({
@@ -25,6 +27,7 @@ export function ConversationHeader({
   onBack,
   onToggleContactInfo,
   onRenameContact,
+  onToggleAiAutoreply,
 }: ConversationHeaderProps) {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [timelineOpen, setTimelineOpen] = useState(false)
@@ -177,6 +180,20 @@ export function ConversationHeader({
           </div>
         </div>
         <div className="hidden items-center gap-2 sm:flex">
+          {onToggleAiAutoreply && (
+            <label
+              className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted/60"
+              title={t("chats.aiAutoreplyHint")}
+            >
+              <Bot className={`h-4 w-4 ${conversation.aiAutoreplyEnabled ? "text-primary" : ""}`} />
+              <span className="hidden lg:inline">{t("chats.aiAutoreply")}</span>
+              <Switch
+                checked={Boolean(conversation.aiAutoreplyEnabled)}
+                onCheckedChange={(checked) => void onToggleAiAutoreply(checked)}
+                aria-label={t("chats.aiAutoreply")}
+              />
+            </label>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -217,7 +234,20 @@ export function ConversationHeader({
         </div>
       </div>
 
-      <div className="mt-2 grid grid-cols-4 gap-1 rounded-xl bg-muted/60 p-1 sm:hidden">
+      <div className={`mt-2 grid gap-1 rounded-xl bg-muted/60 p-1 sm:hidden ${onToggleAiAutoreply ? "grid-cols-5" : "grid-cols-4"}`}>
+        {onToggleAiAutoreply && (
+          <Button
+            variant={conversation.aiAutoreplyEnabled ? "secondary" : "ghost"}
+            size="sm"
+            className="h-10 rounded-lg p-0"
+            onClick={() => void onToggleAiAutoreply(!conversation.aiAutoreplyEnabled)}
+            aria-pressed={Boolean(conversation.aiAutoreplyEnabled)}
+            title={t("chats.aiAutoreply")}
+            aria-label={t("chats.aiAutoreply")}
+          >
+            <Bot className={`h-[18px] w-[18px] ${conversation.aiAutoreplyEnabled ? "text-primary" : ""}`} />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"
