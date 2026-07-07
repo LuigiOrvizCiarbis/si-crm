@@ -31,4 +31,18 @@ interface AiProvider
      * @return list<string> IDs de modelo, ordenados alfabéticamente.
      */
     public function listModels(): array;
+
+    /**
+     * Verifica que la API key funcione y mide el system prompt.
+     *
+     * Hace un request real chico contra el proveedor para distinguir key
+     * inválida, saldo insuficiente y rate limit (a diferencia de generate(),
+     * que devuelve null ante cualquier error). Cuando el proveedor lo permite,
+     * también reporta cuántos tokens ocupa el system prompt, para saber si
+     * supera el mínimo de prompt caching. Nunca lanza.
+     *
+     * @param  string  $systemPrompt  System prompt a medir/validar.
+     * @param  string  $model  Modelo contra el que probar.
+     */
+    public function verify(string $systemPrompt, string $model): AiVerificationResult;
 }

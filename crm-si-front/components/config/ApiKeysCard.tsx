@@ -4,17 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useConfigStore } from "@/store/useConfigStore"
 import { Key, Copy, Trash2, ExternalLink } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 
 export function ApiKeysCard() {
   const { apiKeys, generateApiKey, revokeApiKey } = useConfigStore()
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const { t } = useTranslation()
 
   const handleGenerate = (env: "live" | "test") => {
     generateApiKey(env)
-    toast({
+    addToast({
+      type: "success",
       title: t("settings.apiKeyGenerated"),
       description: t("settings.apiKeyGeneratedDesc"),
     })
@@ -22,7 +23,8 @@ export function ApiKeysCard() {
 
   const handleCopy = (masked: string) => {
     navigator.clipboard.writeText(masked)
-    toast({
+    addToast({
+      type: "success",
       title: t("settings.apiKeyCopied"),
       description: t("settings.apiKeyCopiedDesc"),
     })
@@ -30,10 +32,10 @@ export function ApiKeysCard() {
 
   const handleRevoke = (id: string) => {
     revokeApiKey(id)
-    toast({
+    addToast({
       title: t("settings.apiKeyRevoked"),
       description: t("settings.apiKeyRevokedDesc"),
-      variant: "destructive",
+      type: "error",
     })
   }
 

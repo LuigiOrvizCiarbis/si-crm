@@ -15,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 import { usePermission } from "@/hooks/usePermission"
 import { useBranchesStore } from "@/store/useBranchesStore"
@@ -28,7 +28,7 @@ type SucursalesListProps = {
 }
 
 export function SucursalesList({ creating: creatingProp, onCreatingChange }: SucursalesListProps = {}) {
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const { t } = useTranslation()
   const canManage = usePermission("branches.manage")
   const { branches, loaded, loading, fetch, remove } = useBranchesStore()
@@ -47,10 +47,10 @@ export function SucursalesList({ creating: creatingProp, onCreatingChange }: Suc
     const { ok, error } = await remove(id)
     setDeletingId(null)
     if (!ok) {
-      toast({ title: t("common.error"), description: error || "", variant: "destructive" })
+      addToast({ title: t("common.error"), description: error || "", type: "error" })
       return
     }
-    toast({ title: t("sucursales.deleted") })
+    addToast({ type: "success", title: t("sucursales.deleted") })
   }
 
   if (loading && !loaded) {

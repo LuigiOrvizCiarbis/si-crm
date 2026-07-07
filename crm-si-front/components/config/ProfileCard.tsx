@@ -7,19 +7,20 @@ import { Button } from "@/components/ui/button"
 import { useConfigStore } from "@/store/useConfigStore"
 import { useState } from "react"
 import { User } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 
 export function ProfileCard() {
   const { profile, updateProfile } = useConfigStore()
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const { t } = useTranslation()
   const [accountType, setAccountType] = useState(profile.accountType)
   const [formData, setFormData] = useState(profile)
 
   const handleSave = () => {
     updateProfile(formData)
-    toast({
+    addToast({
+      type: "success",
       title: t("settings.profileSaved"),
       description: t("settings.profileSavedDesc"),
     })

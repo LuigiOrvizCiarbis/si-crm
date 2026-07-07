@@ -630,7 +630,17 @@
       "modelsEmpty": "Couldn't fetch models. Check that the API key is valid.",
       "systemPrompt": "Instructions (system prompt)",
       "systemPromptPlaceholder": "You are a customer support assistant…",
-      "saved": "AI configuration saved"
+      "saved": "AI configuration saved",
+      "test": "Test connection",
+      "testing": "Testing…",
+      "testOk": "Connection successful. The API key works.",
+      "testOkTokens": "Connection successful. System prompt: {{tokens}} tokens.",
+      "testCacheOk": "Above the cache minimum ({{min}} tokens): prompt caching applies.",
+      "testCacheBelow": "The system prompt ({{tokens}} tokens) is below the cache minimum ({{min}}): no caching.",
+      "testErrorInvalidKey": "The API key is invalid.",
+      "testErrorNoCredit": "The provider account has insufficient balance.",
+      "testErrorRateLimit": "The provider is rate limiting requests. Try again in a few seconds.",
+      "testErrorUnknown": "Couldn't verify the connection."
     }
   },
   "team": {

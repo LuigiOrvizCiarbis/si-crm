@@ -630,7 +630,17 @@
       "modelsEmpty": "No se pudieron traer modelos. Revisá que la API key sea válida.",
       "systemPrompt": "Instrucciones (system prompt)",
       "systemPromptPlaceholder": "Sos un asistente de atención al cliente…",
-      "saved": "Configuración de IA guardada"
+      "saved": "Configuración de IA guardada",
+      "test": "Probar conexión",
+      "testing": "Probando…",
+      "testOk": "Conexión exitosa. La API key funciona.",
+      "testOkTokens": "Conexión exitosa. System prompt: {{tokens}} tokens.",
+      "testCacheOk": "Supera el mínimo de caché ({{min}} tokens): se aplica prompt caching.",
+      "testCacheBelow": "El system prompt ({{tokens}} tokens) no llega al mínimo de caché ({{min}}): no se cachea.",
+      "testErrorInvalidKey": "La API key es inválida.",
+      "testErrorNoCredit": "La cuenta del proveedor no tiene saldo suficiente.",
+      "testErrorRateLimit": "El proveedor está limitando las solicitudes. Probá de nuevo en unos segundos.",
+      "testErrorUnknown": "No se pudo verificar la conexión."
     }
   },
   "team": {

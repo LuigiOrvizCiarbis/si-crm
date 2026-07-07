@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Check, X, ArrowLeft, ChevronDown, Maximize2, Minimize2 } from "lucide-react"
 import Link from "next/link"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/Toast"
 import { type BillingCycle, billingCycles, plans, comparisonRows, buildCumulativeFeatures } from "@/lib/pricing-data"
 import { Fragment } from "react"
 
@@ -14,7 +14,7 @@ export default function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("1mes")
   const [expandAll, setExpandAll] = useState(false)
   const [expandedPlans, setExpandedPlans] = useState<Set<string>>(new Set())
-  const { toast } = useToast()
+  const { addToast } = useToast()
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -41,7 +41,8 @@ export default function PricingPage() {
   }, [expandAll])
 
   const handleSelectPlan = (planName: string) => {
-    toast({
+    addToast({
+      type: "success",
       title: "Plan seleccionado",
       description: `Has seleccionado el plan ${planName}`,
     })

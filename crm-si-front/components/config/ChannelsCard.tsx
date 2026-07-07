@@ -5,16 +5,17 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useConfigStore } from "@/store/useConfigStore"
 import { MessageSquare, Plus } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 
 export function ChannelsCard() {
   const { channels } = useConfigStore()
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const { t } = useTranslation()
 
   const handleAddChannel = () => {
-    toast({
+    addToast({
+      type: "info",
       title: t("settings.addChannel"),
       description: t("common.loading"),
     })

@@ -6,14 +6,12 @@ use App\Enums\AiProvider as AiProviderEnum;
 use App\Models\AiConfig;
 use App\Services\Ai\Providers\AnthropicProvider;
 use App\Services\Ai\Providers\OpenAiProvider;
-use Illuminate\Support\Facades\Log;
 
 class AiProviderFactory
 {
     /**
      * Construye el driver correspondiente a la config del tenant, con la API
-     * key ya desencriptada. Devuelve null si falta la key o el proveedor no
-     * está soportado (loguea).
+     * key ya desencriptada. Devuelve null si falta la key.
      */
     public static function make(AiConfig $config): ?AiProvider
     {
@@ -23,20 +21,20 @@ class AiProviderFactory
             return null;
         }
 
-        return match ($config->provider) {
-            AiProviderEnum::CLAUDE => new AnthropicProvider($apiKey),
-            AiProviderEnum::OPENAI => new OpenAiProvider($apiKey),
-            default => self::unsupported($config),
-        };
+        return self::makeWithKey($config->provider, $apiKey);
     }
 
-    private static function unsupported(AiConfig $config): ?AiProvider
+    /**
+     * Construye el driver de un proveedor con una API key arbitraria (no
+     * necesariamente la guardada). Lo usa el flujo "probar conexión", que
+     * valida una key antes de persistirla. Devuelve null si el proveedor no
+     * está soportado.
+     */
+    public static function makeWithKey(AiProviderEnum $provider, string $apiKey): ?AiProvider
     {
-        Log::warning('AiProviderFactory: proveedor no soportado', [
-            'tenant_id' => $config->tenant_id,
-            'provider' => $config->provider,
-        ]);
-
-        return null;
+        return match ($provider) {
+            AiProviderEnum::CLAUDE => new AnthropicProvider($apiKey),
+            AiProviderEnum::OPENAI => new OpenAiProvider($apiKey),
+        };
     }
 }

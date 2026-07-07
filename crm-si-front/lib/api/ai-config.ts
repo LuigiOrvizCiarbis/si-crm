@@ -51,6 +51,72 @@ export async function getAiModels(): Promise<string[]> {
   return Array.isArray(json.data) ? json.data : []
 }
 
+export type AiTestErrorCode =
+  | "invalid_key"
+  | "no_credit"
+  | "rate_limit"
+  | "unknown"
+
+export interface AiTestResult {
+  ok: boolean
+  prompt_tokens: number | null
+  cache_min_tokens: number | null
+  error_code: AiTestErrorCode | null
+  error_message: string | null
+}
+
+export interface AiTestInput {
+  provider: AiProviderId
+  model?: string | null
+  system_prompt?: string | null
+  // Solo se manda si el usuario cargó una key nueva sin guardar todavía.
+  api_key?: string
+}
+
+/**
+ * Prueba la conexión con el proveedor: valida la key, distingue key inválida /
+ * saldo / rate limit y mide el system prompt. Si no se pudo contactar el
+ * backend, devuelve un resultado con error_code "unknown".
+ */
+export async function testAiConfig(input: AiTestInput): Promise<AiTestResult> {
+  const token = getAuthToken()
+  if (!token) {
+    return {
+      ok: false,
+      prompt_tokens: null,
+      cache_min_tokens: null,
+      error_code: "unknown",
+      error_message: "No auth",
+    }
+  }
+
+  const res = await fetch("/api/ai-config/test", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(input),
+  })
+
+  const json = await res.json().catch(() => ({}))
+  const data = json?.data
+
+  if (data && typeof data.ok === "boolean") {
+    return data as AiTestResult
+  }
+
+  // El back no devolvió el shape esperado (503, 502, validación sin data).
+  return {
+    ok: false,
+    prompt_tokens: null,
+    cache_min_tokens: null,
+    error_code: "unknown",
+    error_message: extractError(json),
+  }
+}
+
 export async function updateAiConfig(
   input: AiConfigInput,
 ): Promise<{ data?: AiConfig; error?: string }> {

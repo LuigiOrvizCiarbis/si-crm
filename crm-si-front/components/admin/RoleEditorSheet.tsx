@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, Crown, Info } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 import {
   createRole,
@@ -28,7 +28,7 @@ interface RoleEditorSheetProps {
 }
 
 export function RoleEditorSheet({ open, role, onClose, onSaved }: RoleEditorSheetProps) {
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const { t } = useTranslation()
   const isOwner = useIsOwner()
 
@@ -98,11 +98,11 @@ export function RoleEditorSheet({ open, role, onClose, onSaved }: RoleEditorShee
     setSaving(false)
 
     if (res.error) {
-      toast({ title: t("roles.saveError"), description: res.error, variant: "destructive" })
+      addToast({ title: t("roles.saveError"), description: res.error, type: "error" })
       return
     }
 
-    toast({ title: role ? t("roles.saveSuccess") : t("roles.createSuccess") })
+    addToast({ type: "success", title: role ? t("roles.saveSuccess") : t("roles.createSuccess") })
     onSaved()
   }
 

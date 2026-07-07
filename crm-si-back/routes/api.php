@@ -360,6 +360,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Config de IA por tenant (proveedor + API key BYOK).
     Route::get('ai-config', [AiConfigController::class, 'show']);
     Route::get('ai-config/models', [AiConfigController::class, 'models']);
+    Route::post('ai-config/test', [AiConfigController::class, 'test']);
     Route::put('ai-config', [AiConfigController::class, 'update']);
 
     Route::get('conversations', [ConversationController::class, 'index']);

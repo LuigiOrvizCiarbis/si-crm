@@ -4,7 +4,9 @@ namespace App\Services\Ai\Providers;
 
 use Anthropic\Client;
 use App\Services\Ai\AiProvider;
+use App\Services\Ai\AiVerificationResult;
 use GuzzleHttp\Client as GuzzleClient;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -88,5 +90,95 @@ class AnthropicProvider implements AiProvider
 
             return [];
         }
+    }
+
+    public function verify(string $systemPrompt, string $model): AiVerificationResult
+    {
+        $promptTokens = $this->countPromptTokens($systemPrompt, $model);
+
+        // Un create mínimo (1 token) valida key + saldo sin gastar casi nada.
+        try {
+            $response = Http::withHeaders([
+                'x-api-key' => $this->apiKey,
+                'anthropic-version' => '2023-06-01',
+            ])
+                ->timeout(10)
+                ->post('https://api.anthropic.com/v1/messages', [
+                    'model' => $model,
+                    'max_tokens' => 1,
+                    'system' => $systemPrompt,
+                    'messages' => [
+                        ['role' => 'user', 'content' => 'ok'],
+                    ],
+                ]);
+        } catch (\Throwable $e) {
+            Log::error('AnthropicProvider: verify falló (excepción)', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return AiVerificationResult::failure('unknown', $e->getMessage(), $promptTokens);
+        }
+
+        if ($response->successful()) {
+            return AiVerificationResult::ok($promptTokens);
+        }
+
+        return $this->mapError($response, $promptTokens);
+    }
+
+    /**
+     * Cuenta los tokens del system prompt vía /v1/messages/count_tokens.
+     * Devuelve null si no se pudo medir (no bloquea la verificación de la key).
+     */
+    private function countPromptTokens(string $systemPrompt, string $model): ?int
+    {
+        try {
+            $response = Http::withHeaders([
+                'x-api-key' => $this->apiKey,
+                'anthropic-version' => '2023-06-01',
+            ])
+                ->timeout(10)
+                ->post('https://api.anthropic.com/v1/messages/count_tokens', [
+                    'model' => $model,
+                    'system' => $systemPrompt,
+                    'messages' => [
+                        ['role' => 'user', 'content' => 'ok'],
+                    ],
+                ]);
+
+            if ($response->successful()) {
+                return $response->json('input_tokens');
+            }
+        } catch (\Throwable $e) {
+            Log::warning('AnthropicProvider: count_tokens falló', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return null;
+    }
+
+    /**
+     * Mapea el error HTTP de Anthropic a un código legible para la UI.
+     */
+    private function mapError(Response $response, ?int $promptTokens): AiVerificationResult
+    {
+        $status = $response->status();
+        $message = $response->json('error.message') ?? $response->body();
+
+        $code = match (true) {
+            $status === 401 => 'invalid_key',
+            $status === 429 => 'rate_limit',
+            $status === 400 && str_contains(strtolower((string) $message), 'credit balance') => 'no_credit',
+            default => 'unknown',
+        };
+
+        Log::warning('AnthropicProvider: verify falló', [
+            'status' => $status,
+            'code' => $code,
+            'message' => $message,
+        ]);
+
+        return AiVerificationResult::failure($code, $message, $promptTokens);
     }
 }

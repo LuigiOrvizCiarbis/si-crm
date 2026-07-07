@@ -5,24 +5,26 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useConfigStore } from "@/store/useConfigStore"
 import { Shield, Smartphone } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 
 export function SecurityCard() {
   const { security, setSecurity, removeSession } = useConfigStore()
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const { t } = useTranslation()
 
   const handleToggle2FA = () => {
     setSecurity({ twoFAEnabled: !security.twoFAEnabled })
-    toast({
+    addToast({
+      type: "info",
       title: security.twoFAEnabled ? t("settings.disable2FA") : t("settings.enable2FA"),
     })
   }
 
   const handleRemoveSession = (id: string) => {
     removeSession(id)
-    toast({
+    addToast({
+      type: "info",
       title: t("settings.logoutSession"),
     })
   }

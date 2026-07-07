@@ -3,7 +3,9 @@
 namespace App\Services\Ai\Providers;
 
 use App\Services\Ai\AiProvider;
+use App\Services\Ai\AiVerificationResult;
 use GuzzleHttp\Client as GuzzleClient;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use OpenAI;
@@ -87,5 +89,60 @@ class OpenAiProvider implements AiProvider
 
             return [];
         }
+    }
+
+    public function verify(string $systemPrompt, string $model): AiVerificationResult
+    {
+        // OpenAI no expone un endpoint de conteo de tokens, así que solo
+        // validamos key + saldo con un create mínimo. prompt_tokens queda null.
+        try {
+            $response = Http::withToken($this->apiKey)
+                ->timeout(10)
+                ->post('https://api.openai.com/v1/chat/completions', [
+                    'model' => $model,
+                    'max_tokens' => 1,
+                    'messages' => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => 'ok'],
+                    ],
+                ]);
+        } catch (\Throwable $e) {
+            Log::error('OpenAiProvider: verify falló (excepción)', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return AiVerificationResult::failure('unknown', $e->getMessage());
+        }
+
+        if ($response->successful()) {
+            return AiVerificationResult::ok();
+        }
+
+        return $this->mapError($response);
+    }
+
+    /**
+     * Mapea el error HTTP de OpenAI a un código legible para la UI.
+     */
+    private function mapError(Response $response): AiVerificationResult
+    {
+        $status = $response->status();
+        $message = $response->json('error.message') ?? $response->body();
+        $type = $response->json('error.type');
+
+        $code = match (true) {
+            $status === 401 => 'invalid_key',
+            $status === 429 && $type === 'insufficient_quota' => 'no_credit',
+            $status === 429 => 'rate_limit',
+            default => 'unknown',
+        };
+
+        Log::warning('OpenAiProvider: verify falló', [
+            'status' => $status,
+            'code' => $code,
+            'message' => $message,
+        ]);
+
+        return AiVerificationResult::failure($code, $message);
     }
 }
