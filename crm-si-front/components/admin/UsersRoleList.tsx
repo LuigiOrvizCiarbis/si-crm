@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, User as UserIcon } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 import { getUsers, type SystemUser } from "@/lib/api/users"
 import { assignUserRole, getRoles, type Role } from "@/lib/api/roles"
@@ -13,7 +13,7 @@ import { useAuthStore } from "@/store/useAuthStore"
 import { useIsOwner, usePermission } from "@/hooks/usePermission"
 
 export function UsersRoleList() {
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const { t } = useTranslation()
   const currentUser = useAuthStore((s) => s.user)
   const canAssign = usePermission("users.assign_role")
@@ -42,10 +42,10 @@ export function UsersRoleList() {
     setSavingUserId(null)
 
     if (error) {
-      toast({ title: t("roles.assignError"), description: error, variant: "destructive" })
+      addToast({ title: t("roles.assignError"), description: error, type: "error" })
       return
     }
-    toast({ title: t("roles.assignSuccess") })
+    addToast({ type: "success", title: t("roles.assignSuccess") })
     load()
   }
 

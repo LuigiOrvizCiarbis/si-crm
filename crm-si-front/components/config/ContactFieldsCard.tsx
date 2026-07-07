@@ -26,7 +26,7 @@ import { Switch } from "@/components/ui/switch"
 import { Loader2, Pencil, Plus, Trash2, GripVertical } from "lucide-react"
 
 import { useTranslation } from "@/hooks/useTranslation"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/Toast"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useContactFieldsStore } from "@/store/useContactFieldsStore"
 import type { ContactField, ContactFieldType } from "@/lib/api/contact-fields"
@@ -83,7 +83,7 @@ function needsOptions(type: ContactFieldType): boolean {
 
 export function ContactFieldsCard() {
   const { t } = useTranslation()
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const permissions = useAuthStore((s) => s.permissions ?? [])
   const canView = permissions.includes("contact_fields.view") || permissions.includes("contact_fields.manage")
   const canManage = permissions.includes("contact_fields.manage")
@@ -128,7 +128,7 @@ export function ContactFieldsCard() {
     if (needsOptions(form.type)) {
       const parsed = form.choices.split("\n").map((c) => c.trim()).filter(Boolean)
       if (parsed.length === 0) {
-        toast({ variant: "destructive", title: t("contactsPage.customFields.errors.optionsRequired") })
+        addToast({ type: "error", title: t("contactsPage.customFields.errors.optionsRequired") })
         return
       }
     }
@@ -144,7 +144,7 @@ export function ContactFieldsCard() {
           is_unique: form.is_unique,
         })
         if (result) {
-          toast({ title: t("contactsPage.customFields.savedTitle") })
+          addToast({ type: "success", title: t("contactsPage.customFields.savedTitle") })
           setOpen(false)
         }
       } else {
@@ -156,7 +156,7 @@ export function ContactFieldsCard() {
           is_unique: form.is_unique,
         })
         if (result) {
-          toast({ title: t("contactsPage.customFields.savedTitle") })
+          addToast({ type: "success", title: t("contactsPage.customFields.savedTitle") })
           setOpen(false)
         }
       }
@@ -168,7 +168,7 @@ export function ContactFieldsCard() {
   const onDelete = async (field: ContactField) => {
     if (!confirm(t("contactsPage.customFields.deleteConfirm").replace("{label}", field.label))) return
     const ok = await remove(field.id)
-    if (ok) toast({ title: t("contactsPage.customFields.deletedTitle") })
+    if (ok) addToast({ type: "success", title: t("contactsPage.customFields.deletedTitle") })
   }
 
   const handleDragEnd = (event: DragEndEvent) => {

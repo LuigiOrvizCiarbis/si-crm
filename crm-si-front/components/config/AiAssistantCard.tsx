@@ -14,8 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Bot, Loader2, RefreshCw } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { Bot, Loader2, RefreshCw, PlugZap } from "lucide-react"
+import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useAuthStore } from "@/store/useAuthStore"
 import { isAdminRole } from "@/lib/permissions"
@@ -23,6 +23,7 @@ import {
   getAiConfig,
   getAiModels,
   updateAiConfig,
+  testAiConfig,
   type AiProviderId,
 } from "@/lib/api/ai-config"
 
@@ -32,7 +33,7 @@ const PROVIDERS: { id: AiProviderId; label: string; defaultModel: string }[] = [
 ]
 
 export function AiAssistantCard() {
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const { t } = useTranslation()
   const role = useAuthStore((state) => state.role)
   const permissions = useAuthStore((state) => state.permissions)
@@ -51,6 +52,7 @@ export function AiAssistantCard() {
   const [hasApiKey, setHasApiKey] = useState(false)
   const [models, setModels] = useState<string[]>([])
   const [loadingModels, setLoadingModels] = useState(false)
+  const [testing, setTesting] = useState(false)
 
   useEffect(() => {
     loadConfig()
@@ -84,9 +86,9 @@ export function AiAssistantCard() {
   const handleFetchModels = async () => {
     const list = await fetchModels()
     if (list.length === 0) {
-      toast({
+      addToast({
+        type: "error",
         title: t("settings.aiAssistant.modelsEmpty"),
-        variant: "destructive",
       })
     }
   }
@@ -108,10 +110,10 @@ export function AiAssistantCard() {
     setSaving(false)
 
     if (result.error) {
-      toast({
+      addToast({
+        type: "error",
         title: t("common.error"),
         description: result.error,
-        variant: "destructive",
       })
       return
     }
@@ -125,7 +127,57 @@ export function AiAssistantCard() {
     }
     setApiKey("")
 
-    toast({ title: t("settings.aiAssistant.saved") })
+    addToast({ type: "success", title: t("settings.aiAssistant.saved") })
+  }
+
+  const handleTest = async () => {
+    setTesting(true)
+
+    const result = await testAiConfig({
+      provider,
+      model: model.trim() || null,
+      system_prompt: systemPrompt.trim() || null,
+      // Solo mandamos la key si el usuario escribió una nueva sin guardar aún.
+      ...(apiKey.trim() ? { api_key: apiKey.trim() } : {}),
+    })
+
+    setTesting(false)
+
+    if (!result.ok) {
+      const map: Record<string, string> = {
+        invalid_key: "settings.aiAssistant.testErrorInvalidKey",
+        no_credit: "settings.aiAssistant.testErrorNoCredit",
+        rate_limit: "settings.aiAssistant.testErrorRateLimit",
+      }
+      const key = map[result.error_code ?? ""] ?? "settings.aiAssistant.testErrorUnknown"
+      addToast({
+        type: "error",
+        title: t("common.error"),
+        description: t(key),
+      })
+      return
+    }
+
+    // Éxito. Si el proveedor devolvió el conteo de tokens, informamos si el
+    // system prompt alcanza el mínimo de prompt caching.
+    const { prompt_tokens: tokens, cache_min_tokens: min } = result
+    let description = t("settings.aiAssistant.testOk")
+    if (tokens != null) {
+      description = t("settings.aiAssistant.testOkTokens", { tokens })
+      if (min != null) {
+        description +=
+          " " +
+          (tokens >= min
+            ? t("settings.aiAssistant.testCacheOk", { min })
+            : t("settings.aiAssistant.testCacheBelow", { tokens, min }))
+      }
+    }
+
+    addToast({
+      type: "success",
+      title: t("settings.aiAssistant.testOk"),
+      description,
+    })
   }
 
   if (!isAdmin) {
@@ -259,8 +311,23 @@ export function AiAssistantCard() {
               />
             </div>
 
-            <div className="flex justify-end">
-              <Button onClick={handleSave} disabled={saving}>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleTest}
+                disabled={testing || saving || (!hasApiKey && !apiKey.trim())}
+              >
+                {testing ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <PlugZap className="w-4 h-4 mr-2" />
+                )}
+                {testing
+                  ? t("settings.aiAssistant.testing")
+                  : t("settings.aiAssistant.test")}
+              </Button>
+              <Button onClick={handleSave} disabled={saving || testing}>
                 {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {t("common.save")}
               </Button>

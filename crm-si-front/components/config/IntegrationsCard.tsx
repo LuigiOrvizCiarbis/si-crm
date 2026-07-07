@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { useConfigStore } from "@/store/useConfigStore"
 import { Plug } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 
 const descKeys: Record<string, string> = {
@@ -21,12 +21,13 @@ const descKeys: Record<string, string> = {
 
 export function IntegrationsCard() {
   const { integrations, toggleIntegration } = useConfigStore()
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const { t } = useTranslation()
 
   const handleToggle = (id: any) => {
     toggleIntegration(id)
-    toast({
+    addToast({
+      type: "success",
       title: t("settings.integrationUpdated"),
       description: t("settings.integrationUpdatedDesc"),
     })

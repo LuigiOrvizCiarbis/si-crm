@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Pencil, Trash2, Plus, Loader2, ShieldCheck, Eye, Crown } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 import { deleteRole, getRoles, type Role } from "@/lib/api/roles"
 import { useIsOwner, usePermission } from "@/hooks/usePermission"
@@ -23,7 +23,7 @@ import {
 import { RoleEditorSheet } from "./RoleEditorSheet"
 
 export function RolesList() {
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const { t } = useTranslation()
   const canManage = usePermission("roles.manage")
   const isOwner = useIsOwner()
@@ -49,10 +49,10 @@ export function RolesList() {
     const { error } = await deleteRole(id)
     setDeletingId(null)
     if (error) {
-      toast({ title: t("common.error"), description: error, variant: "destructive" })
+      addToast({ title: t("common.error"), description: error, type: "error" })
       return
     }
-    toast({ title: t("roles.deleteSuccess") })
+    addToast({ type: "success", title: t("roles.deleteSuccess") })
     load()
   }
 

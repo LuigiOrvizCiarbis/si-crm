@@ -17,7 +17,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Zap, Loader2, Pencil, Trash2, Plus } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useAuthStore } from "@/store/useAuthStore"
 import { isAdminRole } from "@/lib/permissions"
@@ -46,7 +46,7 @@ const emptyForm: FormState = {
 }
 
 export function MessageHotkeysCard() {
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const { t } = useTranslation()
   const role = useAuthStore((state) => state.role)
   const permissions = useAuthStore((state) => state.permissions)
@@ -114,15 +114,16 @@ export function MessageHotkeysCard() {
     setSaving(false)
 
     if (result.error) {
-      toast({
+      addToast({
         title: t("common.error"),
         description: result.error,
-        variant: "destructive",
+        type: "error",
       })
       return
     }
 
-    toast({
+    addToast({
+      type: "success",
       title: editing
         ? t("settings.hotkeys.updated")
         : t("settings.hotkeys.created"),
@@ -138,10 +139,10 @@ export function MessageHotkeysCard() {
 
     const { error } = await deleteMessageHotkey(hotkey.id)
     if (error) {
-      toast({ title: t("common.error"), description: error, variant: "destructive" })
+      addToast({ title: t("common.error"), description: error, type: "error" })
       return
     }
-    toast({ title: t("settings.hotkeys.deleted") })
+    addToast({ type: "success", title: t("settings.hotkeys.deleted") })
     loadHotkeys()
   }
 

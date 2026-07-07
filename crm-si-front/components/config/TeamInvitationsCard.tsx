@@ -7,13 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { UserPlus, Loader2, X, Mail, Clock } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 import { getInvitations, createInvitation, deleteInvitation, type Invitation } from "@/lib/api/invitations"
 import { getRoles, type Role } from "@/lib/api/roles"
 
 export function TeamInvitationsCard() {
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const { t } = useTranslation()
 
   const [invitations, setInvitations] = useState<Invitation[]>([])
@@ -53,11 +53,12 @@ export function TeamInvitationsCard() {
     setSending(false)
 
     if (error) {
-      toast({ title: t("team.invitationError"), description: error, variant: "destructive" })
+      addToast({ title: t("team.invitationError"), description: error, type: "error" })
       return
     }
 
-    toast({
+    addToast({
+      type: "success",
       title: t("team.invitationSent"),
       description: `${t("team.invitationSentDesc")} ${email}`,
     })
@@ -68,10 +69,10 @@ export function TeamInvitationsCard() {
   const handleRevoke = async (id: number) => {
     const { error } = await deleteInvitation(id)
     if (error) {
-      toast({ title: t("common.error"), description: error, variant: "destructive" })
+      addToast({ title: t("common.error"), description: error, type: "error" })
       return
     }
-    toast({ title: t("team.invitationRevoked") })
+    addToast({ type: "success", title: t("team.invitationRevoked") })
     loadInvitations()
   }
 

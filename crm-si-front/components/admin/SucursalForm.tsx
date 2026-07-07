@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Loader2 } from "lucide-react"
 import { useTranslation } from "@/hooks/useTranslation"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/Toast"
 import { useBranchesStore } from "@/store/useBranchesStore"
 import { Branch, BranchPayload } from "@/lib/api/branches"
 
@@ -28,7 +28,7 @@ interface SucursalFormProps {
 
 export function SucursalForm({ open, onOpenChange, branch, onSaved }: SucursalFormProps) {
   const { t } = useTranslation()
-  const { toast } = useToast()
+  const { addToast } = useToast()
   const { create, update } = useBranchesStore()
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState<BranchPayload>({
@@ -58,10 +58,10 @@ export function SucursalForm({ open, onOpenChange, branch, onSaved }: SucursalFo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name?.trim()) {
-      toast({
+      addToast({
         title: t("common.error"),
         description: t("sucursales.errors.name_required"),
-        variant: "destructive",
+        type: "error",
       })
       return
     }
@@ -79,15 +79,15 @@ export function SucursalForm({ open, onOpenChange, branch, onSaved }: SucursalFo
     setSaving(false)
 
     if (!result) {
-      toast({
+      addToast({
         title: t("common.error"),
         description: useBranchesStore.getState().error || "",
-        variant: "destructive",
+        type: "error",
       })
       return
     }
 
-    toast({ title: branch ? t("sucursales.updated") : t("sucursales.created") })
+    addToast({ type: "success", title: branch ? t("sucursales.updated") : t("sucursales.created") })
     onOpenChange(false)
     onSaved?.()
   }
