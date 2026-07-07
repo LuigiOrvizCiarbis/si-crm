@@ -53,7 +53,10 @@
     "saveError": "No se pudo guardar el producto",
     "deleteError": "No se pudo eliminar el producto",
     "deleteConfirmTitle": "¿Eliminar producto?",
-    "deleteConfirmBody": "Se eliminará \"{{name}}\" del catálogo. Esta acción no se puede deshacer."
+    "deleteConfirmBody": "Se eliminará \"{{name}}\" del catálogo. Esta acción no se puede deshacer.",
+    "paginationInfo": "{{from}}-{{to}} de {{total}}",
+    "previous": "Anterior",
+    "next": "Siguiente"
   },
   "dashboard": {
     "title": "Panel",
@@ -678,6 +681,29 @@
       "testErrorNoCredit": "La cuenta del proveedor no tiene saldo suficiente.",
       "testErrorRateLimit": "El proveedor está limitando las solicitudes. Probá de nuevo en unos segundos.",
       "testErrorUnknown": "No se pudo verificar la conexión."
+    },
+    "woocommerce": {
+      "title": "WooCommerce",
+      "enabled": "Integración habilitada",
+      "enabledHint": "Conectá tu tienda WooCommerce para importar sus productos al catálogo.",
+      "storeUrl": "URL de la tienda",
+      "storeUrlHint": "La dirección de tu sitio WordPress con WooCommerce (ej: https://mitienda.com).",
+      "consumerKey": "Consumer Key",
+      "consumerSecret": "Consumer Secret",
+      "credentialSet": "•••••••••••• (sin cambios)",
+      "credentialsHint": "Generá las claves en WooCommerce → Ajustes → Avanzado → API REST, con permiso de lectura. Se guardan encriptadas.",
+      "saved": "Configuración de WooCommerce guardada",
+      "test": "Probar conexión",
+      "testing": "Probando…",
+      "testOk": "Conexión exitosa con la tienda.",
+      "testErrorCredentials": "Consumer Key/Secret inválidos o sin permisos de lectura.",
+      "testErrorUnreachable": "No se pudo conectar con la tienda. Revisá la URL.",
+      "testErrorUnknown": "No se pudo verificar la conexión.",
+      "sync": "Sincronizar productos",
+      "syncing": "Sincronizando…",
+      "syncOk": "Sincronización completada",
+      "syncResult": "{{created}} productos creados, {{updated}} actualizados.",
+      "lastSynced": "Última sincronización: {{date}}"
     }
   },
   "team": {

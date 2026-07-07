@@ -53,7 +53,10 @@
     "saveError": "Could not save product",
     "deleteError": "Could not delete product",
     "deleteConfirmTitle": "Delete product?",
-    "deleteConfirmBody": "\"{{name}}\" will be removed from the catalog. This action cannot be undone."
+    "deleteConfirmBody": "\"{{name}}\" will be removed from the catalog. This action cannot be undone.",
+    "paginationInfo": "{{from}}-{{to}} of {{total}}",
+    "previous": "Previous",
+    "next": "Next"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -678,6 +681,29 @@
       "testErrorNoCredit": "The provider account has insufficient balance.",
       "testErrorRateLimit": "The provider is rate limiting requests. Try again in a few seconds.",
       "testErrorUnknown": "Couldn't verify the connection."
+    },
+    "woocommerce": {
+      "title": "WooCommerce",
+      "enabled": "Integration enabled",
+      "enabledHint": "Connect your WooCommerce store to import its products into the catalog.",
+      "storeUrl": "Store URL",
+      "storeUrlHint": "Your WordPress site running WooCommerce (e.g. https://mystore.com).",
+      "consumerKey": "Consumer Key",
+      "consumerSecret": "Consumer Secret",
+      "credentialSet": "•••••••••••• (unchanged)",
+      "credentialsHint": "Generate the keys in WooCommerce → Settings → Advanced → REST API, with read permission. They are stored encrypted.",
+      "saved": "WooCommerce settings saved",
+      "test": "Test connection",
+      "testing": "Testing…",
+      "testOk": "Successfully connected to the store.",
+      "testErrorCredentials": "Invalid Consumer Key/Secret or no read permission.",
+      "testErrorUnreachable": "Couldn't reach the store. Check the URL.",
+      "testErrorUnknown": "Couldn't verify the connection.",
+      "sync": "Sync products",
+      "syncing": "Syncing…",
+      "syncOk": "Sync complete",
+      "syncResult": "{{created}} products created, {{updated}} updated.",
+      "lastSynced": "Last sync: {{date}}"
     }
   },
   "team": {

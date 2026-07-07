@@ -5,9 +5,8 @@ export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (!authHeader) return NextResponse.json({ message: "No auth" }, { status: 401 });
 
-  const formData = await req.formData();
-
   try {
+    const formData = await req.formData();
     const { data, status } = await proxyToLaravel("/api/products/import", authHeader, {
       method: "POST",
       body: formData,

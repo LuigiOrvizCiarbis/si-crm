@@ -66,6 +66,8 @@ const EMPTY_FORM: FormState = {
   is_active: true,
 }
 
+const PAGE_SIZE = 10
+
 export function ProductsList() {
   const { t } = useTranslation()
   const { addToast } = useToast()
@@ -73,6 +75,7 @@ export function ProductsList() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
@@ -107,6 +110,7 @@ export function ProductsList() {
 
   useEffect(() => {
     const handle = setTimeout(() => {
+      setPage(1)
       void load(search.trim() || undefined)
     }, 300)
     return () => clearTimeout(handle)
@@ -182,6 +186,11 @@ export function ProductsList() {
     }
   }
 
+  const totalPages = Math.max(1, Math.ceil(products.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const pageStart = (currentPage - 1) * PAGE_SIZE
+  const paginatedProducts = products.slice(pageStart, pageStart + PAGE_SIZE)
+
   const formatPrice = (price: string | null) => {
     if (price === null || price === "") return "—"
     const value = Number(price)
@@ -242,7 +251,7 @@ export function ProductsList() {
                 </TableCell>
               </TableRow>
             ) : (
-              products.map((product) => (
+              paginatedProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>
                     <div className="font-medium">{product.name}</div>
@@ -284,6 +293,39 @@ export function ProductsList() {
           </TableBody>
         </Table>
       </div>
+
+      {!loading && products.length > 0 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            {t("catalog.paginationInfo", {
+              from: pageStart + 1,
+              to: pageStart + paginatedProducts.length,
+              total: products.length,
+            })}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+            >
+              {t("catalog.previous")}
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {currentPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+            >
+              {t("catalog.next")}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
