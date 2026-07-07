@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PipelineStageController;
+use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\TaskController;
@@ -320,6 +321,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('dashboard/branches', [DashboardController::class, 'branches']);
 
     Route::apiResource('tags', TagController::class);
+    Route::apiResource('products', ProductController::class);
 
     Route::apiResource('branches', BranchController::class);
     Route::get('branches/{branch}/stats', [BranchController::class, 'stats']);

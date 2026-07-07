@@ -79,6 +79,12 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
       shortLabel: t("nav.contactsShort"),
     },
     {
+      href: "/catalogo",
+      emoji: "📦",
+      label: t("nav.catalog"),
+      shortLabel: t("nav.catalogShort"),
+    },
+    {
       href: "/oportunidades",
       emoji: "🎯",
       label: t("nav.pipeline"),

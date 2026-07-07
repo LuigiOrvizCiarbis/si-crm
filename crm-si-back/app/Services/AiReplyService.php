@@ -6,6 +6,7 @@ use App\Enums\MessageDirection;
 use App\Enums\MessageType;
 use App\Models\AiConfig;
 use App\Models\Conversation;
+use App\Models\Product;
 use App\Services\Ai\AiProviderFactory;
 
 /**
@@ -43,7 +44,7 @@ class AiReplyService
 
         $model = $config->model ?: $config->provider->defaultModel();
 
-        return $provider->generate($messages, $this->systemPrompt($config), $model);
+        return $provider->generate($messages, $this->systemPrompt($config, $conversation->tenant_id), $model);
     }
 
     /**
@@ -84,8 +85,95 @@ class AiReplyService
         return $messages;
     }
 
-    private function systemPrompt(AiConfig $config): string
+    private function systemPrompt(AiConfig $config, int $tenantId): string
     {
-        return trim($config->system_prompt ?: self::DEFAULT_SYSTEM_PROMPT);
+        $base = trim($config->system_prompt ?: self::DEFAULT_SYSTEM_PROMPT);
+
+        $catalog = $this->catalogSection($tenantId);
+
+        return $catalog === '' ? $base : $base."\n\n".$catalog;
+    }
+
+    /**
+     * Sección de catálogo con los productos activos del tenant, para anexar al
+     * system prompt. Corre sin Auth (dentro del job de cola), por lo que hay que
+     * saltear el TenantScope y filtrar el tenant a mano. Devuelve '' si no hay
+     * productos, para no alterar el prompt actual.
+     */
+    private function catalogSection(int $tenantId): string
+    {
+        $maxProducts = (int) config('services.ai.catalog_max_products', 100);
+        $maxDescription = (int) config('services.ai.catalog_max_description_chars', 300);
+        $maxChars = (int) config('services.ai.catalog_max_chars', 12000);
+
+        // Cargamos uno más que el tope para saber si hubo recorte, sin traer el
+        // catálogo entero: un catálogo enorme reventaría el contexto del proveedor
+        // y haría que generate() devuelva null para todo el tenant.
+        $products = Product::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->limit($maxProducts + 1)
+            ->get();
+
+        if ($products->isEmpty()) {
+            return '';
+        }
+
+        $truncated = $products->count() > $maxProducts;
+        $products = $products->take($maxProducts);
+
+        $header = "## Catálogo de productos\n"
+            .'Usá únicamente estos datos para responder sobre productos y precios. '
+            ."No inventes productos ni precios que no estén en esta lista.\n";
+
+        // Presupuesto de caracteres para las líneas (además del tope por producto).
+        $budget = max(0, $maxChars - mb_strlen($header));
+        $lines = [];
+
+        foreach ($products as $product) {
+            $line = $this->formatCatalogLine($product, $maxDescription);
+
+            // Cortar antes de exceder el presupuesto total de caracteres.
+            if (! empty($lines) && mb_strlen(implode("\n", $lines)) + mb_strlen("\n".$line) > $budget) {
+                $truncated = true;
+                break;
+            }
+
+            $lines[] = $line;
+        }
+
+        if (empty($lines)) {
+            return '';
+        }
+
+        $body = implode("\n", $lines);
+
+        if ($truncated) {
+            $body .= "\n- (lista parcial: hay más productos disponibles; pedí al cliente que consulte por uno puntual)";
+        }
+
+        return $header.$body;
+    }
+
+    private function formatCatalogLine(Product $product, int $maxDescription): string
+    {
+        $parts = [$product->name];
+
+        if ($product->price !== null) {
+            $parts[] = '$'.number_format((float) $product->price, 2);
+        }
+
+        if (filled($product->description)) {
+            $description = trim($product->description);
+
+            if (mb_strlen($description) > $maxDescription) {
+                $description = mb_substr($description, 0, $maxDescription).'…';
+            }
+
+            $parts[] = $description;
+        }
+
+        return '- '.implode(' — ', $parts);
     }
 }
