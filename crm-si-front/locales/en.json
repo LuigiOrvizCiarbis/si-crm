@@ -24,6 +24,7 @@
     "title": "Product catalog",
     "subtitle": "Manage the products the AI assistant uses to answer questions.",
     "newProduct": "New product",
+    "import": "Import",
     "editProduct": "Edit product",
     "dialogSubtitle": "This data is shared with the AI assistant to answer product and pricing questions.",
     "searchPlaceholder": "Search products...",

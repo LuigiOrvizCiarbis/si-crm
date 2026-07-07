@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ImportProductsRequest;
 use App\Models\Product;
+use App\Services\ProductImportService;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
@@ -74,6 +76,19 @@ class ProductController extends Controller
         $product->delete();
 
         return response()->json(['message' => 'Producto eliminado']);
+    }
+
+    public function import(ImportProductsRequest $request): JsonResponse
+    {
+        $this->authorizeManage($request);
+
+        $mapping = $request->decodedMapping();
+        $user = $request->user();
+
+        $service = new ProductImportService;
+        $result = $service->import($request->file('file'), $mapping, $user->tenant_id, $user->id);
+
+        return response()->json(['data' => $result]);
     }
 
     private function rules(Request $request, ?Product $product = null): array

@@ -321,6 +321,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('dashboard/branches', [DashboardController::class, 'branches']);
 
     Route::apiResource('tags', TagController::class);
+    Route::post('products/import', [ProductController::class, 'import']);
     Route::apiResource('products', ProductController::class);
 
     Route::apiResource('branches', BranchController::class);
