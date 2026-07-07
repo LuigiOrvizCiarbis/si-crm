@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Product;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 
 class ProductImportService
 {
@@ -21,6 +22,25 @@ class ProductImportService
             return ['imported' => 0, 'duplicates' => 0, 'errors' => 0, 'error_rows' => [], 'total' => 0];
         }
 
+        try {
+            return DB::transaction(function () use ($handle, $mapping, $tenantId, $userId): array {
+                return $this->processRows($handle, $mapping, $tenantId, $userId);
+            });
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    /**
+     * Parsea las filas del CSV e inserta en lotes. Corre dentro de una transacción:
+     * si algún insert falla, se revierte todo el import.
+     *
+     * @param  resource  $handle
+     * @param  array<string, mixed>  $mapping
+     * @return array{imported: int, duplicates: int, errors: int, error_rows: list<array{row: int, reason: string}>, total: int}
+     */
+    private function processRows($handle, array $mapping, int $tenantId, int $userId): array
+    {
         $delimiter = $this->detectDelimiter($handle);
 
         fgetcsv($handle, 0, $delimiter);
@@ -126,8 +146,6 @@ class ProductImportService
             Product::insert($batch);
             $imported += count($batch);
         }
-
-        fclose($handle);
 
         return [
             'imported' => $imported,

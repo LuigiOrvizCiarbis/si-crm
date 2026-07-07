@@ -93,6 +93,10 @@ class PermissionCatalog
                 'ai_config.view',
                 'ai_config.manage',
             ],
+            'woocommerce' => [
+                'woocommerce.view',
+                'woocommerce.manage',
+            ],
             'templates' => [
                 'templates.view',
                 'templates.sync',

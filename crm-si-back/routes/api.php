@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PipelineStageController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\WooCommerceConfigController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\TaskController;
@@ -365,6 +366,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('ai-config/models', [AiConfigController::class, 'models']);
     Route::post('ai-config/test', [AiConfigController::class, 'test']);
     Route::put('ai-config', [AiConfigController::class, 'update']);
+
+    // Config de WooCommerce por tenant (credenciales REST API + sync de productos).
+    Route::get('woocommerce-config', [WooCommerceConfigController::class, 'show']);
+    Route::put('woocommerce-config', [WooCommerceConfigController::class, 'update']);
+    Route::post('woocommerce-config/test', [WooCommerceConfigController::class, 'test']);
+    Route::post('woocommerce-config/sync', [WooCommerceConfigController::class, 'sync']);
 
     Route::get('conversations', [ConversationController::class, 'index']);
     Route::post('conversations/bulk-tags', [ConversationController::class, 'bulkTags']);

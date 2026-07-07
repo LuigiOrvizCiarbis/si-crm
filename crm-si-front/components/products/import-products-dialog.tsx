@@ -196,6 +196,7 @@ export function ImportProductsDialog({ open, onOpenChange, onImportComplete }: I
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (f) processFile(f)
+    e.target.value = ""
   }
 
   const handleImport = async () => {
