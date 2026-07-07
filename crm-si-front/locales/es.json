@@ -24,6 +24,7 @@
     "title": "Catálogo de productos",
     "subtitle": "Administrá los productos que el asistente de IA usa para responder consultas.",
     "newProduct": "Nuevo producto",
+    "import": "Importar",
     "editProduct": "Editar producto",
     "dialogSubtitle": "Estos datos se comparten con el asistente de IA para responder sobre productos y precios.",
     "searchPlaceholder": "Buscar productos...",

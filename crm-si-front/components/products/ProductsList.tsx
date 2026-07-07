@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { MoreVertical, Pencil, Plus, Search, Trash2 } from "lucide-react"
+import { MoreVertical, Pencil, Plus, Search, Trash2, Upload } from "lucide-react"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useToast } from "@/components/Toast"
 import {
@@ -50,6 +50,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { ImportProductsDialog } from "@/components/products/import-products-dialog"
 
 interface FormState {
   name: string
@@ -79,6 +80,7 @@ export function ProductsList() {
   const [saving, setSaving] = useState(false)
 
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
 
   const load = useCallback(
     async (searchTerm?: string) => {
@@ -194,10 +196,16 @@ export function ProductsList() {
           <h1 className="text-2xl font-semibold">{t("catalog.title")}</h1>
           <p className="text-sm text-muted-foreground">{t("catalog.subtitle")}</p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t("catalog.newProduct")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            {t("catalog.import")}
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t("catalog.newProduct")}
+          </Button>
+        </div>
       </div>
 
       <div className="relative max-w-sm">
@@ -357,6 +365,12 @@ export function ProductsList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImportProductsDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImportComplete={() => void load(search.trim() || undefined)}
+      />
     </div>
   )
 }
