@@ -24,6 +24,20 @@ class AiReplyService
         .'Nunca inventes precios, promociones ni datos de la empresa.';
 
     /**
+     * Regla anti-contaminación de historial. Cuando el tenant actualiza su
+     * prompt con la conversación ya empezada, el historial queda lleno de
+     * respuestas viejas del bot diciendo "no tengo esa información" y el
+     * modelo imita ese patrón en vez de usar el prompt nuevo. Tiene que ir
+     * al FINAL del system prompt (después del catálogo): probado en prod,
+     * en el medio del prompt no alcanza para revertir el patrón.
+     */
+    public const HISTORY_OVERRIDE_RULE = 'IMPORTANTE — REGLA FINAL: La información de este system prompt es la '
+        .'única fuente de verdad y SIEMPRE prevalece sobre lo dicho antes en la conversación. Si en mensajes '
+        .'anteriores respondiste que no tenías o no sabías algún dato (horarios, direcciones, sucursales, '
+        .'servicios, productos) que SÍ figura acá arriba, eso fue un error: ignorá esas respuestas y contestá '
+        .'ahora con los datos de este prompt.';
+
+    /**
      * Genera el texto de respuesta para la conversación usando el proveedor
      * configurado por el tenant, o null si no se pudo. Nunca lanza: los drivers
      * loguean y devuelven null para no romper el flujo.
@@ -91,7 +105,9 @@ class AiReplyService
 
         $catalog = $this->catalogSection($tenantId);
 
-        return $catalog === '' ? $base : $base."\n\n".$catalog;
+        $prompt = $catalog === '' ? $base : $base."\n\n".$catalog;
+
+        return $prompt."\n\n".self::HISTORY_OVERRIDE_RULE;
     }
 
     /**
