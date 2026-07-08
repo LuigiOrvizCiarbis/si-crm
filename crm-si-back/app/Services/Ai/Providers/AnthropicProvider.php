@@ -24,7 +24,9 @@ class AnthropicProvider implements AiProvider
             $client = new Client(
                 apiKey: $this->apiKey,
                 requestOptions: [
-                    'transporter' => new GuzzleClient(['timeout' => 10]),
+                    'transporter' => new GuzzleClient([
+                        'timeout' => (int) config('services.ai.generate_timeout', 60),
+                    ]),
                 ],
             );
 
