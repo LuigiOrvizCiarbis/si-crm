@@ -679,6 +679,7 @@
       "modelsEmpty": "Couldn't fetch models. Check that the API key is valid.",
       "systemPrompt": "Instructions (system prompt)",
       "systemPromptPlaceholder": "You are a customer support assistant…",
+      "systemPromptHint": "Up to {{max}} characters. For long instructions, paste the content here.",
       "saved": "AI configuration saved",
       "test": "Test connection",
       "testing": "Testing…",

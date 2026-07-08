@@ -23,6 +23,8 @@ class AiConfigTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const SYSTEM_PROMPT_MAX_LENGTH = 20000;
+
     public function test_api_key_round_trip_encryption(): void
     {
         $tenant = $this->makeTenant();
@@ -120,6 +122,52 @@ class AiConfigTest extends TestCase
 
         $config = AiConfig::withoutGlobalScopes()->where('tenant_id', $tenant->id)->firstOrFail();
         $this->assertSame('sk-new-key', $config->getDecryptedApiKey());
+    }
+
+    public function test_update_accepts_system_prompt_longer_than_5000_characters(): void
+    {
+        [$user, $tenant] = $this->makeAdmin();
+        Sanctum::actingAs($user);
+
+        $prompt = str_repeat('a', 5001);
+
+        $this->putJson('/api/ai-config', [
+            'provider' => 'claude',
+            'enabled' => true,
+            'system_prompt' => $prompt,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.system_prompt', $prompt);
+
+        $config = AiConfig::withoutGlobalScopes()->where('tenant_id', $tenant->id)->firstOrFail();
+        $this->assertSame($prompt, $config->system_prompt);
+    }
+
+    public function test_update_rejects_system_prompt_over_max_length(): void
+    {
+        [$user] = $this->makeAdmin();
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/ai-config', [
+            'provider' => 'claude',
+            'enabled' => true,
+            'system_prompt' => str_repeat('a', self::SYSTEM_PROMPT_MAX_LENGTH + 1),
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('system_prompt');
+    }
+
+    public function test_connection_test_rejects_system_prompt_over_max_length(): void
+    {
+        [$user] = $this->makeAdmin();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/ai-config/test', [
+            'provider' => 'claude',
+            'system_prompt' => str_repeat('a', self::SYSTEM_PROMPT_MAX_LENGTH + 1),
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('system_prompt');
     }
 
     public function test_update_without_api_key_keeps_existing(): void

@@ -679,6 +679,7 @@
       "modelsEmpty": "No se pudieron traer modelos. Revisá que la API key sea válida.",
       "systemPrompt": "Instrucciones (system prompt)",
       "systemPromptPlaceholder": "Sos un asistente de atención al cliente…",
+      "systemPromptHint": "Hasta {{max}} caracteres. Para instrucciones largas, pegá el contenido acá.",
       "saved": "Configuración de IA guardada",
       "test": "Probar conexión",
       "testing": "Probando…",

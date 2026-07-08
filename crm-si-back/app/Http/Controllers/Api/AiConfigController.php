@@ -13,6 +13,8 @@ use Illuminate\Validation\Rule;
 
 class AiConfigController extends Controller
 {
+    private const SYSTEM_PROMPT_MAX_LENGTH = 20000;
+
     /**
      * Config de IA del tenant. Nunca devuelve la API key: solo un flag
      * has_api_key para que la UI sepa si ya hay una cargada.
@@ -48,7 +50,7 @@ class AiConfigController extends Controller
             'provider' => ['required', Rule::in(AiProvider::values())],
             'model' => ['nullable', 'string', 'max:255'],
             'enabled' => ['required', 'boolean'],
-            'system_prompt' => ['nullable', 'string', 'max:5000'],
+            'system_prompt' => ['nullable', 'string', 'max:'.self::SYSTEM_PROMPT_MAX_LENGTH],
             'api_key' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -112,7 +114,7 @@ class AiConfigController extends Controller
         $validated = $request->validate([
             'provider' => ['required', Rule::in(AiProvider::values())],
             'model' => ['nullable', 'string', 'max:255'],
-            'system_prompt' => ['nullable', 'string', 'max:5000'],
+            'system_prompt' => ['nullable', 'string', 'max:'.self::SYSTEM_PROMPT_MAX_LENGTH],
             'api_key' => ['nullable', 'string', 'max:500'],
         ]);
 
