@@ -23,7 +23,9 @@ class OpenAiProvider implements AiProvider
         try {
             $client = OpenAI::factory()
                 ->withApiKey($this->apiKey)
-                ->withHttpClient(new GuzzleClient(['timeout' => 10]))
+                ->withHttpClient(new GuzzleClient([
+                    'timeout' => (int) config('services.ai.generate_timeout', 60),
+                ]))
                 ->make();
 
             $response = $client->chat()->create([

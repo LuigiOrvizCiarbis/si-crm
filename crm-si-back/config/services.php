@@ -57,6 +57,11 @@ return [
         // para acotar costo y tokens). Cota de tamaño por imagen en bytes.
         'max_images' => env('AI_MAX_IMAGES', 3),
         'max_image_bytes' => env('AI_MAX_IMAGE_BYTES', 5242880),
+        // Timeout (segundos) del request de generación al proveedor. Los mensajes
+        // con imágenes (visión) tardan bastante más que texto puro: con 10s el
+        // request cortaba antes de que el modelo respondiera y el autoreply
+        // quedaba sin respuesta. 60s cubre visión con Opus/GPT-4o holgadamente.
+        'generate_timeout' => env('AI_GENERATE_TIMEOUT', 60),
     ],
 
     'facebook' => [
