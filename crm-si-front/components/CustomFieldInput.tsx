@@ -25,9 +25,11 @@ import {
 } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
 import type { ContactField } from "@/lib/api/contact-fields"
+import type { ProductField } from "@/lib/api/product-fields"
 
 interface CustomFieldInputProps {
-  field: ContactField
+  /** Contact and product fields share the same shape; either works here. */
+  field: ContactField | ProductField
   value: unknown
   onChange: (next: unknown) => void
   disabled?: boolean

@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PipelineStageController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\ProductFieldController;
 use App\Http\Controllers\Api\WooCommerceConfigController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\TagController;
@@ -31,9 +32,11 @@ use App\Models\Scopes\TenantScope;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\RolePayload;
+use App\Support\ProductFieldProvisioner;
 use App\Support\RoleProvisioner;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
@@ -104,27 +107,37 @@ Route::post('register', function (Request $request): JsonResponse {
 
         $tenant = $invitation->tenant;
         $roleName = $invitation->role_name ?? 'Admin';
-    } else {
-        // Create new tenant for the user
-        $tenant = Tenant::create([
-            'name' => $request->name."'s Workspace",
-        ]);
         $isNewTenant = true;
     }
 
-    $user = User::create([
-        'name' => $request->name,
-        'email' => $request->email,
-        'password' => Hash::make($request->password),
-        'tenant_id' => $tenant->id,
-    ]);
+    // Tenant creation, user creation, provisioning and role syncing must all
+    // succeed together — otherwise a mid-flow failure would leave a
+    // partially-provisioned tenant/user persisted. Wrap them in a transaction so
+    // any failure rolls the whole registration back.
+    [$tenant, $user] = DB::transaction(function () use ($request, $tenant, $isNewTenant, $roleName): array {
+        if ($isNewTenant) {
+            $tenant = Tenant::create([
+                'name' => $request->name."'s Workspace",
+            ]);
+        }
 
-    if ($isNewTenant) {
-        app(RoleProvisioner::class)->provisionDefaultRoles($tenant);
-    }
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'tenant_id' => $tenant->id,
+        ]);
 
-    app(PermissionRegistrar::class)->setPermissionsTeamId($tenant->id);
-    $user->syncRoles([$roleName]);
+        if ($isNewTenant) {
+            app(RoleProvisioner::class)->provisionDefaultRoles($tenant);
+            app(ProductFieldProvisioner::class)->seedDefaults($tenant);
+        }
+
+        app(PermissionRegistrar::class)->setPermissionsTeamId($tenant->id);
+        $user->syncRoles([$roleName]);
+
+        return [$tenant, $user];
+    });
 
     // El registro no debe fallar si el proveedor de email está caído.
     try {
@@ -323,6 +336,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('tags', TagController::class);
     Route::post('products/import', [ProductController::class, 'import']);
+    Route::get('product-fields', [ProductFieldController::class, 'index']);
+    Route::post('product-fields/reorder', [ProductFieldController::class, 'reorder']);
+    Route::post('product-fields', [ProductFieldController::class, 'store']);
+    Route::put('product-fields/{product_field}', [ProductFieldController::class, 'update']);
+    Route::delete('product-fields/{product_field}', [ProductFieldController::class, 'destroy']);
     Route::apiResource('products', ProductController::class);
 
     Route::apiResource('branches', BranchController::class);

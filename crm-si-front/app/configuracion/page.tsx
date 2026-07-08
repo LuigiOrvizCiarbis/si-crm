@@ -13,7 +13,7 @@ import { RolesCard } from "@/components/config/RolesCard"
 import { SucursalesCard } from "@/components/config/SucursalesCard"
 import { TeamInvitationsCard } from "@/components/config/TeamInvitationsCard"
 import { MessageHotkeysCard } from "@/components/config/MessageHotkeysCard"
-import { ContactFieldsCard } from "@/components/config/ContactFieldsCard"
+import { FieldsCard } from "@/components/config/FieldsCard"
 import { PipelineStagesCard } from "@/components/config/PipelineStagesCard"
 import { AiAssistantCard } from "@/components/config/AiAssistantCard"
 import { WooCommerceCard } from "@/components/config/WooCommerceCard"
@@ -47,7 +47,7 @@ export default function ConfiguracionPage() {
           </div>
           <TeamInvitationsCard />
           <MessageHotkeysCard />
-          <ContactFieldsCard />
+          <FieldsCard />
           <PipelineStagesCard />
           <AiAssistantCard />
           <WooCommerceCard />

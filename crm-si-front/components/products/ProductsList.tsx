@@ -19,6 +19,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table"
+import { CustomFieldInput } from "@/components/CustomFieldInput"
+import { useProductFieldsStore } from "@/store/useProductFieldsStore"
+import type { ProductField } from "@/lib/api/product-fields"
 import {
   Dialog,
   DialogContent,
@@ -50,6 +53,7 @@ interface FormState {
   price: string
   description: string
   is_active: boolean
+  custom_data: Record<string, unknown>
 }
 
 const EMPTY_FORM: FormState = {
@@ -57,9 +61,24 @@ const EMPTY_FORM: FormState = {
   price: "",
   description: "",
   is_active: true,
+  custom_data: {},
 }
 
 const PAGE_SIZE = 10
+
+// Keys that map to real product columns rather than to custom_data. `name` is
+// always fixed; price/description/is_active are seeded ProductField defaults but
+// still live as native columns/controls.
+const NATIVE_FIELD_KEYS = new Set(["name", "price", "description", "is_active"])
+
+type TranslateFn = ReturnType<typeof useTranslation>["t"]
+
+function formatCustomValue(raw: unknown, type: ProductField["type"], t: TranslateFn): string {
+  if (raw === null || raw === undefined || raw === "") return "—"
+  if (Array.isArray(raw)) return raw.length ? raw.join(", ") : "—"
+  if (type === "boolean") return raw ? t("common.yes") : t("common.no")
+  return String(raw)
+}
 
 const sourceColors: Record<string, string> = {
   manual: "bg-gray-500/10 text-gray-600 border-gray-200 dark:border-gray-700",
@@ -94,6 +113,31 @@ export function ProductsList() {
   const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set())
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkBusy, setBulkBusy] = useState(false)
+
+  const {
+    fields: productFields,
+    loaded: fieldsLoaded,
+    fetch: fetchFields,
+  } = useProductFieldsStore()
+
+  useEffect(() => {
+    if (!fieldsLoaded) {
+      fetchFields().catch((error) =>
+        addToast({
+          type: "error",
+          title: t("catalog.loadError"),
+          description: (error as Error).message,
+        }),
+      )
+    }
+  }, [fieldsLoaded, fetchFields, addToast, t])
+
+  // Fields the tenant added on top of the native columns; these are stored in
+  // custom_data and rendered dynamically.
+  const customFields = useMemo(
+    () => productFields.filter((f) => !NATIVE_FIELD_KEYS.has(f.key)),
+    [productFields],
+  )
 
   const load = useCallback(
     async (searchTerm?: string) => {
@@ -140,6 +184,7 @@ export function ProductsList() {
       price: product.price ?? "",
       description: product.description ?? "",
       is_active: product.is_active,
+      custom_data: { ...(product.custom_data ?? {}) },
     })
     setDialogOpen(true)
   }
@@ -155,6 +200,7 @@ export function ProductsList() {
       price: form.price.trim() === "" ? null : Number(form.price),
       description: form.description.trim() || null,
       is_active: form.is_active,
+      custom_data: form.custom_data,
     }
 
     setSaving(true)
@@ -311,6 +357,16 @@ export function ProductsList() {
         </Badge>
       ),
     },
+    ...customFields.map<DataTableColumn<Product>>((field) => ({
+      id: `custom:${field.key}`,
+      header: field.label,
+      minWidth: "140px",
+      cell: (product) => (
+        <span className="text-sm">
+          {formatCustomValue(product.custom_data?.[field.key], field.type, t)}
+        </span>
+      ),
+    })),
     {
       id: "actions",
       header: t("catalog.columnActions"),
@@ -503,6 +559,25 @@ export function ProductsList() {
                 onCheckedChange={(checked) => setForm((f) => ({ ...f, is_active: checked }))}
               />
             </div>
+
+            {customFields.map((field) => (
+              <div key={field.key} className="space-y-2">
+                <Label htmlFor={`cf-${field.key}`}>
+                  {field.label}
+                  {field.is_required ? <span className="text-destructive"> *</span> : null}
+                </Label>
+                <CustomFieldInput
+                  field={field}
+                  value={form.custom_data[field.key]}
+                  onChange={(next) =>
+                    setForm((f) => ({
+                      ...f,
+                      custom_data: { ...f.custom_data, [field.key]: next },
+                    }))
+                  }
+                />
+              </div>
+            ))}
           </div>
 
           <DialogFooter>

@@ -753,7 +753,9 @@
     "loading": "Cargando...",
     "error": "Error",
     "success": "Éxito",
-    "delete": "Eliminar"
+    "delete": "Eliminar",
+    "yes": "Sí",
+    "no": "No"
   },
   "roles": {
     "title": "Roles y permisos",
@@ -960,5 +962,54 @@
     "openWhatsApp": "WhatsApp",
     "call": "Llamar",
     "loadError": "No se pudo cargar el contacto"
+  },
+  "fields": {
+    "title": "Personalización de campos",
+    "subtitle": "Definí campos a medida para cada tabla del CRM.",
+    "reorder": "Reordenar",
+    "edit": "Editar campo",
+    "delete": "Eliminar campo",
+    "badges": {
+      "required": "obligatorio",
+      "unique": "único"
+    },
+    "entitySelector": {
+      "label": "Tabla",
+      "contacts": "Contactos",
+      "products": "Catálogo"
+    },
+    "addField": "Agregar campo",
+    "addFirstField": "Crear el primero",
+    "editTitle": "Editar campo",
+    "dialogDescription": "Define un campo personalizado para esta tabla.",
+    "empty": "Aún no creaste campos personalizados.",
+    "emptyTitle": "Sin campos personalizados",
+    "emptyBody": "Sumá campos propios (color, talle, prioridad…) para adaptar esta tabla a tu operación.",
+    "fieldLabel": "Nombre del campo",
+    "fieldType": "Tipo",
+    "options": "Opciones (una por línea)",
+    "optionsPlaceholder": "S\nM\nL",
+    "required": "Obligatorio",
+    "unique": "Valor único",
+    "typeImmutable": "El tipo no se puede cambiar después de crear el campo.",
+    "deleteConfirm": "¿Eliminar el campo \"{label}\"? Los valores guardados se mantendrán en los registros.",
+    "savedTitle": "Campo guardado",
+    "deletedTitle": "Campo eliminado",
+    "errors": {
+      "keyCollision": "Ya existe un campo con esa clave.",
+      "optionsRequired": "Debes definir al menos una opción.",
+      "invalidPayload": "Datos personalizados inválidos."
+    },
+    "typeLabels": {
+      "text": "Texto",
+      "number": "Número",
+      "date": "Fecha",
+      "boolean": "Booleano",
+      "select": "Selección",
+      "multi_select": "Selección múltiple",
+      "email": "Email",
+      "url": "URL",
+      "phone": "Teléfono"
+    }
   }
 }
