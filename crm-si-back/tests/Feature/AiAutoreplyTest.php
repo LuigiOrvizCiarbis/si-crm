@@ -25,6 +25,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
@@ -58,6 +59,31 @@ class AiAutoreplyTest extends TestCase
 
         $conversation = Conversation::withoutGlobalScopes()->firstOrFail();
         $this->assertTrue($conversation->ai_autoreply_enabled);
+
+        Queue::assertPushed(GenerateAiReplyJob::class, function (GenerateAiReplyJob $job) use ($conversation) {
+            return $job->conversationId === $conversation->id;
+        });
+    }
+
+    public function test_inbound_image_dispatches_ai_reply_job(): void
+    {
+        // La descarga de media pega a graph.facebook.com (metadata + binario);
+        // se fakea para que el webhook de imagen persista y dispare el job.
+        Storage::fake('public');
+        Http::fake([
+            'graph.facebook.com/v21.0/MEDIA_TEST_1' => Http::response([
+                'url' => 'https://lookaside.fbsbx.com/img.png',
+                'mime_type' => 'image/png',
+            ], 200),
+            'lookaside.fbsbx.com/*' => Http::response('fake-binary', 200),
+        ]);
+        Queue::fake();
+
+        $this->createChannelSetup(aiDefault: true);
+
+        app(WhatsAppMessageService::class)->processIncomingMessage($this->inboundImagePayload());
+
+        $conversation = Conversation::withoutGlobalScopes()->firstOrFail();
 
         Queue::assertPushed(GenerateAiReplyJob::class, function (GenerateAiReplyJob $job) use ($conversation) {
             return $job->conversationId === $conversation->id;
@@ -372,6 +398,38 @@ class AiAutoreplyTest extends TestCase
                         'timestamp' => (string) now()->timestamp,
                         'type' => 'text',
                         'text' => ['body' => $body],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Payload de webhook de Meta para un mensaje de imagen entrante.
+     *
+     * @return array<string, mixed>
+     */
+    private function inboundImagePayload(): array
+    {
+        return [
+            'value' => [
+                'metadata' => [
+                    'phone_number_id' => self::PHONE_NUMBER_ID,
+                ],
+                'contacts' => [
+                    ['profile' => ['name' => 'Jane Doe'], 'wa_id' => '5491111111111'],
+                ],
+                'messages' => [
+                    [
+                        'id' => 'wamid.IMG_'.uniqid(),
+                        'from' => '5491111111111',
+                        'timestamp' => (string) now()->timestamp,
+                        'type' => 'image',
+                        'image' => [
+                            'id' => 'MEDIA_TEST_1',
+                            'mime_type' => 'image/png',
+                            'caption' => 'Mirá esta foto',
+                        ],
                     ],
                 ],
             ],

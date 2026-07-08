@@ -6,8 +6,11 @@ use App\Enums\MessageDirection;
 use App\Enums\MessageType;
 use App\Models\AiConfig;
 use App\Models\Conversation;
+use App\Models\Message;
 use App\Models\Product;
 use App\Services\Ai\AiProviderFactory;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Genera respuestas automáticas de IA para conversaciones entrantes.
@@ -55,7 +58,14 @@ class AiReplyService
      */
     public function respond(Conversation $conversation, AiConfig $config): ?string
     {
-        $messages = $this->buildHistory($conversation);
+        $model = $config->model ?: $config->provider->defaultModel();
+
+        // Si el modelo no procesa imágenes, las fotos entrantes se mandan como
+        // placeholder de texto en vez de bloque visual: un modelo text-only
+        // rechaza contenido multimodal y generate() devolvería null.
+        $allowImages = $config->provider->modelSupportsVision($model);
+
+        $messages = $this->buildHistory($conversation, $allowImages);
 
         if (empty($messages)) {
             return null;
@@ -67,34 +77,66 @@ class AiReplyService
             return null;
         }
 
-        $model = $config->model ?: $config->provider->defaultModel();
-
         return $provider->generate($messages, $this->systemPrompt($config, $conversation->tenant_id), $model);
     }
 
     /**
-     * Últimos N mensajes de texto en orden cronológico, mapeados a roles de la API.
+     * Mime types de imagen que los modelos de visión aceptan. Un mime fuera de
+     * esta lista degrada a placeholder de texto.
+     */
+    private const SUPPORTED_IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+    /**
+     * Últimos N mensajes en orden cronológico, mapeados a roles de la API.
      * La API exige que el primer mensaje sea "user" y no acepta contenidos vacíos.
      *
-     * @return array<int, array{role: string, content: string}>
+     * El texto viaja como string plano; las imágenes entrantes viajan como lista
+     * de bloques neutrales {type: 'text'|'image', ...} que cada driver traduce al
+     * formato multimodal de su API. Para acotar costo, solo las últimas
+     * AI_MAX_IMAGES imágenes se envían como bloque visual; las más viejas (o las
+     * que no se pueden leer/soportar) degradan a un placeholder de texto.
+     *
+     * $allowImages=false (modelo text-only) fuerza que TODAS las imágenes
+     * degraden a placeholder: mandar bloques visuales a un modelo sin visión
+     * haría que generate() devuelva null en vez de responder.
+     *
+     * @return array<int, array{role: string, content: string|array<int, array<string, mixed>>}>
      */
-    private function buildHistory(Conversation $conversation): array
+    private function buildHistory(Conversation $conversation, bool $allowImages = true): array
     {
         $maxHistory = (int) config('services.ai.max_history', 20);
 
         $recent = $conversation->messages()
-            ->where('message_type', MessageType::Text)
-            ->whereNotNull('content')
-            ->where('content', '!=', '')
+            ->whereIn('message_type', [MessageType::Text, MessageType::Image])
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->limit($maxHistory)
             ->get()
-            ->reverse();
+            ->reverse()
+            ->values();
+
+        // Solo las últimas imágenes ENTRANTES van como bloque visual (contadas
+        // de la más reciente hacia atrás). Marcamos sus IDs para decidir al
+        // construir. Con un modelo text-only no se marca ninguna: todas degradan
+        // a texto. Las imágenes salientes (mandadas por un humano/bot) nunca son
+        // visuales: los bloques de imagen de OpenAI/Anthropic son user-content y
+        // en un turno assistant harían fallar generate().
+        $maxImages = $allowImages ? (int) config('services.ai.max_images', 3) : 0;
+        $visualImageIds = $recent
+            ->filter(fn (Message $m) => $m->message_type === MessageType::Image
+                && $m->direction === MessageDirection::INBOUND)
+            ->reverse()
+            ->take($maxImages)
+            ->pluck('id')
+            ->all();
 
         $messages = [];
         foreach ($recent as $message) {
-            $role = $message->direction === MessageDirection::INBOUND ? 'user' : 'assistant';
-            $messages[] = ['role' => $role, 'content' => $message->content];
+            $entry = $this->historyEntry($message, in_array($message->id, $visualImageIds, true));
+
+            if ($entry !== null) {
+                $messages[] = $entry;
+            }
         }
 
         // El primer mensaje debe ser del usuario: recortar turnos assistant iniciales.
@@ -111,10 +153,141 @@ class AiReplyService
         $hasAssistantTurns = collect($messages)->contains(fn ($m) => $m['role'] === 'assistant');
 
         if ($hasAssistantTurns) {
-            $messages[count($messages) - 1]['content'] .= "\n\n".self::HISTORY_OVERRIDE_NOTE;
+            $lastIndex = count($messages) - 1;
+            $messages[$lastIndex]['content'] = $this->appendOverrideNote($messages[$lastIndex]['content']);
         }
 
         return $messages;
+    }
+
+    /**
+     * Convierte un mensaje en una entrada de historial, o null si no aporta nada
+     * (texto vacío). Las imágenes marcadas como "visuales" van como bloque de
+     * imagen; el resto degrada a un placeholder de texto.
+     *
+     * @return array{role: string, content: string|array<int, array<string, mixed>>}|null
+     */
+    private function historyEntry(Message $message, bool $asVisual): ?array
+    {
+        $role = $message->direction === MessageDirection::INBOUND ? 'user' : 'assistant';
+        $caption = trim((string) $message->content);
+
+        if ($message->message_type !== MessageType::Image) {
+            return $caption === '' ? null : ['role' => $role, 'content' => $caption];
+        }
+
+        $imageBlock = $asVisual ? $this->imageBlock($message) : null;
+
+        if ($imageBlock === null) {
+            // Imagen no enviable como bloque (saliente, vieja, ilegible o mime no
+            // soportado): el modelo al menos sabe que hubo una imagen. El texto
+            // refleja quién la mandó para no confundir al modelo.
+            $placeholder = $message->direction === MessageDirection::INBOUND
+                ? '[El cliente envió una imagen]'
+                : '[Se envió una imagen al cliente]';
+            $content = $caption === '' ? $placeholder : $placeholder."\n".$caption;
+
+            return ['role' => $role, 'content' => $content];
+        }
+
+        $blocks = [$imageBlock];
+        if ($caption !== '') {
+            $blocks[] = ['type' => 'text', 'text' => $caption];
+        }
+
+        return ['role' => $role, 'content' => $blocks];
+    }
+
+    /**
+     * Bloque neutral de imagen {type: 'image', mime, data} con el binario en
+     * base64 leído del disco público, o null si no se puede leer, el mime no es
+     * soportado o excede el tope de tamaño. Nunca lanza.
+     *
+     * @return array{type: string, mime: string, data: string}|null
+     */
+    private function imageBlock(Message $message): ?array
+    {
+        $mime = (string) $message->media_mime_type;
+
+        if (! in_array($mime, self::SUPPORTED_IMAGE_MIMES, true)) {
+            return null;
+        }
+
+        $path = $this->mediaStoragePath((string) $message->media_url);
+
+        if ($path === null || ! Storage::disk('public')->exists($path)) {
+            return null;
+        }
+
+        $maxBytes = (int) config('services.ai.max_image_bytes', 5242880);
+
+        try {
+            if (Storage::disk('public')->size($path) > $maxBytes) {
+                return null;
+            }
+
+            $binary = Storage::disk('public')->get($path);
+        } catch (\Throwable $e) {
+            Log::warning('AiReplyService: no se pudo leer imagen para el historial', [
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        if ($binary === null || $binary === '') {
+            return null;
+        }
+
+        return [
+            'type' => 'image',
+            'mime' => $mime,
+            'data' => base64_encode($binary),
+        ];
+    }
+
+    /**
+     * Deriva el path relativo dentro del disco 'public' desde media_url
+     * (guardada como "/storage/messages/..."). Devuelve null si no es una URL
+     * local del CRM (p.ej. media alojada en un host externo).
+     */
+    private function mediaStoragePath(string $mediaUrl): ?string
+    {
+        if ($mediaUrl === '' || ! str_starts_with($mediaUrl, '/storage/')) {
+            return null;
+        }
+
+        return substr($mediaUrl, strlen('/storage/'));
+    }
+
+    /**
+     * Anexa la nota anti-contaminación al último turno del cliente. Si el
+     * contenido es multimodal, la nota va en un bloque de texto (nuevo o el
+     * existente); si es string plano, se concatena.
+     *
+     * @param  string|array<int, array<string, mixed>>  $content
+     * @return string|array<int, array<string, mixed>>
+     */
+    private function appendOverrideNote(string|array $content): string|array
+    {
+        if (is_string($content)) {
+            return $content."\n\n".self::HISTORY_OVERRIDE_NOTE;
+        }
+
+        // Buscar el último bloque de texto para anexar ahí.
+        for ($i = count($content) - 1; $i >= 0; $i--) {
+            if (($content[$i]['type'] ?? null) === 'text') {
+                $content[$i]['text'] .= "\n\n".self::HISTORY_OVERRIDE_NOTE;
+
+                return $content;
+            }
+        }
+
+        // No había bloque de texto (imagen sin caption): agregar uno.
+        $content[] = ['type' => 'text', 'text' => self::HISTORY_OVERRIDE_NOTE];
+
+        return $content;
     }
 
     private function systemPrompt(AiConfig $config, int $tenantId): string
@@ -190,16 +363,20 @@ class AiReplyService
         return $header.$body;
     }
 
+    /**
+     * Cada producto es una línea "- ..." del catálogo: saltos de línea en
+     * nombre o descripción romperían el formato de lista, se colapsan a espacio.
+     */
     private function formatCatalogLine(Product $product, int $maxDescription): string
     {
-        $parts = [$product->name];
+        $parts = [preg_replace('/\s+/u', ' ', trim($product->name))];
 
         if ($product->price !== null) {
             $parts[] = '$'.number_format((float) $product->price, 2);
         }
 
         if (filled($product->description)) {
-            $description = trim($product->description);
+            $description = preg_replace('/\s+/u', ' ', trim($product->description));
 
             if (mb_strlen($description) > $maxDescription) {
                 $description = mb_substr($description, 0, $maxDescription).'…';

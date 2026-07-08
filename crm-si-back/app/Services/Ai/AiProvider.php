@@ -14,8 +14,10 @@ interface AiProvider
     /**
      * Genera una respuesta de texto a partir del historial de conversación.
      *
-     * @param  array<int, array{role: string, content: string}>  $messages
-     *                                                                      Historial en orden cronológico. role ∈ {user, assistant}.
+     * @param  array<int, array{role: string, content: string|array<int, array<string, mixed>>}>  $messages
+     *                                                                                                       Historial en orden cronológico. role ∈ {user, assistant}. content es texto
+     *                                                                                                       plano, o una lista de bloques neutrales {type: 'text'|'image', ...} que cada
+     *                                                                                                       driver traduce al formato multimodal de su API.
      * @param  string  $systemPrompt  Instrucciones de sistema para el modelo.
      * @param  string  $model  Identificador del modelo del proveedor.
      * @return string|null Texto de la respuesta, o null si no se pudo generar.

@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Bot, Loader2, RefreshCw, PlugZap } from "lucide-react"
+import { Bot, Loader2, RefreshCw, PlugZap, AlertTriangle } from "lucide-react"
 import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useAuthStore } from "@/store/useAuthStore"
@@ -55,6 +55,8 @@ export function AiAssistantCard() {
   const [models, setModels] = useState<string[]>([])
   const [loadingModels, setLoadingModels] = useState(false)
   const [testing, setTesting] = useState(false)
+  // Aviso persistente si el modelo elegido no procesa imágenes (lo arma el back).
+  const [visionWarning, setVisionWarning] = useState<string | null>(null)
 
   useEffect(() => {
     loadConfig()
@@ -127,6 +129,9 @@ export function AiAssistantCard() {
     if (result.data) {
       setHasApiKey(result.data.has_api_key)
     }
+    // El back avisa si el modelo guardado no procesa imágenes: se muestra como
+    // banner persistente bajo el campo de modelo.
+    setVisionWarning(result.modelVisionWarning ?? null)
     // Si acabamos de guardar una key nueva, refrescamos los modelos del proveedor.
     if (apiKey.trim() && result.data?.has_api_key) {
       void fetchModels()
@@ -148,6 +153,10 @@ export function AiAssistantCard() {
     })
 
     setTesting(false)
+
+    // El back devuelve el aviso de visión también al probar (haya o no error de
+    // key), así el usuario lo ve sin necesidad de guardar.
+    setVisionWarning(result.model_vision_warning ?? null)
 
     if (!result.ok) {
       const map: Record<string, string> = {
@@ -223,6 +232,8 @@ export function AiAssistantCard() {
                   setProvider(value as AiProviderId)
                   // La lista cacheada es del proveedor anterior: la descartamos.
                   setModels([])
+                  // El aviso de visión era del modelo/proveedor anterior.
+                  setVisionWarning(null)
                 }}
               >
                 <SelectTrigger>
@@ -278,7 +289,10 @@ export function AiAssistantCard() {
               {models.length > 0 ? (
                 <Select
                   value={model || undefined}
-                  onValueChange={setModel}
+                  onValueChange={(value) => {
+                    setModel(value)
+                    setVisionWarning(null)
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue
@@ -296,7 +310,10 @@ export function AiAssistantCard() {
               ) : (
                 <Input
                   value={model}
-                  onChange={(e) => setModel(e.target.value)}
+                  onChange={(e) => {
+                    setModel(e.target.value)
+                    setVisionWarning(null)
+                  }}
                   placeholder={providerMeta.defaultModel}
                 />
               )}
@@ -305,6 +322,15 @@ export function AiAssistantCard() {
                   ? t("settings.aiAssistant.modelHint")
                   : t("settings.aiAssistant.modelHintNoKey")}
               </p>
+              {visionWarning && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400"
+                >
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>{visionWarning}</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

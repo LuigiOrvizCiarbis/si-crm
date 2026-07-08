@@ -790,7 +790,7 @@ class WhatsAppMessageService
     {
         if ($message->direction !== MessageDirection::INBOUND
             || $message->sender_type !== SenderType::CONTACT
-            || $message->message_type !== MessageType::Text) {
+            || ! in_array($message->message_type, [MessageType::Text, MessageType::Image], true)) {
             return;
         }
 
