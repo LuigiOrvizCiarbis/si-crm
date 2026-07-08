@@ -9,6 +9,7 @@ export interface Product {
   is_active: boolean;
   source: string;
   external_id: string | null;
+  custom_data?: Record<string, unknown>;
   created_at?: string;
   updated_at?: string;
 }
@@ -18,6 +19,7 @@ export interface ProductInput {
   price?: number | null;
   description?: string | null;
   is_active?: boolean;
+  custom_data?: Record<string, unknown>;
 }
 
 function requireToken(): string {

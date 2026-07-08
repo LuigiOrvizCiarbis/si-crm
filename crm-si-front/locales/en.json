@@ -31,6 +31,8 @@
     "columnName": "Name",
     "columnPrice": "Price",
     "columnStatus": "Status",
+    "columnSource": "Source",
+    "columnActions": "Actions",
     "columnDescription": "Description",
     "namePlaceholder": "Product name",
     "descriptionPlaceholder": "Description, features, conditions...",
@@ -54,6 +56,13 @@
     "deleteError": "Could not delete product",
     "deleteConfirmTitle": "Delete product?",
     "deleteConfirmBody": "\"{{name}}\" will be removed from the catalog. This action cannot be undone.",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "bulkSelected": "{{count}} selected",
+    "bulkActivated": "Products activated",
+    "bulkDeactivated": "Products deactivated",
+    "bulkDeleted": "Products deleted",
+    "bulkDeleteConfirmBody": "{{count}} product(s) will be removed from the catalog. This action cannot be undone.",
     "paginationInfo": "{{from}}-{{to}} of {{total}}",
     "previous": "Previous",
     "next": "Next"
@@ -670,6 +679,7 @@
       "modelsEmpty": "Couldn't fetch models. Check that the API key is valid.",
       "systemPrompt": "Instructions (system prompt)",
       "systemPromptPlaceholder": "You are a customer support assistant…",
+      "systemPromptHint": "Up to {{max}} characters. For long instructions, paste the content here.",
       "saved": "AI configuration saved",
       "test": "Test connection",
       "testing": "Testing…",
@@ -744,7 +754,9 @@
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",
-    "delete": "Delete"
+    "delete": "Delete",
+    "yes": "Yes",
+    "no": "No"
   },
   "roles": {
     "title": "Roles and permissions",
@@ -951,5 +963,54 @@
     "openWhatsApp": "WhatsApp",
     "call": "Call",
     "loadError": "Could not load the contact"
+  },
+  "fields": {
+    "title": "Field customization",
+    "subtitle": "Define custom fields for each CRM table.",
+    "reorder": "Reorder",
+    "edit": "Edit field",
+    "delete": "Delete field",
+    "badges": {
+      "required": "required",
+      "unique": "unique"
+    },
+    "entitySelector": {
+      "label": "Table",
+      "contacts": "Contacts",
+      "products": "Catalog"
+    },
+    "addField": "Add field",
+    "addFirstField": "Create the first one",
+    "editTitle": "Edit field",
+    "dialogDescription": "Define a custom field for this table.",
+    "empty": "You haven't created any custom fields yet.",
+    "emptyTitle": "No custom fields yet",
+    "emptyBody": "Add your own fields (color, size, priority…) to tailor this table to how you work.",
+    "fieldLabel": "Field name",
+    "fieldType": "Type",
+    "options": "Options (one per line)",
+    "optionsPlaceholder": "S\nM\nL",
+    "required": "Required",
+    "unique": "Unique value",
+    "typeImmutable": "The type cannot be changed after the field is created.",
+    "deleteConfirm": "Delete the field \"{label}\"? Saved values will be kept on the records.",
+    "savedTitle": "Field saved",
+    "deletedTitle": "Field deleted",
+    "errors": {
+      "keyCollision": "A field with that key already exists.",
+      "optionsRequired": "You must define at least one option.",
+      "invalidPayload": "Invalid custom data."
+    },
+    "typeLabels": {
+      "text": "Text",
+      "number": "Number",
+      "date": "Date",
+      "boolean": "Boolean",
+      "select": "Select",
+      "multi_select": "Multi-select",
+      "email": "Email",
+      "url": "URL",
+      "phone": "Phone"
+    }
   }
 }

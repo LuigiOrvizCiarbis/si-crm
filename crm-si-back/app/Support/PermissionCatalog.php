@@ -63,6 +63,10 @@ class PermissionCatalog
                 'products.view',
                 'products.manage',
             ],
+            'product_fields' => [
+                'product_fields.view',
+                'product_fields.manage',
+            ],
             'tasks' => [
                 'tasks.view_any',
                 'tasks.view_assigned',
@@ -200,6 +204,7 @@ class PermissionCatalog
             'opportunities.change_stage',
             'pipeline_stages.view',
             'products.view',
+            'product_fields.view',
             'tasks.view_assigned',
             'tasks.view',
             'tasks.create',

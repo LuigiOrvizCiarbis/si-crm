@@ -1,7 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { MoreVertical, Pencil, Plus, Search, Trash2, Upload } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { MoreVertical, Pencil, Plus, Search, Trash2, Upload, X } from "lucide-react"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useToast } from "@/components/Toast"
 import {
@@ -18,14 +18,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table"
+import { CustomFieldInput } from "@/components/CustomFieldInput"
+import { useProductFieldsStore } from "@/store/useProductFieldsStore"
+import type { ProductField } from "@/lib/api/product-fields"
 import {
   Dialog,
   DialogContent,
@@ -57,6 +53,7 @@ interface FormState {
   price: string
   description: string
   is_active: boolean
+  custom_data: Record<string, unknown>
 }
 
 const EMPTY_FORM: FormState = {
@@ -64,9 +61,36 @@ const EMPTY_FORM: FormState = {
   price: "",
   description: "",
   is_active: true,
+  custom_data: {},
 }
 
 const PAGE_SIZE = 10
+
+// Keys that map to real product columns rather than to custom_data. `name` is
+// always fixed; price/description/is_active are seeded ProductField defaults but
+// still live as native columns/controls.
+const NATIVE_FIELD_KEYS = new Set(["name", "price", "description", "is_active"])
+
+type TranslateFn = ReturnType<typeof useTranslation>["t"]
+
+function formatCustomValue(raw: unknown, type: ProductField["type"], t: TranslateFn): string {
+  if (raw === null || raw === undefined || raw === "") return "—"
+  if (Array.isArray(raw)) return raw.length ? raw.join(", ") : "—"
+  if (type === "boolean") return raw ? t("common.yes") : t("common.no")
+  return String(raw)
+}
+
+const sourceColors: Record<string, string> = {
+  manual: "bg-gray-500/10 text-gray-600 border-gray-200 dark:border-gray-700",
+  import: "bg-blue-500/10 text-blue-600 border-blue-200 dark:border-blue-800",
+  woocommerce: "bg-purple-500/10 text-purple-600 border-purple-200 dark:border-purple-800",
+}
+
+const sourceLabels: Record<string, string> = {
+  manual: "Manual",
+  import: "CSV",
+  woocommerce: "WooCommerce",
+}
 
 export function ProductsList() {
   const { t } = useTranslation()
@@ -84,6 +108,36 @@ export function ProductsList() {
 
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+
+  const [sort, setSort] = useState<DataTableSort | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkBusy, setBulkBusy] = useState(false)
+
+  const {
+    fields: productFields,
+    loaded: fieldsLoaded,
+    fetch: fetchFields,
+  } = useProductFieldsStore()
+
+  useEffect(() => {
+    if (!fieldsLoaded) {
+      fetchFields().catch((error) =>
+        addToast({
+          type: "error",
+          title: t("catalog.loadError"),
+          description: (error as Error).message,
+        }),
+      )
+    }
+  }, [fieldsLoaded, fetchFields, addToast, t])
+
+  // Fields the tenant added on top of the native columns; these are stored in
+  // custom_data and rendered dynamically.
+  const customFields = useMemo(
+    () => productFields.filter((f) => !NATIVE_FIELD_KEYS.has(f.key)),
+    [productFields],
+  )
 
   const load = useCallback(
     async (searchTerm?: string) => {
@@ -130,6 +184,7 @@ export function ProductsList() {
       price: product.price ?? "",
       description: product.description ?? "",
       is_active: product.is_active,
+      custom_data: { ...(product.custom_data ?? {}) },
     })
     setDialogOpen(true)
   }
@@ -145,6 +200,7 @@ export function ProductsList() {
       price: form.price.trim() === "" ? null : Number(form.price),
       description: form.description.trim() || null,
       is_active: form.is_active,
+      custom_data: form.custom_data,
     }
 
     setSaving(true)
@@ -186,10 +242,32 @@ export function ProductsList() {
     }
   }
 
-  const totalPages = Math.max(1, Math.ceil(products.length / PAGE_SIZE))
+  const sortedProducts = useMemo(() => {
+    if (!sort) return products
+    const dir = sort.direction === "asc" ? 1 : -1
+    return [...products].sort((a, b) => {
+      switch (sort.columnId) {
+        case "name":
+          return a.name.localeCompare(b.name) * dir
+        case "price": {
+          const av = a.price === null ? -Infinity : Number(a.price)
+          const bv = b.price === null ? -Infinity : Number(b.price)
+          return (av - bv) * dir
+        }
+        case "source":
+          return a.source.localeCompare(b.source) * dir
+        case "status":
+          return (Number(a.is_active) - Number(b.is_active)) * dir
+        default:
+          return 0
+      }
+    })
+  }, [products, sort])
+
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
   const pageStart = (currentPage - 1) * PAGE_SIZE
-  const paginatedProducts = products.slice(pageStart, pageStart + PAGE_SIZE)
+  const paginatedProducts = sortedProducts.slice(pageStart, pageStart + PAGE_SIZE)
 
   const formatPrice = (price: string | null) => {
     if (price === null || price === "") return "—"
@@ -197,6 +275,127 @@ export function ProductsList() {
     if (Number.isNaN(value)) return price
     return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   }
+
+  const selectedProducts = products.filter((p) => selectedIds.has(p.id))
+  const clearSelection = () => setSelectedIds(new Set())
+
+  const handleBulkSetActive = async (active: boolean) => {
+    if (selectedProducts.length === 0) return
+    setBulkBusy(true)
+    try {
+      await Promise.all(selectedProducts.map((p) => updateProduct(p.id, { is_active: active })))
+      addToast({
+        type: "success",
+        title: active ? t("catalog.bulkActivated") : t("catalog.bulkDeactivated"),
+      })
+      clearSelection()
+      await load(search.trim() || undefined)
+    } catch (error) {
+      addToast({ type: "error", title: t("catalog.saveError"), description: (error as Error).message })
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedProducts.length === 0) return
+    setBulkBusy(true)
+    try {
+      await Promise.all(selectedProducts.map((p) => deleteProduct(p.id)))
+      addToast({ type: "success", title: t("catalog.bulkDeleted") })
+      clearSelection()
+      await load(search.trim() || undefined)
+    } catch (error) {
+      addToast({ type: "error", title: t("catalog.deleteError"), description: (error as Error).message })
+    } finally {
+      setBulkBusy(false)
+      setBulkDeleteOpen(false)
+    }
+  }
+
+  const columns: DataTableColumn<Product>[] = [
+    {
+      id: "name",
+      header: t("catalog.columnName"),
+      sortable: true,
+      cell: (product) => (
+        <div>
+          <div className="font-medium">{product.name}</div>
+          {product.description && (
+            <div className="line-clamp-1 text-sm text-muted-foreground">{product.description}</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "price",
+      header: t("catalog.columnPrice"),
+      sortable: true,
+      width: "160px",
+      className: "tabular-nums",
+      cell: (product) => formatPrice(product.price),
+    },
+    {
+      id: "source",
+      header: t("catalog.columnSource"),
+      sortable: true,
+      width: "144px",
+      cell: (product) => (
+        <Badge variant="outline" className={sourceColors[product.source] || sourceColors.manual}>
+          {sourceLabels[product.source] || product.source}
+        </Badge>
+      ),
+    },
+    {
+      id: "status",
+      header: t("catalog.columnStatus"),
+      sortable: true,
+      width: "128px",
+      cell: (product) => (
+        <Badge variant={product.is_active ? "default" : "secondary"}>
+          {product.is_active ? t("catalog.active") : t("catalog.inactive")}
+        </Badge>
+      ),
+    },
+    ...customFields.map<DataTableColumn<Product>>((field) => ({
+      id: `custom:${field.key}`,
+      header: field.label,
+      minWidth: "140px",
+      cell: (product) => (
+        <span className="text-sm">
+          {formatCustomValue(product.custom_data?.[field.key], field.type, t)}
+        </span>
+      ),
+    })),
+    {
+      id: "actions",
+      header: t("catalog.columnActions"),
+      align: "right",
+      width: "64px",
+      cell: (product) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => openEdit(product)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              {t("catalog.edit")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => setDeleteTarget(product)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {t("catalog.delete")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
+  ]
 
   return (
     <div className="space-y-6">
@@ -227,72 +426,52 @@ export function ProductsList() {
         />
       </div>
 
-      <div className="rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("catalog.columnName")}</TableHead>
-              <TableHead className="w-40">{t("catalog.columnPrice")}</TableHead>
-              <TableHead className="w-32">{t("catalog.columnStatus")}</TableHead>
-              <TableHead className="w-16" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
-                  {t("catalog.loading")}
-                </TableCell>
-              </TableRow>
-            ) : products.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
-                  {t("catalog.empty")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              paginatedProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>
-                    <div className="font-medium">{product.name}</div>
-                    {product.description && (
-                      <div className="line-clamp-1 text-sm text-muted-foreground">{product.description}</div>
-                    )}
-                  </TableCell>
-                  <TableCell>{formatPrice(product.price)}</TableCell>
-                  <TableCell>
-                    <Badge variant={product.is_active ? "default" : "secondary"}>
-                      {product.is_active ? t("catalog.active") : t("catalog.inactive")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(product)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          {t("catalog.edit")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setDeleteTarget(product)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          {t("catalog.delete")}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/10 px-4 py-3">
+          <Badge variant="secondary" className="text-sm font-semibold">
+            {t("catalog.bulkSelected", { count: selectedIds.size })}
+          </Badge>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => handleBulkSetActive(true)}>
+              {t("catalog.activate")}
+            </Button>
+            <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => handleBulkSetActive(false)}>
+              {t("catalog.deactivate")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              disabled={bulkBusy}
+              onClick={() => setBulkDeleteOpen(true)}
+            >
+              <Trash2 className="mr-1 h-3.5 w-3.5" />
+              {t("catalog.delete")}
+            </Button>
+            <Button size="sm" variant="ghost" disabled={bulkBusy} onClick={clearSelection}>
+              <X className="mr-1 h-3.5 w-3.5" />
+              {t("catalog.cancel")}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <DataTable
+        columns={columns}
+        data={paginatedProducts}
+        getRowId={(product) => product.id}
+        loading={loading}
+        loadingLabel={t("catalog.loading")}
+        emptyLabel={t("catalog.empty")}
+        sort={sort}
+        onSortChange={(next) => {
+          setPage(1)
+          setSort(next)
+        }}
+        selectable
+        selectedIds={selectedIds}
+        onSelectedIdsChange={setSelectedIds}
+      />
 
       {!loading && products.length > 0 && (
         <div className="flex items-center justify-between">
@@ -380,6 +559,25 @@ export function ProductsList() {
                 onCheckedChange={(checked) => setForm((f) => ({ ...f, is_active: checked }))}
               />
             </div>
+
+            {customFields.map((field) => (
+              <div key={field.key} className="space-y-2">
+                <Label htmlFor={`cf-${field.key}`}>
+                  {field.label}
+                  {field.is_required ? <span className="text-destructive"> *</span> : null}
+                </Label>
+                <CustomFieldInput
+                  field={field}
+                  value={form.custom_data[field.key]}
+                  onChange={(next) =>
+                    setForm((f) => ({
+                      ...f,
+                      custom_data: { ...f.custom_data, [field.key]: next },
+                    }))
+                  }
+                />
+              </div>
+            ))}
           </div>
 
           <DialogFooter>
@@ -404,6 +602,30 @@ export function ProductsList() {
           <AlertDialogFooter>
             <AlertDialogCancel>{t("catalog.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete}>{t("catalog.delete")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => !bulkBusy && setBulkDeleteOpen(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("catalog.deleteConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("catalog.bulkDeleteConfirmBody", { count: selectedIds.size })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkBusy}>{t("catalog.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                void handleBulkDelete()
+              }}
+              disabled={bulkBusy}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t("catalog.delete")}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

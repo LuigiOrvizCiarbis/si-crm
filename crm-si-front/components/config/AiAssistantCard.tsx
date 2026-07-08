@@ -32,6 +32,8 @@ const PROVIDERS: { id: AiProviderId; label: string; defaultModel: string }[] = [
   { id: "openai", label: "OpenAI (GPT)", defaultModel: "gpt-4o" },
 ]
 
+const SYSTEM_PROMPT_MAX_LENGTH = 20000
+
 export function AiAssistantCard() {
   const { addToast } = useToast()
   const { t } = useTranslation()
@@ -94,6 +96,10 @@ export function AiAssistantCard() {
   }
 
   const providerMeta = PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0]
+  const systemPromptLength = systemPrompt.length
+  const isSystemPromptNearLimit =
+    systemPromptLength >= SYSTEM_PROMPT_MAX_LENGTH * 0.9
+  const systemPromptLimitLabel = SYSTEM_PROMPT_MAX_LENGTH.toLocaleString()
 
   const handleSave = async () => {
     setSaving(true)
@@ -307,8 +313,31 @@ export function AiAssistantCard() {
                 value={systemPrompt}
                 onChange={(e) => setSystemPrompt(e.target.value)}
                 placeholder={t("settings.aiAssistant.systemPromptPlaceholder")}
+                maxLength={SYSTEM_PROMPT_MAX_LENGTH}
                 rows={4}
               />
+              <div className="flex items-center justify-between gap-3 text-xs">
+                <p
+                  className={
+                    isSystemPromptNearLimit
+                      ? "text-amber-600"
+                      : "text-muted-foreground"
+                  }
+                >
+                  {t("settings.aiAssistant.systemPromptHint", {
+                    max: systemPromptLimitLabel,
+                  })}
+                </p>
+                <span
+                  className={
+                    isSystemPromptNearLimit
+                      ? "shrink-0 text-amber-600"
+                      : "shrink-0 text-muted-foreground"
+                  }
+                >
+                  {systemPromptLength.toLocaleString()} / {systemPromptLimitLabel}
+                </span>
+              </div>
             </div>
 
             <div className="flex justify-end gap-2">
