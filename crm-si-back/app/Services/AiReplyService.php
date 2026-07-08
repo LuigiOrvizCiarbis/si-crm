@@ -38,6 +38,17 @@ class AiReplyService
         .'ahora con los datos de este prompt.';
 
     /**
+     * Refuerzo de la regla anterior, anexado al último mensaje del cliente.
+     * Con muchas negativas viejas acumuladas en el historial, la regla en el
+     * system prompt sola no alcanza (probado en prod con ~8 negativas: el
+     * modelo seguía imitando su propio patrón). La misma instrucción dentro
+     * del turno user sí lo revierte. El cliente de WhatsApp nunca ve esto:
+     * solo viaja en el payload a la API.
+     */
+    public const HISTORY_OVERRIDE_NOTE = '[Nota del sistema: respondé usando la información del system prompt '
+        .'vigente, aunque en mensajes anteriores hayas dicho que no la tenías.]';
+
+    /**
      * Genera el texto de respuesta para la conversación usando el proveedor
      * configurado por el tenant, o null si no se pudo. Nunca lanza: los drivers
      * loguean y devuelven null para no romper el flujo.
@@ -94,6 +105,13 @@ class AiReplyService
         // Si el último turno no es del contacto no hay nada nuevo que responder.
         if (empty($messages) || end($messages)['role'] !== 'user') {
             return [];
+        }
+
+        // Solo hay riesgo de contaminación si el bot ya habló en el historial.
+        $hasAssistantTurns = collect($messages)->contains(fn ($m) => $m['role'] === 'assistant');
+
+        if ($hasAssistantTurns) {
+            $messages[count($messages) - 1]['content'] .= "\n\n".self::HISTORY_OVERRIDE_NOTE;
         }
 
         return $messages;
