@@ -38,7 +38,7 @@ class AnthropicProvider implements AiProvider
                         'cache_control' => ['type' => 'ephemeral'],
                     ],
                 ],
-                messages: $messages,
+                messages: array_map([$this, 'formatMessage'], $messages),
             );
 
             foreach ($response->content as $block) {
@@ -59,6 +59,40 @@ class AnthropicProvider implements AiProvider
 
             return null;
         }
+    }
+
+    /**
+     * Traduce un mensaje del historial al formato de la API de Anthropic. Si el
+     * content es string plano, pasa sin tocar. Si es una lista de bloques
+     * neutrales, mapea {type:'image'} a {type:'image', source:{base64}} y
+     * {type:'text'} tal cual.
+     *
+     * @param  array{role: string, content: string|array<int, array<string, mixed>>}  $message
+     * @return array{role: string, content: string|array<int, array<string, mixed>>}
+     */
+    private function formatMessage(array $message): array
+    {
+        if (is_string($message['content'])) {
+            return $message;
+        }
+
+        $blocks = [];
+        foreach ($message['content'] as $block) {
+            if (($block['type'] ?? null) === 'image') {
+                $blocks[] = [
+                    'type' => 'image',
+                    'source' => [
+                        'type' => 'base64',
+                        'media_type' => $block['mime'],
+                        'data' => $block['data'],
+                    ],
+                ];
+            } elseif (($block['type'] ?? null) === 'text') {
+                $blocks[] = ['type' => 'text', 'text' => $block['text']];
+            }
+        }
+
+        return ['role' => $message['role'], 'content' => $blocks];
     }
 
     public function listModels(): array

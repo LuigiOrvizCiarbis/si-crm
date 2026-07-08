@@ -31,7 +31,7 @@ class OpenAiProvider implements AiProvider
                 'max_tokens' => 1024,
                 'messages' => [
                     ['role' => 'system', 'content' => $systemPrompt],
-                    ...$messages,
+                    ...array_map([$this, 'formatMessage'], $messages),
                 ],
             ]);
 
@@ -53,6 +53,36 @@ class OpenAiProvider implements AiProvider
 
             return null;
         }
+    }
+
+    /**
+     * Traduce un mensaje del historial al formato de la API de OpenAI. Si el
+     * content es string plano, pasa sin tocar. Si es una lista de bloques
+     * neutrales, mapea {type:'image'} a {type:'image_url', image_url:{data URI}}
+     * y {type:'text'} tal cual.
+     *
+     * @param  array{role: string, content: string|array<int, array<string, mixed>>}  $message
+     * @return array{role: string, content: string|array<int, array<string, mixed>>}
+     */
+    private function formatMessage(array $message): array
+    {
+        if (is_string($message['content'])) {
+            return $message;
+        }
+
+        $blocks = [];
+        foreach ($message['content'] as $block) {
+            if (($block['type'] ?? null) === 'image') {
+                $blocks[] = [
+                    'type' => 'image_url',
+                    'image_url' => ['url' => "data:{$block['mime']};base64,{$block['data']}"],
+                ];
+            } elseif (($block['type'] ?? null) === 'text') {
+                $blocks[] = ['type' => 'text', 'text' => $block['text']];
+            }
+        }
+
+        return ['role' => $message['role'], 'content' => $blocks];
     }
 
     public function listModels(): array

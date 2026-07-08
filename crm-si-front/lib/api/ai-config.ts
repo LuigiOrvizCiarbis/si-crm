@@ -63,6 +63,8 @@ export interface AiTestResult {
   cache_min_tokens: number | null
   error_code: AiTestErrorCode | null
   error_message: string | null
+  // Aviso (no bloqueante) si el modelo elegido no procesa imágenes. null si sí.
+  model_vision_warning?: string | null
 }
 
 export interface AiTestInput {
@@ -119,7 +121,7 @@ export async function testAiConfig(input: AiTestInput): Promise<AiTestResult> {
 
 export async function updateAiConfig(
   input: AiConfigInput,
-): Promise<{ data?: AiConfig; error?: string }> {
+): Promise<{ data?: AiConfig; error?: string; modelVisionWarning?: string | null }> {
   const token = getAuthToken()
   if (!token) return { error: "No auth" }
 
@@ -135,7 +137,7 @@ export async function updateAiConfig(
 
   const json = await res.json().catch(() => ({}))
   if (!res.ok) return { error: extractError(json) }
-  return { data: json.data }
+  return { data: json.data, modelVisionWarning: json.model_vision_warning ?? null }
 }
 
 function extractError(json: any): string {

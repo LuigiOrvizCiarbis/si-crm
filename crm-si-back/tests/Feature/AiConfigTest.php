@@ -15,6 +15,7 @@ use App\Support\RoleProvisioner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -295,6 +296,115 @@ class AiConfigTest extends TestCase
 
         // Sin key no debe salir ninguna llamada al proveedor.
         Http::assertNothingSent();
+    }
+
+    /**
+     * @return array<string, array{0: AiProvider, 1: string, 2: bool}>
+     */
+    public static function visionModelProvider(): array
+    {
+        return [
+            // provider, model, esperaSoporteDeVision
+            'claude opus 4.8' => [AiProvider::CLAUDE, 'claude-opus-4-8', true],
+            'claude haiku 4.5' => [AiProvider::CLAUDE, 'claude-haiku-4-5', true],
+            'claude 3 sonnet' => [AiProvider::CLAUDE, 'claude-3-sonnet-20240229', true],
+            'claude 2 (sin vision)' => [AiProvider::CLAUDE, 'claude-2.1', false],
+            'claude instant (sin vision)' => [AiProvider::CLAUDE, 'claude-instant-1.2', false],
+            'gpt-4o' => [AiProvider::OPENAI, 'gpt-4o', true],
+            'gpt-4o datado' => [AiProvider::OPENAI, 'gpt-4o-2024-08-06', true],
+            'gpt-4.1' => [AiProvider::OPENAI, 'gpt-4.1', true],
+            'gpt-4-turbo (con vision)' => [AiProvider::OPENAI, 'gpt-4-turbo', true],
+            'gpt-4 base (sin vision)' => [AiProvider::OPENAI, 'gpt-4', false],
+            'gpt-4 datado base (sin vision)' => [AiProvider::OPENAI, 'gpt-4-0613', false],
+            'gpt-3.5 (sin vision)' => [AiProvider::OPENAI, 'gpt-3.5-turbo', false],
+            'o1-mini (sin vision)' => [AiProvider::OPENAI, 'o1-mini', false],
+            'modelo desconocido asume vision' => [AiProvider::OPENAI, 'gpt-9-ultra', true],
+        ];
+    }
+
+    #[DataProvider('visionModelProvider')]
+    public function test_model_supports_vision_heuristic(AiProvider $provider, string $model, bool $expected): void
+    {
+        $this->assertSame($expected, $provider->modelSupportsVision($model));
+    }
+
+    public function test_update_returns_vision_warning_for_text_only_model(): void
+    {
+        [$user] = $this->makeAdmin();
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/ai-config', [
+            'provider' => 'openai',
+            'model' => 'gpt-3.5-turbo',
+            'enabled' => true,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.model', 'gpt-3.5-turbo')
+            ->assertJsonFragment(['model_vision_warning' => $this->expectedWarning('gpt-3.5-turbo')]);
+    }
+
+    public function test_connection_test_without_system_prompt_or_model_does_not_500(): void
+    {
+        // Regresión: model y system_prompt son nullable; si el request no los
+        // trae, el controller no debe reventar con "Undefined array key".
+        Http::fake([
+            'api.openai.com/*' => Http::response(['error' => ['message' => 'bad key']], 401),
+        ]);
+
+        [$user, $tenant] = $this->makeAdmin();
+        $config = AiConfig::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id,
+            'provider' => AiProvider::OPENAI,
+            'enabled' => true,
+        ]);
+        $config->setEncryptedApiKey('sk-existing');
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/ai-config/test', ['provider' => 'openai'])
+            ->assertOk()
+            ->assertJsonPath('data.ok', false);
+    }
+
+    public function test_connection_test_returns_vision_warning_for_text_only_model(): void
+    {
+        Http::fake([
+            'api.openai.com/*' => Http::response(['error' => ['message' => 'bad key']], 401),
+        ]);
+
+        [$user] = $this->makeAdmin();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/ai-config/test', [
+            'provider' => 'openai',
+            'model' => 'gpt-3.5-turbo',
+            'api_key' => 'sk-fake',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.model_vision_warning', $this->expectedWarning('gpt-3.5-turbo'))
+            ->assertJsonPath('data.ok', false);
+    }
+
+    public function test_update_returns_null_vision_warning_for_multimodal_model(): void
+    {
+        [$user] = $this->makeAdmin();
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/ai-config', [
+            'provider' => 'openai',
+            'model' => 'gpt-4o',
+            'enabled' => true,
+        ])
+            ->assertOk()
+            ->assertJsonPath('model_vision_warning', null);
+    }
+
+    private function expectedWarning(string $model): string
+    {
+        return "El modelo {$model} no procesa imágenes: las fotos que "
+            .'envíen los clientes por WhatsApp serán ignoradas por el asistente. '
+            .'Elegí un modelo con soporte de visión (por ejemplo gpt-4o o claude-opus-4-8) '
+            .'si querés que el bot pueda verlas.';
     }
 
     private function makeTenant(): Tenant

@@ -69,6 +69,7 @@ class AiConfigController extends Controller
 
         return response()->json([
             'data' => $this->transform($config->fresh()),
+            'model_vision_warning' => $this->visionWarning($config->provider, $config->model),
         ]);
     }
 
@@ -138,8 +139,8 @@ class AiConfigController extends Controller
             ], 422);
         }
 
-        $model = $validated['model'] ?: $provider->defaultModel();
-        $systemPrompt = $validated['system_prompt']
+        $model = ($validated['model'] ?? null) ?: $provider->defaultModel();
+        $systemPrompt = ($validated['system_prompt'] ?? null)
             ?: $config?->system_prompt
             ?: AiReplyService::DEFAULT_SYSTEM_PROMPT;
 
@@ -151,8 +152,29 @@ class AiConfigController extends Controller
             'data' => [
                 ...$result->toArray(),
                 'cache_min_tokens' => $provider->cacheMinTokens(),
+                'model_vision_warning' => $this->visionWarning($provider, $model),
             ],
         ]);
+    }
+
+    /**
+     * Mensaje de aviso si el modelo elegido no procesa imágenes, o null si sí.
+     * El auto-responder recibe las fotos que manda el cliente por WhatsApp; con
+     * un modelo sin visión esas imágenes se ignoran (se degradan a un
+     * placeholder de texto). No bloquea el guardado: es solo un aviso.
+     */
+    private function visionWarning(AiProvider $provider, ?string $model): ?string
+    {
+        $effectiveModel = $model ?: $provider->defaultModel();
+
+        if ($provider->modelSupportsVision($effectiveModel)) {
+            return null;
+        }
+
+        return "El modelo {$effectiveModel} no procesa imágenes: las fotos que "
+            .'envíen los clientes por WhatsApp serán ignoradas por el asistente. '
+            .'Elegí un modelo con soporte de visión (por ejemplo gpt-4o o claude-opus-4-8) '
+            .'si querés que el bot pueda verlas.';
     }
 
     /**

@@ -52,6 +52,11 @@ return [
         'catalog_max_products' => env('AI_CATALOG_MAX_PRODUCTS', 100),
         'catalog_max_description_chars' => env('AI_CATALOG_MAX_DESCRIPTION_CHARS', 300),
         'catalog_max_chars' => env('AI_CATALOG_MAX_CHARS', 12000),
+        // Cantidad máxima de imágenes del historial que se envían como bloque
+        // visual al modelo (las más viejas degradan a un placeholder de texto,
+        // para acotar costo y tokens). Cota de tamaño por imagen en bytes.
+        'max_images' => env('AI_MAX_IMAGES', 3),
+        'max_image_bytes' => env('AI_MAX_IMAGE_BYTES', 5242880),
     ],
 
     'facebook' => [
