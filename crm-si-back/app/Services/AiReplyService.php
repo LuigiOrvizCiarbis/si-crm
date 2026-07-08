@@ -87,6 +87,7 @@ class AiReplyService
             ->whereNotNull('content')
             ->where('content', '!=', '')
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->limit($maxHistory)
             ->get()
             ->reverse();
@@ -190,16 +191,20 @@ class AiReplyService
         return $header.$body;
     }
 
+    /**
+     * Cada producto es una línea "- ..." del catálogo: saltos de línea en
+     * nombre o descripción romperían el formato de lista, se colapsan a espacio.
+     */
     private function formatCatalogLine(Product $product, int $maxDescription): string
     {
-        $parts = [$product->name];
+        $parts = [preg_replace('/\s+/u', ' ', trim($product->name))];
 
         if ($product->price !== null) {
             $parts[] = '$'.number_format((float) $product->price, 2);
         }
 
         if (filled($product->description)) {
-            $description = trim($product->description);
+            $description = preg_replace('/\s+/u', ' ', trim($product->description));
 
             if (mb_strlen($description) > $maxDescription) {
                 $description = mb_substr($description, 0, $maxDescription).'…';
