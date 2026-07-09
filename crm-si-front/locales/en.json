@@ -555,6 +555,26 @@
   },
   "settings": {
     "title": "Settings",
+    "page": {
+      "description": "Manage your workspace structure, team tools, and integrations.",
+      "navigationLabel": "Settings sections",
+      "organization": {
+        "title": "Organization",
+        "description": "Define access, branches, and team members."
+      },
+      "operation": {
+        "title": "Operations",
+        "description": "Adapt the CRM to the way your team works."
+      },
+      "integrations": {
+        "title": "Integrations",
+        "description": "Connect external services and configure automations."
+      },
+      "restricted": {
+        "title": "No settings available",
+        "description": "Your account does not have permission to view or modify this section."
+      }
+    },
     "save": "Save changes",
     "profile": "Profile",
     "accountType": "Account type",
@@ -664,8 +684,11 @@
     },
     "aiAssistant": {
       "title": "AI Assistant",
+      "description": "Configure the provider, model, and instructions that guide each automatic reply.",
       "enabled": "Auto-reply enabled",
       "enabledHint": "Automatically reply to incoming messages using your AI provider.",
+      "statusEnabled": "Active",
+      "statusPaused": "Paused",
       "provider": "Provider",
       "apiKey": "API Key",
       "apiKeySet": "•••••••••••• (unchanged)",
@@ -679,7 +702,18 @@
       "modelsEmpty": "Couldn't fetch models. Check that the API key is valid.",
       "systemPrompt": "Instructions (system prompt)",
       "systemPromptPlaceholder": "You are a customer support assistant…",
-      "systemPromptHint": "Up to {{max}} characters. For long instructions, paste the content here.",
+      "systemPromptHint": "Define tone, limits, data to request, and when to hand off to the team. Up to {{max}} characters.",
+      "insertTemplate": "Use base",
+      "appendTemplate": "Add base",
+      "templateLimit": "There is not enough space to add the template.",
+      "clearPrompt": "Clear",
+      "promptUsage": "Instruction limit usage",
+      "promptTipTone": "Tone and role",
+      "promptTipLimits": "Clear limits",
+      "promptTipHandoff": "Human handoff",
+      "promptEmpty": "Without instructions, AI replies only with the available context.",
+      "promptReady": "These instructions are sent as fixed context with each reply.",
+      "promptTemplate": "You are the customer support assistant for {{tenant_name}}.\n\nGoal:\n- Help each contact with clear, brief, actionable replies.\n- Ask for missing information before promising a solution.\n- Hand off to a team member when there are doubts, sensitive complaints, or advanced purchase intent.\n\nTone:\n- Professional, warm, and direct.\n- Do not invent prices, stock, timelines, or policies.\n\nRules:\n- Reply in the contact's language.\n- Use the conversation context before repeating questions.\n- If you do not have enough information, explain which detail you need.",
       "saved": "AI configuration saved",
       "test": "Test connection",
       "testing": "Testing…",
