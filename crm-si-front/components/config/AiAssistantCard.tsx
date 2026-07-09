@@ -1,12 +1,19 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Badge } from "@/components/ui/badge"
 import {
   Select,
   SelectContent,
@@ -14,7 +21,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Bot, Loader2, RefreshCw, PlugZap, AlertTriangle } from "lucide-react"
+import {
+  AlertTriangle,
+  Bot,
+  CheckCircle2,
+  Eraser,
+  Loader2,
+  PauseCircle,
+  PlugZap,
+  RefreshCw,
+  WandSparkles,
+} from "lucide-react"
 import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useAuthStore } from "@/store/useAuthStore"
@@ -102,6 +119,27 @@ export function AiAssistantCard() {
   const isSystemPromptNearLimit =
     systemPromptLength >= SYSTEM_PROMPT_MAX_LENGTH * 0.9
   const systemPromptLimitLabel = SYSTEM_PROMPT_MAX_LENGTH.toLocaleString()
+  const systemPromptUsage = Math.min(
+    (systemPromptLength / SYSTEM_PROMPT_MAX_LENGTH) * 100,
+    100,
+  )
+  const isSystemPromptEmpty = systemPrompt.trim().length === 0
+  const canTestConnection = hasApiKey || Boolean(apiKey.trim())
+  const promptTemplate = t("settings.aiAssistant.promptTemplate")
+  const promptTemplateSeparator = systemPrompt.trim() ? "\n\n" : ""
+  const canInsertPromptTemplate =
+    systemPrompt.trim().length +
+      promptTemplateSeparator.length +
+      promptTemplate.length <=
+    SYSTEM_PROMPT_MAX_LENGTH
+
+  const insertPromptTemplate = () => {
+    setSystemPrompt((current) =>
+      current.trim()
+        ? `${current.trim()}\n\n${promptTemplate}`
+        : promptTemplate,
+    )
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -200,71 +238,102 @@ export function AiAssistantCard() {
   }
 
   return (
-    <Card className="rounded-2xl border-[#1e2533]">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Bot className="w-5 h-5" />
-          {t("settings.aiAssistant.title")}
-        </CardTitle>
+    <Card className="rounded-lg border-border">
+      <CardHeader className="gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1.5">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Bot className="h-5 w-5 text-primary" />
+              {t("settings.aiAssistant.title")}
+            </CardTitle>
+            <CardDescription>
+              {t("settings.aiAssistant.description")}
+            </CardDescription>
+          </div>
+          {!loading && (
+            <Badge
+              variant={enabled ? "default" : "outline"}
+              className="w-fit gap-1.5"
+            >
+              {enabled ? (
+                <CheckCircle2 className="h-3 w-3" />
+              ) : (
+                <PauseCircle className="h-3 w-3" />
+              )}
+              {enabled
+                ? t("settings.aiAssistant.statusEnabled")
+                : t("settings.aiAssistant.statusPaused")}
+            </Badge>
+          )}
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         {loading ? (
           <div className="flex justify-center py-6">
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/30 p-4">
               <div className="space-y-0.5">
-                <Label>{t("settings.aiAssistant.enabled")}</Label>
+                <Label htmlFor="ai-assistant-enabled">
+                  {t("settings.aiAssistant.enabled")}
+                </Label>
                 <p className="text-xs text-muted-foreground">
                   {t("settings.aiAssistant.enabledHint")}
                 </p>
               </div>
-              <Switch checked={enabled} onCheckedChange={setEnabled} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>{t("settings.aiAssistant.provider")}</Label>
-              <Select
-                value={provider}
-                onValueChange={(value) => {
-                  setProvider(value as AiProviderId)
-                  // La lista cacheada es del proveedor anterior: la descartamos.
-                  setModels([])
-                  // El aviso de visión era del modelo/proveedor anterior.
-                  setVisionWarning(null)
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROVIDERS.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>{t("settings.aiAssistant.apiKey")}</Label>
-              <Input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={
-                  hasApiKey
-                    ? t("settings.aiAssistant.apiKeySet")
-                    : t("settings.aiAssistant.apiKeyPlaceholder")
-                }
-                autoComplete="new-password"
+              <Switch
+                id="ai-assistant-enabled"
+                checked={enabled}
+                onCheckedChange={setEnabled}
               />
-              <p className="text-xs text-muted-foreground">
-                {t("settings.aiAssistant.apiKeyHint")}
-              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t("settings.aiAssistant.provider")}</Label>
+                <Select
+                  value={provider}
+                  onValueChange={(value) => {
+                    setProvider(value as AiProviderId)
+                    // La lista cacheada es del proveedor anterior: la descartamos.
+                    setModels([])
+                    // El aviso de visión era del modelo/proveedor anterior.
+                    setVisionWarning(null)
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROVIDERS.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ai-api-key">{t("settings.aiAssistant.apiKey")}</Label>
+                <Input
+                  id="ai-api-key"
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={
+                    hasApiKey
+                      ? t("settings.aiAssistant.apiKeySet")
+                      : t("settings.aiAssistant.apiKeyPlaceholder")
+                  }
+                  autoComplete="new-password"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("settings.aiAssistant.apiKeyHint")}
+                </p>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -333,45 +402,121 @@ export function AiAssistantCard() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label>{t("settings.aiAssistant.systemPrompt")}</Label>
-              <Textarea
-                value={systemPrompt}
-                onChange={(e) => setSystemPrompt(e.target.value)}
-                placeholder={t("settings.aiAssistant.systemPromptPlaceholder")}
-                maxLength={SYSTEM_PROMPT_MAX_LENGTH}
-                rows={4}
-              />
-              <div className="flex items-center justify-between gap-3 text-xs">
-                <p
-                  className={
-                    isSystemPromptNearLimit
-                      ? "text-amber-600"
-                      : "text-muted-foreground"
-                  }
-                >
-                  {t("settings.aiAssistant.systemPromptHint", {
-                    max: systemPromptLimitLabel,
-                  })}
-                </p>
-                <span
-                  className={
-                    isSystemPromptNearLimit
-                      ? "shrink-0 text-amber-600"
-                      : "shrink-0 text-muted-foreground"
-                  }
-                >
-                  {systemPromptLength.toLocaleString()} / {systemPromptLimitLabel}
-                </span>
+            <div className="rounded-lg border border-border bg-muted/20">
+              <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="ai-system-prompt" className="text-sm font-semibold">
+                    {t("settings.aiAssistant.systemPrompt")}
+                  </Label>
+                  <p
+                    id="ai-system-prompt-help"
+                    className="max-w-2xl text-xs leading-5 text-muted-foreground"
+                  >
+                    {t("settings.aiAssistant.systemPromptHint", {
+                      max: systemPromptLimitLabel,
+                    })}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={insertPromptTemplate}
+                    disabled={!canInsertPromptTemplate}
+                    title={
+                      canInsertPromptTemplate
+                        ? undefined
+                        : t("settings.aiAssistant.templateLimit")
+                    }
+                  >
+                    <WandSparkles className="h-4 w-4" />
+                    {isSystemPromptEmpty
+                      ? t("settings.aiAssistant.insertTemplate")
+                      : t("settings.aiAssistant.appendTemplate")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSystemPrompt("")}
+                    disabled={isSystemPromptEmpty}
+                  >
+                    <Eraser className="h-4 w-4" />
+                    {t("settings.aiAssistant.clearPrompt")}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-3 p-4">
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span className="rounded-md border border-border bg-background px-2 py-1">
+                    {t("settings.aiAssistant.promptTipTone")}
+                  </span>
+                  <span className="rounded-md border border-border bg-background px-2 py-1">
+                    {t("settings.aiAssistant.promptTipLimits")}
+                  </span>
+                  <span className="rounded-md border border-border bg-background px-2 py-1">
+                    {t("settings.aiAssistant.promptTipHandoff")}
+                  </span>
+                </div>
+
+                <Textarea
+                  id="ai-system-prompt"
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  placeholder={t("settings.aiAssistant.systemPromptPlaceholder")}
+                  maxLength={SYSTEM_PROMPT_MAX_LENGTH}
+                  rows={10}
+                  aria-describedby="ai-system-prompt-help ai-system-prompt-count"
+                  className="min-h-[220px] resize-y bg-background font-mono text-sm leading-6"
+                />
+
+                <div className="space-y-2">
+                  <div
+                    className="h-1.5 overflow-hidden rounded-full bg-muted"
+                    role="progressbar"
+                    aria-label={t("settings.aiAssistant.promptUsage")}
+                    aria-valuemin={0}
+                    aria-valuemax={SYSTEM_PROMPT_MAX_LENGTH}
+                    aria-valuenow={systemPromptLength}
+                  >
+                    <div
+                      className={
+                        isSystemPromptNearLimit
+                          ? "h-full rounded-full bg-amber-500 transition-[width]"
+                          : "h-full rounded-full bg-primary transition-[width]"
+                      }
+                      style={{ width: `${systemPromptUsage}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <p className="text-muted-foreground">
+                      {isSystemPromptEmpty
+                        ? t("settings.aiAssistant.promptEmpty")
+                        : t("settings.aiAssistant.promptReady")}
+                    </p>
+                    <span
+                      id="ai-system-prompt-count"
+                      className={
+                        isSystemPromptNearLimit
+                          ? "shrink-0 font-medium text-amber-600"
+                          : "shrink-0 text-muted-foreground"
+                      }
+                    >
+                      {systemPromptLength.toLocaleString()} / {systemPromptLimitLabel}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleTest}
-                disabled={testing || saving || (!hasApiKey && !apiKey.trim())}
+                disabled={testing || saving || !canTestConnection}
               >
                 {testing ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />

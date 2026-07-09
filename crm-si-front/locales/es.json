@@ -555,6 +555,26 @@
   },
   "settings": {
     "title": "Configuración",
+    "page": {
+      "description": "Administrá la estructura del equipo, las herramientas de trabajo y las integraciones del espacio.",
+      "navigationLabel": "Secciones de configuración",
+      "organization": {
+        "title": "Organización",
+        "description": "Definí accesos, sucursales y miembros del equipo."
+      },
+      "operation": {
+        "title": "Operación",
+        "description": "Adaptá el CRM a la forma de trabajo de tu equipo."
+      },
+      "integrations": {
+        "title": "Integraciones",
+        "description": "Conectá servicios externos y configurá las automatizaciones."
+      },
+      "restricted": {
+        "title": "Sin configuraciones disponibles",
+        "description": "Tu usuario no tiene permisos para ver o modificar esta sección."
+      }
+    },
     "save": "Guardar cambios",
     "profile": "Perfil",
     "accountType": "Tipo de cuenta",
@@ -664,8 +684,11 @@
     },
     "aiAssistant": {
       "title": "Asistente de IA",
+      "description": "Configurá el proveedor, el modelo y las instrucciones que guían cada respuesta automática.",
       "enabled": "Auto-respuesta habilitada",
       "enabledHint": "Responde automáticamente los mensajes entrantes usando tu proveedor de IA.",
+      "statusEnabled": "Activa",
+      "statusPaused": "Pausada",
       "provider": "Proveedor",
       "apiKey": "API Key",
       "apiKeySet": "•••••••••••• (sin cambios)",
@@ -679,7 +702,18 @@
       "modelsEmpty": "No se pudieron traer modelos. Revisá que la API key sea válida.",
       "systemPrompt": "Instrucciones (system prompt)",
       "systemPromptPlaceholder": "Sos un asistente de atención al cliente…",
-      "systemPromptHint": "Hasta {{max}} caracteres. Para instrucciones largas, pegá el contenido acá.",
+      "systemPromptHint": "Definí tono, límites, datos que debe pedir y cuándo derivar al equipo. Hasta {{max}} caracteres.",
+      "insertTemplate": "Usar base",
+      "appendTemplate": "Sumar base",
+      "templateLimit": "No hay espacio suficiente para sumar la plantilla.",
+      "clearPrompt": "Limpiar",
+      "promptUsage": "Uso del límite de instrucciones",
+      "promptTipTone": "Tono y rol",
+      "promptTipLimits": "Límites claros",
+      "promptTipHandoff": "Derivación humana",
+      "promptEmpty": "Sin instrucciones, la IA responde solo con el contexto disponible.",
+      "promptReady": "Estas instrucciones se envían como contexto fijo en cada respuesta.",
+      "promptTemplate": "Sos el asistente de atención de {{tenant_name}}.\n\nObjetivo:\n- Ayudar a cada contacto con respuestas claras, breves y accionables.\n- Pedir los datos faltantes antes de prometer una solución.\n- Derivar a una persona del equipo cuando haya dudas, reclamos sensibles o intención de compra avanzada.\n\nTono:\n- Profesional, cercano y directo.\n- Sin inventar precios, stock, plazos ni políticas.\n\nReglas:\n- Respondé en el idioma del contacto.\n- Usá el contexto de la conversación antes de repetir preguntas.\n- Si no tenés información suficiente, explicá qué dato necesitás.",
       "saved": "Configuración de IA guardada",
       "test": "Probar conexión",
       "testing": "Probando…",
