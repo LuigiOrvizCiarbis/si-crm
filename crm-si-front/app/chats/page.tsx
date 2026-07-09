@@ -28,6 +28,7 @@ import {
   archiveConversation,
   setAiAutoreply,
   bulkArchiveConversations,
+  bulkAiAutoreplyConversations,
   bulkDeleteConversations,
   bulkMarkReadConversations,
   getChannelConversations,
@@ -79,6 +80,7 @@ import { useFacebookSDK } from "@/hooks/useFacebookSDK"
 import {
   Archive,
   ArchiveRestore,
+  Bot,
   CheckSquare,
   FileText,
   Loader2,
@@ -1312,6 +1314,33 @@ export default function ChatsPage() {
     }
   }, [selectedConversationIds, addToast, t, refreshConversations, handleExitSelectionMode])
 
+  const handleBulkAiAutoreply = useCallback(async (enabled: boolean) => {
+    if (selectedConversationIds.size === 0) return
+    setBulkSubmitting(true)
+    try {
+      const result = await bulkAiAutoreplyConversations({
+        ids: Array.from(selectedConversationIds),
+        enabled,
+      })
+      addToast({
+        type: result.failed > 0 ? "info" : "success",
+        title: result.failed > 0
+          ? t("chats.bulk.result.partial", { updated: result.updated, failed: result.failed })
+          : t("chats.bulk.result.success", { updated: result.updated }),
+      })
+      await refreshConversations()
+      handleExitSelectionMode()
+    } catch (err) {
+      addToast({
+        type: "error",
+        title: t("chats.bulk.errors.apply"),
+        description: err instanceof Error ? err.message : "",
+      })
+    } finally {
+      setBulkSubmitting(false)
+    }
+  }, [selectedConversationIds, addToast, t, refreshConversations, handleExitSelectionMode])
+
   const handleBulkMarkRead = useCallback(async (read: boolean) => {
     if (selectedConversationIds.size === 0) return
     setBulkSubmitting(true)
@@ -1574,6 +1603,41 @@ export default function ChatsPage() {
                     {bulkSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
                     {t("chats.bulk.markUnread")}
                   </Button>
+                  <div
+                    role="group"
+                    aria-label={t("chats.bulk.aiAssistant")}
+                    className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background pl-2 pr-1"
+                  >
+                    {bulkSubmitting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                    <span className="hidden text-xs font-medium text-muted-foreground lg:inline">
+                      {t("chats.bulk.aiAssistant")}
+                    </span>
+                    <div className="ml-1 flex items-center gap-0.5">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleBulkAiAutoreply(true)}
+                        disabled={bulkSubmitting}
+                        className="h-6 px-2 text-xs text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-400"
+                      >
+                        {t("chats.bulk.enableAi")}
+                      </Button>
+                      <span aria-hidden className="text-border">|</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleBulkAiAutoreply(false)}
+                        disabled={bulkSubmitting}
+                        className="h-6 px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        {t("chats.bulk.disableAi")}
+                      </Button>
+                    </div>
+                  </div>
                   <Button
                     size="sm"
                     variant="destructive"

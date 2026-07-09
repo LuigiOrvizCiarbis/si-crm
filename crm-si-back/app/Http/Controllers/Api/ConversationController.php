@@ -555,6 +555,34 @@ class ConversationController extends Controller
         ]);
     }
 
+    /**
+     * Activa o desactiva la auto-respuesta de IA para múltiples conversaciones.
+     */
+    public function bulkAiAutoreply(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:5000'],
+            'ids.*' => ['integer'],
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        $conversations = Conversation::query()->whereIn('id', $validated['ids'])->get();
+
+        $authorized = $conversations->filter(fn (Conversation $conversation) => $user->can('update', $conversation));
+
+        foreach ($authorized as $conversation) {
+            $conversation->update(['ai_autoreply_enabled' => $validated['enabled']]);
+        }
+
+        return response()->json([
+            'updated' => $authorized->count(),
+            'failed' => count($validated['ids']) - $authorized->count(),
+            'enabled' => $validated['enabled'],
+        ]);
+    }
+
     public function bulkDelete(Request $request): JsonResponse
     {
         $user = $request->user();

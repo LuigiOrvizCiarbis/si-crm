@@ -378,6 +378,40 @@ export async function bulkArchiveConversations(
   return payload as BulkArchiveConversationsResponse;
 }
 
+export interface BulkAiAutoreplyConversationsRequest {
+  ids: number[];
+  enabled: boolean;
+}
+
+export interface BulkAiAutoreplyConversationsResponse {
+  updated: number;
+  failed: number;
+  enabled: boolean;
+}
+
+export async function bulkAiAutoreplyConversations(
+  req: BulkAiAutoreplyConversationsRequest,
+): Promise<BulkAiAutoreplyConversationsResponse> {
+  const token = requireToken();
+
+  const response = await fetch("/api/conversations/bulk-ai-autoreply", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(req),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwApiError(response.status, payload, "Error al actualizar el asistente de IA");
+  }
+
+  return payload as BulkAiAutoreplyConversationsResponse;
+}
+
 export interface BulkDeleteConversationsRequest {
   ids: number[];
 }
