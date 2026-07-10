@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\MessageDirection;
 use App\Http\Controllers\Controller;
+use App\Jobs\SendBroadcastMessageJob;
 use App\Models\Channel;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Opportunity;
 use App\Models\PipelineStage;
+use App\Models\WhatsAppTemplate;
 use App\Services\WhatsAppMessageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -552,6 +554,101 @@ class ConversationController extends Controller
             'updated' => $authorized->count(),
             'failed' => count($validated['ids']) - $authorized->count(),
             'archived' => $validated['archived'],
+        ]);
+    }
+
+    /**
+     * Activa o desactiva la auto-respuesta de IA para múltiples conversaciones.
+     */
+    public function bulkAiAutoreply(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:5000'],
+            'ids.*' => ['integer'],
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        $conversations = Conversation::query()->whereIn('id', $validated['ids'])->get();
+
+        $authorized = $conversations->filter(fn (Conversation $conversation) => $user->can('update', $conversation));
+
+        foreach ($authorized as $conversation) {
+            $conversation->update(['ai_autoreply_enabled' => $validated['enabled']]);
+        }
+
+        return response()->json([
+            'updated' => $authorized->count(),
+            'failed' => count($validated['ids']) - $authorized->count(),
+            'enabled' => $validated['enabled'],
+        ]);
+    }
+
+    /**
+     * Difusión: envía una plantilla de WhatsApp aprobada a varias conversaciones.
+     * Despacha un job por conversación con delay escalonado (~20 msg/s) para
+     * no exceder el throughput de Meta. Responde de inmediato con el conteo encolado.
+     */
+    public function bulkBroadcast(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:5000'],
+            'ids.*' => ['integer'],
+            'template_id' => ['required', 'integer', 'exists:whatsapp_templates,id'],
+            'components' => ['nullable', 'array'],
+        ]);
+
+        $conversations = Conversation::query()
+            ->whereIn('id', $validated['ids'])
+            ->with('channel.whatsappConfig')
+            ->get();
+
+        $authorized = $conversations->filter(fn (Conversation $conversation) => $user->can('sendMessage', $conversation));
+
+        if ($authorized->isEmpty()) {
+            return response()->json([
+                'message' => 'No hay conversaciones autorizadas para enviar la difusión.',
+            ], 422);
+        }
+
+        // Una difusión opera sobre UN solo número de WhatsApp: las plantillas
+        // son por canal. El front ya lo garantiza; esto es defensa server-side.
+        $configIds = $authorized
+            ->map(fn (Conversation $conversation) => $conversation->channel?->whatsappConfig?->id)
+            ->unique();
+
+        if ($configIds->count() !== 1 || $configIds->first() === null) {
+            return response()->json([
+                'message' => 'Todas las conversaciones deben pertenecer al mismo canal de WhatsApp.',
+            ], 422);
+        }
+
+        $template = WhatsAppTemplate::query()->findOrFail($validated['template_id']);
+
+        if (! $template->status->isApproved() || $template->whatsapp_config_id !== $configIds->first()) {
+            return response()->json([
+                'message' => 'La plantilla debe estar aprobada y pertenecer al canal seleccionado.',
+            ], 422);
+        }
+
+        $components = $validated['components'] ?? [];
+
+        foreach ($authorized->values() as $index => $conversation) {
+            SendBroadcastMessageJob::dispatch(
+                $conversation->id,
+                $template->id,
+                $components,
+                $user->id,
+                $user->tenant_id,
+            )->delay(now()->addMilliseconds($index * 50));
+        }
+
+        return response()->json([
+            'queued' => $authorized->count(),
+            'failed' => count($validated['ids']) - $authorized->count(),
         ]);
     }
 

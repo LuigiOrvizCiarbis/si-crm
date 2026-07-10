@@ -28,6 +28,7 @@ import {
   archiveConversation,
   setAiAutoreply,
   bulkArchiveConversations,
+  bulkAiAutoreplyConversations,
   bulkDeleteConversations,
   bulkMarkReadConversations,
   getChannelConversations,
@@ -44,6 +45,10 @@ const BulkTagsConversationsDialog = dynamic(
 )
 const BulkAssignConversationsDialog = dynamic(
   () => import("@/components/chat/BulkAssignConversationsDialog").then(m => m.BulkAssignConversationsDialog),
+  { loading: () => null }
+)
+const BroadcastDialog = dynamic(
+  () => import("@/components/chat/BroadcastDialog").then(m => m.BroadcastDialog),
   { loading: () => null }
 )
 import {
@@ -79,11 +84,13 @@ import { useFacebookSDK } from "@/hooks/useFacebookSDK"
 import {
   Archive,
   ArchiveRestore,
+  Bot,
   CheckSquare,
   FileText,
   Loader2,
   Mail,
   MailOpen,
+  Megaphone,
   Menu,
   MoreHorizontal,
   Plus,
@@ -312,6 +319,7 @@ export default function ChatsPage() {
   const [bulkTagsOpen, setBulkTagsOpen] = useState(false)
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [broadcastOpen, setBroadcastOpen] = useState(false)
   const [bulkSubmitting, setBulkSubmitting] = useState(false)
 
   const conversationsRef = useRef(conversations);
@@ -1312,6 +1320,33 @@ export default function ChatsPage() {
     }
   }, [selectedConversationIds, addToast, t, refreshConversations, handleExitSelectionMode])
 
+  const handleBulkAiAutoreply = useCallback(async (enabled: boolean) => {
+    if (selectedConversationIds.size === 0) return
+    setBulkSubmitting(true)
+    try {
+      const result = await bulkAiAutoreplyConversations({
+        ids: Array.from(selectedConversationIds),
+        enabled,
+      })
+      addToast({
+        type: result.failed > 0 ? "info" : "success",
+        title: result.failed > 0
+          ? t("chats.bulk.result.partial", { updated: result.updated, failed: result.failed })
+          : t("chats.bulk.result.success", { updated: result.updated }),
+      })
+      await refreshConversations()
+      handleExitSelectionMode()
+    } catch (err) {
+      addToast({
+        type: "error",
+        title: t("chats.bulk.errors.apply"),
+        description: err instanceof Error ? err.message : "",
+      })
+    } finally {
+      setBulkSubmitting(false)
+    }
+  }, [selectedConversationIds, addToast, t, refreshConversations, handleExitSelectionMode])
+
   const handleBulkMarkRead = useCallback(async (read: boolean) => {
     if (selectedConversationIds.size === 0) return
     setBulkSubmitting(true)
@@ -1346,6 +1381,43 @@ export default function ChatsPage() {
     () => visibleConversations.length > 0 && visibleConversations.every((c) => selectedConversationIds.has(c.id)),
     [visibleConversations, selectedConversationIds],
   )
+
+  // Canal representativo de la selección para difusión. Las plantillas son por
+  // NÚMERO de WhatsApp (whatsapp_config), no por canal: varios canales pueden
+  // compartir config, así que se compara por config id (igual que el backend).
+  // null si mezclan números o si algún id seleccionado no está en el estado
+  // local (nunca calcular sobre un subconjunto y abrir el diálogo por accidente).
+  const selectedCommonChannelId = useMemo(() => {
+    if (selectedConversationIds.size === 0) return null
+    const conversationById = new Map(conversations.map((c) => [c.id, c]))
+    const configByChannelId = new Map(
+      channels.map((ch) => [ch.id, ch.whatsapp_config?.id ?? null]),
+    )
+    let commonConfigId: number | null = null
+    let representativeChannelId: number | null = null
+    for (const id of selectedConversationIds) {
+      const conversation = conversationById.get(id)
+      const channelId = conversation?.channel?.id ?? conversation?.channelId
+      if (channelId === undefined || channelId === null) return null
+      const configId = configByChannelId.get(channelId)
+      if (configId === undefined || configId === null) return null
+      if (commonConfigId === null) {
+        commonConfigId = configId
+        representativeChannelId = channelId
+      } else if (commonConfigId !== configId) {
+        return null
+      }
+    }
+    return representativeChannelId
+  }, [selectedConversationIds, conversations, channels])
+
+  const handleBroadcastClick = useCallback(() => {
+    if (selectedCommonChannelId === null) {
+      addToast({ type: "info", title: t("chats.broadcast.errors.mixedChannels") })
+      return
+    }
+    setBroadcastOpen(true)
+  }, [selectedCommonChannelId, addToast, t])
 
   const renderChannelsSidebar = (
     onChannelSelect: (channelId: number) => void,
@@ -1531,6 +1603,16 @@ export default function ChatsPage() {
                     <UserPlus className="h-3.5 w-3.5" />
                     {t("chats.bulk.assign")}
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleBroadcastClick}
+                    disabled={bulkSubmitting}
+                    className="gap-2"
+                  >
+                    <Megaphone className="h-3.5 w-3.5" />
+                    {t("chats.bulk.broadcast")}
+                  </Button>
                   {viewType === "archived" ? (
                     <Button
                       size="sm"
@@ -1574,6 +1656,41 @@ export default function ChatsPage() {
                     {bulkSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
                     {t("chats.bulk.markUnread")}
                   </Button>
+                  <div
+                    role="group"
+                    aria-label={t("chats.bulk.aiAssistant")}
+                    className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background pl-2 pr-1"
+                  >
+                    {bulkSubmitting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                    <span className="hidden text-xs font-medium text-muted-foreground lg:inline">
+                      {t("chats.bulk.aiAssistant")}
+                    </span>
+                    <div className="ml-1 flex items-center gap-0.5">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleBulkAiAutoreply(true)}
+                        disabled={bulkSubmitting}
+                        className="h-6 px-2 text-xs text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-400"
+                      >
+                        {t("chats.bulk.enableAi")}
+                      </Button>
+                      <span aria-hidden className="text-border">|</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleBulkAiAutoreply(false)}
+                        disabled={bulkSubmitting}
+                        className="h-6 px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        {t("chats.bulk.disableAi")}
+                      </Button>
+                    </div>
+                  </div>
                   <Button
                     size="sm"
                     variant="destructive"
@@ -1717,6 +1834,17 @@ export default function ChatsPage() {
         open={bulkAssignOpen}
         onOpenChange={setBulkAssignOpen}
         selectedIds={Array.from(selectedConversationIds)}
+        onSuccess={() => {
+          refreshConversations()
+          handleExitSelectionMode()
+        }}
+      />
+
+      <BroadcastDialog
+        open={broadcastOpen}
+        onOpenChange={setBroadcastOpen}
+        selectedIds={Array.from(selectedConversationIds)}
+        channelId={selectedCommonChannelId}
         onSuccess={() => {
           refreshConversations()
           handleExitSelectionMode()
