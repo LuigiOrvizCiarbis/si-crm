@@ -201,6 +201,39 @@ class BulkBroadcastTest extends TestCase
         $this->assertFalse($conversation->ai_autoreply_enabled);
     }
 
+    public function test_job_resolves_personalization_tokens_per_contact(): void
+    {
+        Http::fake([
+            'graph.facebook.com/*' => Http::response([
+                'messages' => [['id' => 'wamid.TOKENS']],
+            ]),
+        ]);
+
+        [$user, $config] = $this->createTenantWithWhatsAppChannel();
+        $conversation = $this->createConversations($user->tenant_id, $config, 1)->first();
+        $template = $this->createApprovedTemplate($user->tenant_id, $config);
+
+        (new SendBroadcastMessageJob(
+            $conversation->id,
+            $template->id,
+            [['type' => 'body', 'parameters' => [
+                ['type' => 'text', 'text' => '{{nombre}}'],
+                ['type' => 'text', 'text' => 'valor fijo'],
+            ]]],
+            $user->id,
+            $user->tenant_id,
+        ))->handle(app(WhatsAppTemplateService::class));
+
+        $contactName = $conversation->contact->name;
+
+        Http::assertSent(function ($request) use ($contactName) {
+            $params = $request->data()['template']['components'][0]['parameters'] ?? [];
+
+            return ($params[0]['text'] ?? null) === $contactName
+                && ($params[1]['text'] ?? null) === 'valor fijo';
+        });
+    }
+
     /**
      * @return array{0: User, 1: WhatsAppConfig}
      */

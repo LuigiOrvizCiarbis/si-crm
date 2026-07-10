@@ -298,6 +298,9 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
                 {paramValues.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Parámetros</p>
+                    <p className="text-xs text-muted-foreground">
+                      {"Tip: escribí {{nombre}} o {{telefono}} y se reemplaza por los datos de cada contacto."}
+                    </p>
                     {paramValues.map((val, i) => (
                       <Input
                         key={i}

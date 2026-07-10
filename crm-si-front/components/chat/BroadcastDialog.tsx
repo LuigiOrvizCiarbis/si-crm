@@ -344,6 +344,12 @@ export function BroadcastDialog({
                 {paramValues.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium">{t("chats.broadcast.dialog.params")}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("chats.broadcast.dialog.paramsHint", {
+                        nombre: "{{nombre}}",
+                        telefono: "{{telefono}}",
+                      })}
+                    </p>
                     {paramValues.map((val, i) => (
                       <Input
                         key={i}

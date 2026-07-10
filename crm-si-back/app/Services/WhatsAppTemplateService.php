@@ -117,6 +117,34 @@ class WhatsAppTemplateService
     }
 
     /**
+     * Tokens de personalización que se resuelven por conversación al enviar.
+     * Permiten que una difusión salga personalizada: el valor del parámetro
+     * puede ser "{{nombre}}" y cada destinatario recibe su propio nombre.
+     */
+    private function resolvePersonalizationTokens(array $components, Conversation $conversation): array
+    {
+        $replacements = [
+            '{{nombre}}' => $conversation->contact->name ?? '',
+            '{{telefono}}' => $conversation->contact->phone ?? '',
+        ];
+
+        foreach ($components as &$component) {
+            if (! is_array($component['parameters'] ?? null)) {
+                continue;
+            }
+            foreach ($component['parameters'] as &$param) {
+                if (isset($param['text']) && is_string($param['text'])) {
+                    $param['text'] = strtr($param['text'], $replacements);
+                }
+            }
+            unset($param);
+        }
+        unset($component);
+
+        return $components;
+    }
+
+    /**
      * Enviar un mensaje de template de WhatsApp.
      */
     public function sendTemplateMessage(
@@ -125,6 +153,8 @@ class WhatsAppTemplateService
         array $components,
         User $sender,
     ): Message {
+        $components = $this->resolvePersonalizationTokens($components, $conversation);
+
         $channel = $conversation->channel;
         $waConfig = $channel->whatsappConfig;
         $to = $conversation->contact->phone;
