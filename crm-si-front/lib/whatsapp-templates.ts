@@ -77,6 +77,30 @@ export function hasUnsupportedParams(components: TemplateComponent[]): boolean {
   return false
 }
 
+/**
+ * Origen del valor de un parámetro de plantilla. Los orígenes de contacto se
+ * traducen a tokens ({{nombre}}/{{telefono}}) que el backend resuelve por
+ * conversación al enviar — así una difusión sale personalizada.
+ */
+export type ParamSource = "contact_name" | "contact_phone" | "custom"
+
+const PARAM_SOURCE_TOKENS: Record<Exclude<ParamSource, "custom">, string> = {
+  contact_name: "{{nombre}}",
+  contact_phone: "{{telefono}}",
+}
+
+/** Origen por defecto según el nombre del placeholder de la plantilla. */
+export function defaultParamSource(paramName: string): ParamSource {
+  if (/nombre|name|cliente|client|contacto|contact/i.test(paramName)) return "contact_name"
+  if (/telefono|teléfono|phone|celular/i.test(paramName)) return "contact_phone"
+  return "custom"
+}
+
+/** Valor final a enviar para un parámetro según su origen. */
+export function resolveParamValue(source: ParamSource, customValue: string): string {
+  return source === "custom" ? customValue : PARAM_SOURCE_TOKENS[source]
+}
+
 export interface HeaderMedia {
   /** Media id devuelto por Meta al subir el archivo (preferido) */
   id?: string

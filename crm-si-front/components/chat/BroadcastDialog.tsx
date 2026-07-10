@@ -22,10 +22,20 @@ import { getTemplates, syncTemplates, uploadTemplateMedia } from "@/lib/api/temp
 import {
   buildSendComponents,
   buildTemplatePreview,
+  defaultParamSource,
   extractBodyParams,
   getHeaderMediaFormat,
   hasUnsupportedParams,
+  resolveParamValue,
+  type ParamSource,
 } from "@/lib/whatsapp-templates"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { WhatsAppTemplate } from "@/data/types"
 import { cn } from "@/lib/utils"
 
@@ -59,6 +69,7 @@ export function BroadcastDialog({
   const [selected, setSelected] = useState<WhatsAppTemplate | null>(null)
   const [paramValues, setParamValues] = useState<string[]>([])
   const [paramNames, setParamNames] = useState<string[]>([])
+  const [paramSources, setParamSources] = useState<ParamSource[]>([])
   const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [mediaUrl, setMediaUrl] = useState("")
   const [mediaFilename, setMediaFilename] = useState("")
@@ -72,6 +83,7 @@ export function BroadcastDialog({
     setSelected(null)
     setParamValues([])
     setParamNames([])
+    setParamSources([])
     setMediaFile(null)
     setMediaUrl("")
     setMediaFilename("")
@@ -125,6 +137,7 @@ export function BroadcastDialog({
     const { names } = extractBodyParams(template.components)
     setParamNames(names)
     setParamValues(new Array(names.length).fill(""))
+    setParamSources(names.map(defaultParamSource))
     setMediaFile(null)
     setMediaUrl("")
     setMediaFilename("")
@@ -137,7 +150,7 @@ export function BroadcastDialog({
     count > 0 &&
     selected !== null &&
     (selectedMediaFormat === null || mediaFile !== null || mediaUrl.trim().length > 0) &&
-    (paramValues.length === 0 || paramValues.every((v) => v.trim()))
+    paramValues.every((v, i) => paramSources[i] !== "custom" || v.trim())
 
   const handleApply = async () => {
     if (!canApply || !selected || channelId === null) return
@@ -155,7 +168,8 @@ export function BroadcastDialog({
         }
       }
 
-      const components = buildSendComponents(selected.components, paramValues, headerMedia)
+      const resolvedValues = paramValues.map((v, i) => resolveParamValue(paramSources[i], v))
+      const components = buildSendComponents(selected.components, resolvedValues, headerMedia)
 
       const result = await bulkBroadcastConversations({
         ids: selectedIds,
@@ -304,7 +318,16 @@ export function BroadcastDialog({
               <div className="space-y-3 pr-3">
                 <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4">
                   <p className="whitespace-pre-wrap text-sm">
-                    {buildTemplatePreview(selected.components, paramValues)}
+                    {buildTemplatePreview(
+                      selected.components,
+                      paramValues.map((v, i) =>
+                        paramSources[i] === "contact_name"
+                          ? t("chats.broadcast.dialog.paramSource.contactNamePreview")
+                          : paramSources[i] === "contact_phone"
+                            ? t("chats.broadcast.dialog.paramSource.contactPhonePreview")
+                            : v,
+                      ),
+                    )}
                   </p>
                 </div>
 
@@ -342,28 +365,53 @@ export function BroadcastDialog({
                 )}
 
                 {paramValues.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <p className="text-sm font-medium">{t("chats.broadcast.dialog.params")}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("chats.broadcast.dialog.paramsHint", {
-                        nombre: "{{nombre}}",
-                        telefono: "{{telefono}}",
-                      })}
-                    </p>
                     {paramValues.map((val, i) => (
-                      <Input
-                        key={i}
-                        placeholder={`{{${paramNames[i] ?? i + 1}}}`}
-                        value={val}
-                        onChange={(e) => {
-                          const value = e.target.value
-                          setParamValues((prev) => {
-                            const next = [...prev]
-                            next[i] = value
-                            return next
-                          })
-                        }}
-                      />
+                      <div key={i} className="space-y-1.5">
+                        <p className="text-xs text-muted-foreground">{`{{${paramNames[i] ?? i + 1}}}`}</p>
+                        <div className="flex gap-2">
+                          <Select
+                            value={paramSources[i]}
+                            onValueChange={(source) => {
+                              setParamSources((prev) => {
+                                const next = [...prev]
+                                next[i] = source as ParamSource
+                                return next
+                              })
+                            }}
+                          >
+                            <SelectTrigger className="w-44 shrink-0">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="contact_name">
+                                {t("chats.broadcast.dialog.paramSource.contactName")}
+                              </SelectItem>
+                              <SelectItem value="contact_phone">
+                                {t("chats.broadcast.dialog.paramSource.contactPhone")}
+                              </SelectItem>
+                              <SelectItem value="custom">
+                                {t("chats.broadcast.dialog.paramSource.custom")}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {paramSources[i] === "custom" && (
+                            <Input
+                              placeholder={t("chats.broadcast.dialog.paramSource.customPlaceholder")}
+                              value={val}
+                              onChange={(e) => {
+                                const value = e.target.value
+                                setParamValues((prev) => {
+                                  const next = [...prev]
+                                  next[i] = value
+                                  return next
+                                })
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}

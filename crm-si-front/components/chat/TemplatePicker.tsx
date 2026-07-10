@@ -12,9 +12,19 @@ import { getTemplates, syncTemplates, sendTemplate, uploadTemplateMedia } from "
 import {
   buildSendComponents,
   buildTemplatePreview,
+  defaultParamSource,
   extractBodyParams,
   getHeaderMediaFormat,
+  resolveParamValue,
+  type ParamSource,
 } from "@/lib/whatsapp-templates"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface TemplatePickerProps {
   channelId: number
@@ -35,6 +45,7 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
   const [selected, setSelected] = useState<WhatsAppTemplate | null>(null)
   const [paramValues, setParamValues] = useState<string[]>([])
   const [paramNames, setParamNames] = useState<string[]>([])
+  const [paramSources, setParamSources] = useState<ParamSource[]>([])
   const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [mediaUrl, setMediaUrl] = useState("")
   const [mediaFilename, setMediaFilename] = useState("")
@@ -82,12 +93,24 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
     const { names } = extractBodyParams(template.components)
     setParamNames(names)
     setParamValues(new Array(names.length).fill(""))
+    setParamSources(names.map(defaultParamSource))
     setMediaFile(null)
     setMediaUrl("")
     setMediaFilename("")
   }
 
   const selectedMediaFormat = selected ? getHeaderMediaFormat(selected.components) : null
+
+  // Valores para el preview: los orígenes de contacto se muestran como etiqueta
+  // (el valor real se resuelve por conversación en el backend).
+  const displayParamValues = () =>
+    paramValues.map((v, i) =>
+      paramSources[i] === "contact_name"
+        ? "«nombre del contacto»"
+        : paramSources[i] === "contact_phone"
+          ? "«teléfono del contacto»"
+          : v,
+    )
 
   const handleSend = async () => {
     if (!selected) return
@@ -103,10 +126,11 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
         }
       }
 
-      const components = buildSendComponents(selected.components, paramValues, headerMedia)
+      const resolvedValues = paramValues.map((v, i) => resolveParamValue(paramSources[i], v))
+      const components = buildSendComponents(selected.components, resolvedValues, headerMedia)
 
       // Crear mensaje optimista ANTES de enviar al backend
-      const preview = buildTemplatePreview(selected.components, paramValues)
+      const preview = buildTemplatePreview(selected.components, displayParamValues())
       const summary = preview
         ? `📋 ${selected.name}\n${preview}`
         : `📋 ${selected.name}`
@@ -243,7 +267,7 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
                   )}
                   {body?.text && (
                     <p className="text-sm whitespace-pre-wrap">
-                      {buildTemplatePreview(selected.components, paramValues)}
+                      {buildTemplatePreview(selected.components, displayParamValues())}
                     </p>
                   )}
                   {footer?.text && (
@@ -296,25 +320,47 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
 
                 {/* Parameter inputs */}
                 {paramValues.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <p className="text-sm font-medium">Parámetros</p>
-                    <p className="text-xs text-muted-foreground">
-                      {"Tip: escribí {{nombre}} o {{telefono}} y se reemplaza por los datos de cada contacto."}
-                    </p>
                     {paramValues.map((val, i) => (
-                      <Input
-                        key={i}
-                        placeholder={`Valor para {{${paramNames[i] ?? i + 1}}}`}
-                        value={val}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          setParamValues(prev => {
-                            const next = [...prev]
-                            next[i] = val
-                            return next
-                          })
-                        }}
-                      />
+                      <div key={i} className="space-y-1.5">
+                        <p className="text-xs text-muted-foreground">{`{{${paramNames[i] ?? i + 1}}}`}</p>
+                        <div className="flex gap-2">
+                          <Select
+                            value={paramSources[i]}
+                            onValueChange={(source) => {
+                              setParamSources((prev) => {
+                                const next = [...prev]
+                                next[i] = source as ParamSource
+                                return next
+                              })
+                            }}
+                          >
+                            <SelectTrigger className="w-44 shrink-0">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="contact_name">Nombre del contacto</SelectItem>
+                              <SelectItem value="contact_phone">Teléfono del contacto</SelectItem>
+                              <SelectItem value="custom">Texto fijo</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {paramSources[i] === "custom" && (
+                            <Input
+                              placeholder="Escribí el valor..."
+                              value={val}
+                              onChange={(e) => {
+                                const value = e.target.value
+                                setParamValues(prev => {
+                                  const next = [...prev]
+                                  next[i] = value
+                                  return next
+                                })
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -326,7 +372,7 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
               disabled={
                 sending ||
                 (selectedMediaFormat !== null && !mediaFile && !mediaUrl.trim()) ||
-                (paramValues.length > 0 && paramValues.some((v) => !v.trim()))
+                paramValues.some((v, i) => paramSources[i] === "custom" && !v.trim())
               }
               className="w-full"
             >
