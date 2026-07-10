@@ -553,6 +553,30 @@
         "noUsers": "No users available",
         "cancel": "Cancel",
         "apply": "Apply"
+      },
+      "broadcast": "Broadcast"
+    },
+    "broadcast": {
+      "dialog": {
+        "title": "Send WhatsApp broadcast",
+        "subtitle": "A template will be sent to {{count}} conversation(s)",
+        "searchTemplates": "Search template...",
+        "sync": "Sync",
+        "loadingTemplates": "Loading templates...",
+        "noTemplates": "No approved templates. Click Sync.",
+        "unsupportedHint": "Unavailable: requires parameters outside the body",
+        "params": "Parameters",
+        "send": "Send to {{count}}"
+      },
+      "result": {
+        "success": "Broadcast queued for {{queued}} conversation(s)",
+        "partial": "{{queued}} queued, {{failed}} skipped"
+      },
+      "errors": {
+        "loadTemplates": "Error loading templates",
+        "sync": "Error syncing templates",
+        "apply": "Error sending broadcast",
+        "mixedChannels": "Select conversations from the same channel to send a broadcast"
       }
     }
   },

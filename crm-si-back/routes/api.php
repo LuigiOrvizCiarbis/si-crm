@@ -398,6 +398,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('conversations/bulk-ai-autoreply', [ConversationController::class, 'bulkAiAutoreply']);
     Route::post('conversations/bulk-delete', [ConversationController::class, 'bulkDelete']);
     Route::post('conversations/bulk-read', [ConversationController::class, 'bulkMarkRead']);
+    Route::post('conversations/bulk-broadcast', [ConversationController::class, 'bulkBroadcast']);
     Route::get('conversations/{conversation}', [ConversationController::class, 'show']);
     Route::post('conversations/{conversation}/tags', [TagController::class, 'attachToConversation']);
     Route::delete('conversations/{conversation}/tags/{tag}', [TagController::class, 'detachFromConversation']);

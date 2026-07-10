@@ -344,6 +344,40 @@ export async function bulkAssignConversations(
   return payload as BulkAssignConversationsResponse;
 }
 
+export interface BulkBroadcastRequest {
+  ids: number[];
+  template_id: number;
+  components: unknown[];
+}
+
+export interface BulkBroadcastResponse {
+  queued: number;
+  failed: number;
+}
+
+export async function bulkBroadcastConversations(
+  req: BulkBroadcastRequest,
+): Promise<BulkBroadcastResponse> {
+  const token = requireToken();
+
+  const response = await fetch("/api/conversations/bulk-broadcast", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(req),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throwApiError(response.status, payload, "Error al enviar la difusión");
+  }
+
+  return payload as BulkBroadcastResponse;
+}
+
 export interface BulkArchiveConversationsRequest {
   ids: number[];
   archived: boolean;

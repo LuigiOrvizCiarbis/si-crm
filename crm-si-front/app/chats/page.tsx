@@ -47,6 +47,10 @@ const BulkAssignConversationsDialog = dynamic(
   () => import("@/components/chat/BulkAssignConversationsDialog").then(m => m.BulkAssignConversationsDialog),
   { loading: () => null }
 )
+const BroadcastDialog = dynamic(
+  () => import("@/components/chat/BroadcastDialog").then(m => m.BroadcastDialog),
+  { loading: () => null }
+)
 import {
   AlertDialog,
   AlertDialogAction,
@@ -86,6 +90,7 @@ import {
   Loader2,
   Mail,
   MailOpen,
+  Megaphone,
   Menu,
   MoreHorizontal,
   Plus,
@@ -314,6 +319,7 @@ export default function ChatsPage() {
   const [bulkTagsOpen, setBulkTagsOpen] = useState(false)
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [broadcastOpen, setBroadcastOpen] = useState(false)
   const [bulkSubmitting, setBulkSubmitting] = useState(false)
 
   const conversationsRef = useRef(conversations);
@@ -1376,6 +1382,31 @@ export default function ChatsPage() {
     [visibleConversations, selectedConversationIds],
   )
 
+  // Canal común de la selección para difusión. null si mezclan canales o si
+  // algún id seleccionado no está en el estado local (nunca calcular sobre
+  // un subconjunto y abrir el diálogo por accidente).
+  const selectedCommonChannelId = useMemo(() => {
+    if (selectedConversationIds.size === 0) return null
+    const byId = new Map(conversations.map((c) => [c.id, c]))
+    let common: number | null = null
+    for (const id of selectedConversationIds) {
+      const conversation = byId.get(id)
+      const channelId = conversation?.channel?.id ?? conversation?.channelId
+      if (channelId === undefined || channelId === null) return null
+      if (common === null) common = channelId
+      else if (common !== channelId) return null
+    }
+    return common
+  }, [selectedConversationIds, conversations])
+
+  const handleBroadcastClick = useCallback(() => {
+    if (selectedCommonChannelId === null) {
+      addToast({ type: "info", title: t("chats.broadcast.errors.mixedChannels") })
+      return
+    }
+    setBroadcastOpen(true)
+  }, [selectedCommonChannelId, addToast, t])
+
   const renderChannelsSidebar = (
     onChannelSelect: (channelId: number) => void,
     onConnectChannelClick: () => void,
@@ -1559,6 +1590,16 @@ export default function ChatsPage() {
                   >
                     <UserPlus className="h-3.5 w-3.5" />
                     {t("chats.bulk.assign")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleBroadcastClick}
+                    disabled={bulkSubmitting}
+                    className="gap-2"
+                  >
+                    <Megaphone className="h-3.5 w-3.5" />
+                    {t("chats.bulk.broadcast")}
                   </Button>
                   {viewType === "archived" ? (
                     <Button
@@ -1781,6 +1822,17 @@ export default function ChatsPage() {
         open={bulkAssignOpen}
         onOpenChange={setBulkAssignOpen}
         selectedIds={Array.from(selectedConversationIds)}
+        onSuccess={() => {
+          refreshConversations()
+          handleExitSelectionMode()
+        }}
+      />
+
+      <BroadcastDialog
+        open={broadcastOpen}
+        onOpenChange={setBroadcastOpen}
+        selectedIds={Array.from(selectedConversationIds)}
+        channelId={selectedCommonChannelId}
         onSuccess={() => {
           refreshConversations()
           handleExitSelectionMode()

@@ -553,6 +553,30 @@
         "noUsers": "No hay usuarios disponibles",
         "cancel": "Cancelar",
         "apply": "Aplicar"
+      },
+      "broadcast": "Difusión"
+    },
+    "broadcast": {
+      "dialog": {
+        "title": "Enviar difusión de WhatsApp",
+        "subtitle": "Se enviará una plantilla a {{count}} conversación(es)",
+        "searchTemplates": "Buscar plantilla...",
+        "sync": "Sincronizar",
+        "loadingTemplates": "Cargando plantillas...",
+        "noTemplates": "No hay plantillas aprobadas. Hacé clic en Sincronizar.",
+        "unsupportedHint": "No disponible: requiere parámetros fuera del cuerpo",
+        "params": "Parámetros",
+        "send": "Enviar a {{count}}"
+      },
+      "result": {
+        "success": "Difusión encolada para {{queued}} conversación(es)",
+        "partial": "{{queued}} encoladas, {{failed}} omitidas"
+      },
+      "errors": {
+        "loadTemplates": "Error cargando plantillas",
+        "sync": "Error sincronizando plantillas",
+        "apply": "Error enviando la difusión",
+        "mixedChannels": "Seleccioná conversaciones del mismo canal para enviar una difusión"
       }
     }
   },
