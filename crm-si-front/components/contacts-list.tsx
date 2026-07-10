@@ -1142,14 +1142,14 @@ export function ContactsList({
           setFormErrors({})
         }
       }}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{editingContact ? "Editar Contacto" : "Nuevo Contacto"}</DialogTitle>
             <DialogDescription>
               {editingContact ? "Modifica los datos del contacto" : "Agrega un nuevo contacto a tu base de datos"}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-2 flex-1 overflow-y-auto min-h-0 pr-1">
             {formErrors._general && (
               <p className="text-sm text-destructive">{formErrors._general}</p>
             )}
