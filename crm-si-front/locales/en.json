@@ -566,7 +566,14 @@
         "noTemplates": "No approved templates. Click Sync.",
         "unsupportedHint": "Unavailable: requires parameters outside the body",
         "params": "Parameters",
-        "send": "Send to {{count}}"
+        "send": "Send to {{count}}",
+        "media": {
+          "document": "Document (PDF)",
+          "image": "Image",
+          "video": "Video",
+          "urlPlaceholder": "Public file URL (https://...)",
+          "filenamePlaceholder": "File name (optional, e.g. receipt.pdf)"
+        }
       },
       "result": {
         "success": "Broadcast queued for {{queued}} conversation(s)",

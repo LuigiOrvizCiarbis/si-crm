@@ -20,8 +20,10 @@ import { useToast } from "@/components/Toast"
 import { bulkBroadcastConversations } from "@/lib/api/conversations"
 import { getTemplates, syncTemplates } from "@/lib/api/templates"
 import {
+  buildSendComponents,
   buildTemplatePreview,
-  extractBodyParamCount,
+  extractBodyParams,
+  getHeaderMediaFormat,
   hasUnsupportedParams,
 } from "@/lib/whatsapp-templates"
 import { WhatsAppTemplate } from "@/data/types"
@@ -56,6 +58,9 @@ export function BroadcastDialog({
   const [syncing, setSyncing] = useState(false)
   const [selected, setSelected] = useState<WhatsAppTemplate | null>(null)
   const [paramValues, setParamValues] = useState<string[]>([])
+  const [paramNames, setParamNames] = useState<string[]>([])
+  const [mediaUrl, setMediaUrl] = useState("")
+  const [mediaFilename, setMediaFilename] = useState("")
   const [query, setQuery] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
@@ -65,6 +70,9 @@ export function BroadcastDialog({
     if (!open) return
     setSelected(null)
     setParamValues([])
+    setParamNames([])
+    setMediaUrl("")
+    setMediaFilename("")
     setQuery("")
   }, [open])
 
@@ -112,23 +120,32 @@ export function BroadcastDialog({
   const handleSelectTemplate = (template: WhatsAppTemplate) => {
     if (hasUnsupportedParams(template.components)) return
     setSelected(template)
-    setParamValues(new Array(extractBodyParamCount(template.components)).fill(""))
+    const { names } = extractBodyParams(template.components)
+    setParamNames(names)
+    setParamValues(new Array(names.length).fill(""))
+    setMediaUrl("")
+    setMediaFilename("")
   }
+
+  const selectedMediaFormat = selected ? getHeaderMediaFormat(selected.components) : null
 
   const canApply =
     !submitting &&
     count > 0 &&
     selected !== null &&
+    (selectedMediaFormat === null || mediaUrl.trim().length > 0) &&
     (paramValues.length === 0 || paramValues.every((v) => v.trim()))
 
   const handleApply = async () => {
     if (!canApply || !selected) return
     setSubmitting(true)
     try {
-      const components =
-        paramValues.length > 0
-          ? [{ type: "body", parameters: paramValues.map((text) => ({ type: "text", text })) }]
-          : []
+      const components = buildSendComponents(
+        selected.components,
+        paramValues,
+        mediaUrl.trim() || undefined,
+        mediaFilename.trim() || undefined,
+      )
 
       const result = await bulkBroadcastConversations({
         ids: selectedIds,
@@ -281,13 +298,33 @@ export function BroadcastDialog({
                   </p>
                 </div>
 
+                {selectedMediaFormat && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">
+                      {t(`chats.broadcast.dialog.media.${selectedMediaFormat.toLowerCase()}`)}
+                    </p>
+                    <Input
+                      placeholder={t("chats.broadcast.dialog.media.urlPlaceholder")}
+                      value={mediaUrl}
+                      onChange={(e) => setMediaUrl(e.target.value)}
+                    />
+                    {selectedMediaFormat === "DOCUMENT" && (
+                      <Input
+                        placeholder={t("chats.broadcast.dialog.media.filenamePlaceholder")}
+                        value={mediaFilename}
+                        onChange={(e) => setMediaFilename(e.target.value)}
+                      />
+                    )}
+                  </div>
+                )}
+
                 {paramValues.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium">{t("chats.broadcast.dialog.params")}</p>
                     {paramValues.map((val, i) => (
                       <Input
                         key={i}
-                        placeholder={`{{${i + 1}}}`}
+                        placeholder={`{{${paramNames[i] ?? i + 1}}}`}
                         value={val}
                         onChange={(e) => {
                           const value = e.target.value

@@ -174,13 +174,19 @@ class WhatsAppTemplateService
      */
     private function buildContentSummary(WhatsAppTemplate $template, array $components): string
     {
-        // Extraer parámetros del body desde los components enviados
+        // Extraer parámetros del body desde los components enviados.
+        // Soporta posicionales ({{1}}) y nombrados ({{cliente}} vía parameter_name).
         $bodyParams = [];
+        $namedParams = [];
         foreach ($components as $component) {
             $type = strtolower($component['type'] ?? '');
             if ($type === 'body') {
                 foreach ($component['parameters'] ?? [] as $param) {
-                    $bodyParams[] = $param['text'] ?? $param['image']['link'] ?? $param['document']['link'] ?? '...';
+                    $value = $param['text'] ?? $param['image']['link'] ?? $param['document']['link'] ?? '...';
+                    $bodyParams[] = $value;
+                    if (! empty($param['parameter_name'])) {
+                        $namedParams[$param['parameter_name']] = $value;
+                    }
                 }
             }
         }
@@ -197,6 +203,9 @@ class WhatsAppTemplateService
 
         // Si tenemos body text, reemplazar placeholders con los parámetros
         if ($bodyText) {
+            foreach ($namedParams as $name => $value) {
+                $bodyText = str_replace('{{'.$name.'}}', $value, $bodyText);
+            }
             foreach ($bodyParams as $i => $value) {
                 $bodyText = str_replace('{{'.($i + 1).'}}', $value, $bodyText);
             }

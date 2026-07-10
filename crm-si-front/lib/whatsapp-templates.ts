@@ -4,47 +4,113 @@ function findComponent(components: TemplateComponent[], type: string): TemplateC
   return components.find((c) => c.type?.toUpperCase() === type)
 }
 
+export interface BodyParams {
+  /**
+   * Nombres de placeholder en orden de aparición. Numéricos ("1", "2") o
+   * nombrados ("cliente", "comprobante") según el tipo de plantilla.
+   */
+  names: string[]
+  /** true si la plantilla usa parámetros nombrados ({{cliente}}) */
+  named: boolean
+}
+
 /**
- * Cantidad de parámetros {{n}} del BODY, dimensionada por el ÍNDICE MÁXIMO
- * encontrado (no por cantidad de ocurrencias: un {{2}} sin {{1}} requiere 2 params).
+ * Extrae los parámetros del BODY. Soporta ambos formatos de Meta:
+ * - Posicionales {{1}}, {{2}}: dimensionados por el índice MÁXIMO (un {{2}}
+ *   sin {{1}} requiere 2 params).
+ * - Nombrados {{cliente}}: en orden de primera aparición, sin duplicados.
  */
-export function extractBodyParamCount(components: TemplateComponent[]): number {
+export function extractBodyParams(components: TemplateComponent[]): BodyParams {
   const body = findComponent(components, "BODY")
-  if (!body?.text) return 0
-  const matches = body.text.match(/\{\{(\d+)\}\}/g)
-  if (!matches) return 0
-  return Math.max(...matches.map((m) => parseInt(m.replace(/\D/g, ""), 10)))
+  if (!body?.text) return { names: [], named: false }
+
+  const matches = [...body.text.matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g)].map((m) => m[1])
+  if (matches.length === 0) return { names: [], named: false }
+
+  const named = matches.some((name) => !/^\d+$/.test(name))
+  if (named) {
+    return { names: [...new Set(matches)], named: true }
+  }
+
+  const max = Math.max(...matches.map((n) => parseInt(n, 10)))
+  return { names: Array.from({ length: max }, (_, i) => String(i + 1)), named: false }
 }
 
 /**
  * Preview del BODY con los valores reemplazados globalmente
- * (todas las ocurrencias de cada {{n}}, no solo la primera).
+ * (todas las ocurrencias de cada placeholder, no solo la primera).
  */
 export function buildTemplatePreview(components: TemplateComponent[], paramValues: string[]): string {
   const body = findComponent(components, "BODY")
   if (!body?.text) return ""
+  const { names } = extractBodyParams(components)
   let text = body.text
-  paramValues.forEach((val, i) => {
-    text = text.replaceAll(`{{${i + 1}}}`, val || `{{${i + 1}}}`)
+  names.forEach((name, i) => {
+    text = text.replaceAll(`{{${name}}}`, paramValues[i] || `{{${name}}}`)
   })
   return text
 }
 
+/** Formato del HEADER de media, o null si no hay header o es de texto. */
+export function getHeaderMediaFormat(components: TemplateComponent[]): "IMAGE" | "DOCUMENT" | "VIDEO" | null {
+  const header = findComponent(components, "HEADER")
+  const format = header?.format?.toUpperCase()
+  if (format === "IMAGE" || format === "DOCUMENT" || format === "VIDEO") return format
+  return null
+}
+
 /**
- * v1 de difusión: solo se soportan plantillas cuyos parámetros dinámicos
- * están en el BODY (texto). HEADER con placeholders o media, y botones con
- * URL dinámica, requieren components que el diálogo aún no arma.
+ * Plantillas que la difusión aún no puede armar: HEADER de texto con
+ * placeholders, o botones con URL dinámica. (Los headers de media SÍ están
+ * soportados: el diálogo pide la URL del archivo.)
  */
 export function hasUnsupportedParams(components: TemplateComponent[]): boolean {
   const header = findComponent(components, "HEADER")
-  if (header) {
-    const format = header.format?.toUpperCase()
-    if (format && format !== "TEXT") return true // media header (IMAGE/VIDEO/DOCUMENT/LOCATION)
-    if (header.text && /\{\{\d+\}\}/.test(header.text)) return true // header con placeholder
+  if (header?.format?.toUpperCase() === "TEXT" && header.text && /\{\{[^}]+\}\}/.test(header.text)) {
+    return true
   }
+  if (header?.format?.toUpperCase() === "LOCATION") return true
 
   const buttons = findComponent(components, "BUTTONS")
-  if (buttons?.buttons?.some((b) => b.url && /\{\{\d+\}\}/.test(b.url))) return true // URL dinámica
+  if (buttons?.buttons?.some((b) => b.url && /\{\{[^}]+\}\}/.test(b.url))) return true
 
   return false
+}
+
+/**
+ * Arma el array `components` del payload de envío de Meta a partir de los
+ * valores cargados en el diálogo. Formato compartido entre difusión y envío
+ * individual.
+ */
+export function buildSendComponents(
+  templateComponents: TemplateComponent[],
+  paramValues: string[],
+  mediaUrl?: string,
+  mediaFilename?: string,
+): unknown[] {
+  const result: unknown[] = []
+
+  const mediaFormat = getHeaderMediaFormat(templateComponents)
+  if (mediaFormat && mediaUrl) {
+    const kind = mediaFormat.toLowerCase() as "image" | "document" | "video"
+    const media: Record<string, string> = { link: mediaUrl }
+    if (kind === "document" && mediaFilename?.trim()) {
+      media.filename = mediaFilename.trim()
+    }
+    result.push({ type: "header", parameters: [{ type: kind, [kind]: media }] })
+  }
+
+  const { names, named } = extractBodyParams(templateComponents)
+  if (names.length > 0) {
+    result.push({
+      type: "body",
+      parameters: names.map((name, i) =>
+        named
+          ? { type: "text", parameter_name: name, text: paramValues[i] ?? "" }
+          : { type: "text", text: paramValues[i] ?? "" },
+      ),
+    })
+  }
+
+  return result
 }

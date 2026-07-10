@@ -566,7 +566,14 @@
         "noTemplates": "No hay plantillas aprobadas. Hacé clic en Sincronizar.",
         "unsupportedHint": "No disponible: requiere parámetros fuera del cuerpo",
         "params": "Parámetros",
-        "send": "Enviar a {{count}}"
+        "send": "Enviar a {{count}}",
+        "media": {
+          "document": "Documento (PDF)",
+          "image": "Imagen",
+          "video": "Video",
+          "urlPlaceholder": "URL pública del archivo (https://...)",
+          "filenamePlaceholder": "Nombre del archivo (opcional, ej. comprobante.pdf)"
+        }
       },
       "result": {
         "success": "Difusión encolada para {{queued}} conversación(es)",
