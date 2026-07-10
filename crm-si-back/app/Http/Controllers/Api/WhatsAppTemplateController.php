@@ -9,6 +9,7 @@ use App\Models\Conversation;
 use App\Models\WhatsAppTemplate;
 use App\Services\WhatsAppTemplateService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class WhatsAppTemplateController extends Controller
 {
@@ -53,6 +54,32 @@ class WhatsAppTemplateController extends Controller
                 'message' => "Se sincronizaron {$count} templates",
                 'count' => $count,
             ]);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Subir un archivo a Meta para usarlo como header de plantilla
+     * (documento/imagen/video). Devuelve el media id de Meta.
+     */
+    public function uploadMedia(Request $request, Channel $channel): JsonResponse
+    {
+        $waConfig = $channel->whatsappConfig;
+
+        if (! $waConfig) {
+            return response()->json(['message' => 'Este canal no tiene configuración de WhatsApp'], 404);
+        }
+
+        $request->validate([
+            // Límites de Meta: documento 100MB, video 16MB, imagen 5MB.
+            'file' => 'required|file|mimetypes:application/pdf,image/jpeg,image/png,video/mp4|max:102400',
+        ]);
+
+        try {
+            $mediaId = $this->templateService->uploadMedia($waConfig, $request->file('file'));
+
+            return response()->json(['media_id' => $mediaId], 201);
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 500);
         }

@@ -13,6 +13,7 @@ use App\Models\Message;
 use App\Models\User;
 use App\Models\WhatsAppConfig;
 use App\Models\WhatsAppTemplate;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -87,6 +88,32 @@ class WhatsAppTemplateService
         }
 
         return $count;
+    }
+
+    /**
+     * Subir un archivo a Meta (/media) para usarlo como header de plantilla.
+     * Devuelve el media id (válido ~30 días en Meta).
+     */
+    public function uploadMedia(WhatsAppConfig $config, UploadedFile $file): string
+    {
+        $token = $config->getDecryptedToken();
+        if (! $token) {
+            throw new \RuntimeException('No se pudo desencriptar el token de WhatsApp');
+        }
+
+        $response = Http::withToken($token)
+            ->timeout(60)
+            ->attach('file', $file->get(), $file->getClientOriginalName(), ['Content-Type' => $file->getMimeType()])
+            ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$config->phone_number_id}/media", [
+                'messaging_product' => 'whatsapp',
+                'type' => $file->getMimeType(),
+            ]);
+
+        if (! $response->successful()) {
+            throw new \RuntimeException('Error subiendo archivo a WhatsApp: '.$response->body());
+        }
+
+        return (string) $response->json('id');
     }
 
     /**

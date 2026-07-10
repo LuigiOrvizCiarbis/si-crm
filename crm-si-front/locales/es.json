@@ -571,7 +571,7 @@
           "document": "Documento (PDF)",
           "image": "Imagen",
           "video": "Video",
-          "urlPlaceholder": "URL pública del archivo (https://...)",
+          "urlPlaceholder": "o pegá una URL pública del archivo (https://...)",
           "filenamePlaceholder": "Nombre del archivo (opcional, ej. comprobante.pdf)"
         }
       },
