@@ -38,6 +38,34 @@ export async function syncTemplates(channelId: number): Promise<{ message: strin
   return data;
 }
 
+/**
+ * Sube un archivo a Meta (vía backend) para usarlo como header de plantilla.
+ * Devuelve el media id de Meta (válido ~30 días).
+ */
+export async function uploadTemplateMedia(
+  channelId: number,
+  file: File,
+): Promise<{ media_id: string }> {
+  const token = getAuthToken();
+  if (!token) throw new Error("No authentication token found");
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`/api/channels/${channelId}/media`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throwApiError(res.status, data, "Error al subir el archivo");
+
+  return data;
+}
+
 export async function sendTemplate(
   conversationId: number,
   templateId: number,

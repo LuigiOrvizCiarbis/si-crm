@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/components/Toast"
 import { bulkBroadcastConversations } from "@/lib/api/conversations"
-import { getTemplates, syncTemplates } from "@/lib/api/templates"
+import { getTemplates, syncTemplates, uploadTemplateMedia } from "@/lib/api/templates"
 import {
   buildSendComponents,
   buildTemplatePreview,
@@ -59,6 +59,7 @@ export function BroadcastDialog({
   const [selected, setSelected] = useState<WhatsAppTemplate | null>(null)
   const [paramValues, setParamValues] = useState<string[]>([])
   const [paramNames, setParamNames] = useState<string[]>([])
+  const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [mediaUrl, setMediaUrl] = useState("")
   const [mediaFilename, setMediaFilename] = useState("")
   const [query, setQuery] = useState("")
@@ -71,6 +72,7 @@ export function BroadcastDialog({
     setSelected(null)
     setParamValues([])
     setParamNames([])
+    setMediaFile(null)
     setMediaUrl("")
     setMediaFilename("")
     setQuery("")
@@ -123,6 +125,7 @@ export function BroadcastDialog({
     const { names } = extractBodyParams(template.components)
     setParamNames(names)
     setParamValues(new Array(names.length).fill(""))
+    setMediaFile(null)
     setMediaUrl("")
     setMediaFilename("")
   }
@@ -133,19 +136,26 @@ export function BroadcastDialog({
     !submitting &&
     count > 0 &&
     selected !== null &&
-    (selectedMediaFormat === null || mediaUrl.trim().length > 0) &&
+    (selectedMediaFormat === null || mediaFile !== null || mediaUrl.trim().length > 0) &&
     (paramValues.length === 0 || paramValues.every((v) => v.trim()))
 
   const handleApply = async () => {
-    if (!canApply || !selected) return
+    if (!canApply || !selected || channelId === null) return
     setSubmitting(true)
     try {
-      const components = buildSendComponents(
-        selected.components,
-        paramValues,
-        mediaUrl.trim() || undefined,
-        mediaFilename.trim() || undefined,
-      )
+      let headerMedia
+      if (selectedMediaFormat) {
+        if (mediaFile) {
+          // Subir el archivo a Meta una sola vez; todos los mensajes de la
+          // difusión reutilizan el mismo media id.
+          const { media_id } = await uploadTemplateMedia(channelId, mediaFile)
+          headerMedia = { id: media_id, filename: mediaFilename.trim() || mediaFile.name }
+        } else {
+          headerMedia = { link: mediaUrl.trim(), filename: mediaFilename.trim() || undefined }
+        }
+      }
+
+      const components = buildSendComponents(selected.components, paramValues, headerMedia)
 
       const result = await bulkBroadcastConversations({
         ids: selectedIds,
@@ -304,10 +314,23 @@ export function BroadcastDialog({
                       {t(`chats.broadcast.dialog.media.${selectedMediaFormat.toLowerCase()}`)}
                     </p>
                     <Input
-                      placeholder={t("chats.broadcast.dialog.media.urlPlaceholder")}
-                      value={mediaUrl}
-                      onChange={(e) => setMediaUrl(e.target.value)}
+                      type="file"
+                      accept={
+                        selectedMediaFormat === "DOCUMENT"
+                          ? "application/pdf"
+                          : selectedMediaFormat === "IMAGE"
+                            ? "image/jpeg,image/png"
+                            : "video/mp4"
+                      }
+                      onChange={(e) => setMediaFile(e.target.files?.[0] ?? null)}
                     />
+                    {!mediaFile && (
+                      <Input
+                        placeholder={t("chats.broadcast.dialog.media.urlPlaceholder")}
+                        value={mediaUrl}
+                        onChange={(e) => setMediaUrl(e.target.value)}
+                      />
+                    )}
                     {selectedMediaFormat === "DOCUMENT" && (
                       <Input
                         placeholder={t("chats.broadcast.dialog.media.filenamePlaceholder")}

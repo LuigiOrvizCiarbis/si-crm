@@ -77,6 +77,15 @@ export function hasUnsupportedParams(components: TemplateComponent[]): boolean {
   return false
 }
 
+export interface HeaderMedia {
+  /** Media id devuelto por Meta al subir el archivo (preferido) */
+  id?: string
+  /** URL pública del archivo (alternativa al id) */
+  link?: string
+  /** Nombre visible del archivo (solo documentos) */
+  filename?: string
+}
+
 /**
  * Arma el array `components` del payload de envío de Meta a partir de los
  * valores cargados en el diálogo. Formato compartido entre difusión y envío
@@ -85,17 +94,18 @@ export function hasUnsupportedParams(components: TemplateComponent[]): boolean {
 export function buildSendComponents(
   templateComponents: TemplateComponent[],
   paramValues: string[],
-  mediaUrl?: string,
-  mediaFilename?: string,
+  headerMedia?: HeaderMedia,
 ): unknown[] {
   const result: unknown[] = []
 
   const mediaFormat = getHeaderMediaFormat(templateComponents)
-  if (mediaFormat && mediaUrl) {
+  if (mediaFormat && (headerMedia?.id || headerMedia?.link)) {
     const kind = mediaFormat.toLowerCase() as "image" | "document" | "video"
-    const media: Record<string, string> = { link: mediaUrl }
-    if (kind === "document" && mediaFilename?.trim()) {
-      media.filename = mediaFilename.trim()
+    const media: Record<string, string> = headerMedia.id
+      ? { id: headerMedia.id }
+      : { link: headerMedia.link as string }
+    if (kind === "document" && headerMedia.filename?.trim()) {
+      media.filename = headerMedia.filename.trim()
     }
     result.push({ type: "header", parameters: [{ type: kind, [kind]: media }] })
   }

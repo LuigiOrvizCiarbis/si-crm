@@ -571,7 +571,7 @@
           "document": "Document (PDF)",
           "image": "Image",
           "video": "Video",
-          "urlPlaceholder": "Public file URL (https://...)",
+          "urlPlaceholder": "or paste a public file URL (https://...)",
           "filenamePlaceholder": "File name (optional, e.g. receipt.pdf)"
         }
       },
