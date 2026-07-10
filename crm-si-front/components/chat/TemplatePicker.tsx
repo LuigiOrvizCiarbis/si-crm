@@ -7,31 +7,20 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { FileText, RefreshCw, ArrowLeft, Send, Search } from "lucide-react"
-import { WhatsAppTemplate, TemplateComponent } from "@/data/types"
+import { WhatsAppTemplate } from "@/data/types"
 import { getTemplates, syncTemplates, sendTemplate } from "@/lib/api/templates"
+import {
+  buildSendComponents,
+  buildTemplatePreview,
+  extractBodyParams,
+  getHeaderMediaFormat,
+} from "@/lib/whatsapp-templates"
 
 interface TemplatePickerProps {
   channelId: number
   conversationId: number
   onSend: (content: string) => void
   disabled?: boolean
-}
-
-function extractBodyParams(components: TemplateComponent[]): number {
-  const body = components.find((c) => c.type === "BODY" || c.type === "body")
-  if (!body?.text) return 0
-  const matches = body.text.match(/\{\{\d+\}\}/g)
-  return matches ? matches.length : 0
-}
-
-function buildPreview(components: TemplateComponent[], paramValues: string[]): string {
-  const body = components.find((c) => c.type === "BODY" || c.type === "body")
-  if (!body?.text) return ""
-  let text = body.text
-  paramValues.forEach((val, i) => {
-    text = text.replace(`{{${i + 1}}}`, val || `{{${i + 1}}}`)
-  })
-  return text
 }
 
 const categoryColors: Record<string, string> = {
@@ -45,6 +34,9 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([])
   const [selected, setSelected] = useState<WhatsAppTemplate | null>(null)
   const [paramValues, setParamValues] = useState<string[]>([])
+  const [paramNames, setParamNames] = useState<string[]>([])
+  const [mediaUrl, setMediaUrl] = useState("")
+  const [mediaFilename, setMediaFilename] = useState("")
   const [loading, setLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [sending, setSending] = useState(false)
@@ -86,21 +78,28 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
 
   const handleSelectTemplate = (template: WhatsAppTemplate) => {
     setSelected(template)
-    const count = extractBodyParams(template.components)
-    setParamValues(new Array(count).fill(""))
+    const { names } = extractBodyParams(template.components)
+    setParamNames(names)
+    setParamValues(new Array(names.length).fill(""))
+    setMediaUrl("")
+    setMediaFilename("")
   }
+
+  const selectedMediaFormat = selected ? getHeaderMediaFormat(selected.components) : null
 
   const handleSend = async () => {
     if (!selected) return
     setSending(true)
     try {
-      const paramCount = extractBodyParams(selected.components)
-      const components = paramCount > 0
-        ? [{ type: "body", parameters: paramValues.map((text) => ({ type: "text", text })) }]
-        : []
+      const components = buildSendComponents(
+        selected.components,
+        paramValues,
+        mediaUrl.trim() || undefined,
+        mediaFilename.trim() || undefined,
+      )
 
       // Crear mensaje optimista ANTES de enviar al backend
-      const preview = buildPreview(selected.components, paramValues)
+      const preview = buildTemplatePreview(selected.components, paramValues)
       const summary = preview
         ? `📋 ${selected.name}\n${preview}`
         : `📋 ${selected.name}`
@@ -237,7 +236,7 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
                   )}
                   {body?.text && (
                     <p className="text-sm whitespace-pre-wrap">
-                      {buildPreview(selected.components, paramValues)}
+                      {buildTemplatePreview(selected.components, paramValues)}
                     </p>
                   )}
                   {footer?.text && (
@@ -254,6 +253,27 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
                   )}
                 </div>
 
+                {/* Media header (documento/imagen/video) */}
+                {selectedMediaFormat && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">
+                      {selectedMediaFormat === "DOCUMENT" ? "Documento (PDF)" : selectedMediaFormat === "IMAGE" ? "Imagen" : "Video"}
+                    </p>
+                    <Input
+                      placeholder="URL pública del archivo (https://...)"
+                      value={mediaUrl}
+                      onChange={(e) => setMediaUrl(e.target.value)}
+                    />
+                    {selectedMediaFormat === "DOCUMENT" && (
+                      <Input
+                        placeholder="Nombre del archivo (opcional, ej. comprobante.pdf)"
+                        value={mediaFilename}
+                        onChange={(e) => setMediaFilename(e.target.value)}
+                      />
+                    )}
+                  </div>
+                )}
+
                 {/* Parameter inputs */}
                 {paramValues.length > 0 && (
                   <div className="space-y-2">
@@ -261,7 +281,7 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
                     {paramValues.map((val, i) => (
                       <Input
                         key={i}
-                        placeholder={`Valor para {{${i + 1}}}`}
+                        placeholder={`Valor para {{${paramNames[i] ?? i + 1}}}`}
                         value={val}
                         onChange={(e) => {
                           const val = e.target.value
@@ -280,7 +300,11 @@ export function TemplatePicker({ channelId, conversationId, onSend, disabled }: 
 
             <Button
               onClick={handleSend}
-              disabled={sending || (paramValues.length > 0 && paramValues.some((v) => !v.trim()))}
+              disabled={
+                sending ||
+                (selectedMediaFormat !== null && !mediaUrl.trim()) ||
+                (paramValues.length > 0 && paramValues.some((v) => !v.trim()))
+              }
               className="w-full"
             >
               <Send className="w-4 h-4 mr-2" />
