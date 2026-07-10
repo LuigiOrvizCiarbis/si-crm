@@ -573,7 +573,8 @@
           "video": "Video",
           "urlPlaceholder": "or paste a public file URL (https://...)",
           "filenamePlaceholder": "File name (optional, e.g. receipt.pdf)"
-        }
+        },
+        "paramsHint": "Tip: type {{nombre}} or {{telefono}} to insert each contact's data automatically."
       },
       "result": {
         "success": "Broadcast queued for {{queued}} conversation(s)",

@@ -573,7 +573,8 @@
           "video": "Video",
           "urlPlaceholder": "o pegá una URL pública del archivo (https://...)",
           "filenamePlaceholder": "Nombre del archivo (opcional, ej. comprobante.pdf)"
-        }
+        },
+        "paramsHint": "Tip: escribí {{nombre}} o {{telefono}} y se reemplaza por los datos de cada contacto."
       },
       "result": {
         "success": "Difusión encolada para {{queued}} conversación(es)",
