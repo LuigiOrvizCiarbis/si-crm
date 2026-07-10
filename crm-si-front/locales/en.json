@@ -576,7 +576,7 @@
         "loadTemplates": "Error loading templates",
         "sync": "Error syncing templates",
         "apply": "Error sending broadcast",
-        "mixedChannels": "Select conversations from the same channel to send a broadcast"
+        "mixedChannels": "Select conversations from the same WhatsApp number to send a broadcast"
       }
     }
   },

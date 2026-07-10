@@ -1382,22 +1382,34 @@ export default function ChatsPage() {
     [visibleConversations, selectedConversationIds],
   )
 
-  // Canal común de la selección para difusión. null si mezclan canales o si
-  // algún id seleccionado no está en el estado local (nunca calcular sobre
-  // un subconjunto y abrir el diálogo por accidente).
+  // Canal representativo de la selección para difusión. Las plantillas son por
+  // NÚMERO de WhatsApp (whatsapp_config), no por canal: varios canales pueden
+  // compartir config, así que se compara por config id (igual que el backend).
+  // null si mezclan números o si algún id seleccionado no está en el estado
+  // local (nunca calcular sobre un subconjunto y abrir el diálogo por accidente).
   const selectedCommonChannelId = useMemo(() => {
     if (selectedConversationIds.size === 0) return null
-    const byId = new Map(conversations.map((c) => [c.id, c]))
-    let common: number | null = null
+    const conversationById = new Map(conversations.map((c) => [c.id, c]))
+    const configByChannelId = new Map(
+      channels.map((ch) => [ch.id, ch.whatsapp_config?.id ?? null]),
+    )
+    let commonConfigId: number | null = null
+    let representativeChannelId: number | null = null
     for (const id of selectedConversationIds) {
-      const conversation = byId.get(id)
+      const conversation = conversationById.get(id)
       const channelId = conversation?.channel?.id ?? conversation?.channelId
       if (channelId === undefined || channelId === null) return null
-      if (common === null) common = channelId
-      else if (common !== channelId) return null
+      const configId = configByChannelId.get(channelId)
+      if (configId === undefined || configId === null) return null
+      if (commonConfigId === null) {
+        commonConfigId = configId
+        representativeChannelId = channelId
+      } else if (commonConfigId !== configId) {
+        return null
+      }
     }
-    return common
-  }, [selectedConversationIds, conversations])
+    return representativeChannelId
+  }, [selectedConversationIds, conversations, channels])
 
   const handleBroadcastClick = useCallback(() => {
     if (selectedCommonChannelId === null) {

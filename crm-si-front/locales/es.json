@@ -576,7 +576,7 @@
         "loadTemplates": "Error cargando plantillas",
         "sync": "Error sincronizando plantillas",
         "apply": "Error enviando la difusión",
-        "mixedChannels": "Seleccioná conversaciones del mismo canal para enviar una difusión"
+        "mixedChannels": "Seleccioná conversaciones del mismo número de WhatsApp para enviar una difusión"
       }
     }
   },
