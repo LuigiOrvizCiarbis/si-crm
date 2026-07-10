@@ -574,7 +574,14 @@
           "urlPlaceholder": "or paste a public file URL (https://...)",
           "filenamePlaceholder": "File name (optional, e.g. receipt.pdf)"
         },
-        "paramsHint": "Tip: type {{nombre}} or {{telefono}} to insert each contact's data automatically."
+        "paramSource": {
+          "contactName": "Contact's name",
+          "contactPhone": "Contact's phone",
+          "custom": "Fixed text",
+          "customPlaceholder": "Type the value...",
+          "contactNamePreview": "«contact's name»",
+          "contactPhonePreview": "«contact's phone»"
+        }
       },
       "result": {
         "success": "Broadcast queued for {{queued}} conversation(s)",
