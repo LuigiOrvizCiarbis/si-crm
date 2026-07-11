@@ -2,6 +2,7 @@ import { Message } from "@/data/types"
 import { useEffect, useRef, useLayoutEffect, useState, useMemo, useCallback } from "react"
 import { Loader2, MoreHorizontal, Pencil, Trash2, Music2, Search, X, ChevronUp, ChevronDown, Bot } from "lucide-react"
 import { useTranslation } from "@/hooks/useTranslation"
+import { pauseOtherAudios } from "@/lib/audio"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -214,7 +215,7 @@ function MessageBubbleAudio({ mediaUrl, filename }: { mediaUrl: string; filename
         <Music2 className="h-4 w-4 shrink-0" />
         <span className="truncate">{filename || "Audio"}</span>
       </div>
-      <audio controls src={mediaUrl} className="w-full max-w-[280px]" preload="metadata" />
+      <audio controls src={mediaUrl} className="w-full max-w-[280px]" preload="metadata" onPlay={pauseOtherAudios} />
     </div>
   )
 }
