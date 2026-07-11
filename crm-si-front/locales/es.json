@@ -426,6 +426,8 @@
     "sendMessageError": "Error al enviar mensaje",
     "sendMessageErrorDesc": "No se pudo enviar el mensaje",
     "edited": "editado",
+    "dateToday": "Hoy",
+    "dateYesterday": "Ayer",
     "editMessage": "Editar",
     "deleteMessage": "Eliminar",
     "deleteMessageTitle": "Eliminar mensaje",

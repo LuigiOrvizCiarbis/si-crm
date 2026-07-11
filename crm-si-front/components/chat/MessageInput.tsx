@@ -10,6 +10,7 @@ import dynamic from "next/dynamic"
 import Image from "next/image"
 import { Message } from "@/data/types"
 import { getMessageHotkeys, type MessageHotkey } from "@/lib/api/message-hotkeys"
+import { pauseOtherAudios } from "@/lib/audio"
 import { expandHotkey, parseSlashCommand, type HotkeyExpansionContext } from "@/lib/utils/hotkeys"
 import { HotkeyAutocomplete } from "./HotkeyAutocomplete"
 
@@ -312,7 +313,7 @@ export function MessageInput({
                   <Music2 className="h-4 w-4 shrink-0" />
                   <span className="truncate">{selectedMedia?.name}</span>
                 </div>
-                <audio controls src={mediaPreview} className="w-full" />
+                <audio controls src={mediaPreview} className="w-full" onPlay={pauseOtherAudios} />
               </div>
             )}
             <button
