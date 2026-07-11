@@ -1,5 +1,5 @@
 import { Message } from "@/data/types"
-import { useEffect, useRef, useLayoutEffect, useState, useMemo, useCallback } from "react"
+import { Fragment, useEffect, useRef, useLayoutEffect, useState, useMemo, useCallback } from "react"
 import { Loader2, MoreHorizontal, Pencil, Trash2, Music2, Search, X, ChevronUp, ChevronDown, Bot } from "lucide-react"
 import { useTranslation } from "@/hooks/useTranslation"
 import { pauseOtherAudios } from "@/lib/audio"
@@ -70,6 +70,40 @@ function highlightText(
       )
     }
     return part
+  })
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
+/**
+ * Etiqueta de día estilo WhatsApp: "Hoy", "Ayer", día de la semana si es de
+ * los últimos 7 días, y fecha completa localizada para lo anterior.
+ */
+function getDayLabel(
+  date: Date,
+  language: string,
+  t: (key: string) => string,
+): string {
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const diffDays = Math.round(
+    (startOfDay(new Date()).getTime() - startOfDay(date).getTime()) / 86400000,
+  )
+  if (diffDays === 0) return t("chats.dateToday")
+  if (diffDays === 1) return t("chats.dateYesterday")
+  if (diffDays > 1 && diffDays < 7) {
+    const weekday = date.toLocaleDateString(language, { weekday: "long" })
+    return weekday.charAt(0).toUpperCase() + weekday.slice(1)
+  }
+  return date.toLocaleDateString(language, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   })
 }
 
@@ -230,11 +264,46 @@ export function MessageList({
   currentUserId,
   isAdmin,
 }: MessageListProps) {
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const scrollRef = useRef<HTMLDivElement>(null)
   const prevScrollHeightRef = useRef(0)
   const lastMessageIdRef = useRef<number | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Message | null>(null)
+
+  // --- Chip flotante de fecha (estilo WhatsApp) ---
+  const [floatingDay, setFloatingDay] = useState("")
+  const [floatingVisible, setFloatingVisible] = useState(false)
+  const floatingHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (floatingHideTimerRef.current) clearTimeout(floatingHideTimerRef.current)
+    }
+  }, [])
+
+  // Determina el día del primer separador visible/superado y muestra el chip
+  // mientras dura el scroll; se desvanece ~1s después de parar.
+  const updateFloatingDay = useCallback(() => {
+    const container = scrollRef.current
+    if (!container) return
+    const separators = container.querySelectorAll<HTMLElement>("[data-day-label]")
+    if (separators.length < 2) return
+
+    const containerTop = container.getBoundingClientRect().top
+    let label = separators[0].dataset.dayLabel || ""
+    for (const sep of separators) {
+      if (sep.getBoundingClientRect().top - containerTop <= 12) {
+        label = sep.dataset.dayLabel || label
+      } else {
+        break
+      }
+    }
+
+    setFloatingDay(label)
+    setFloatingVisible(true)
+    if (floatingHideTimerRef.current) clearTimeout(floatingHideTimerRef.current)
+    floatingHideTimerRef.current = setTimeout(() => setFloatingVisible(false), 1000)
+  }, [])
 
   // --- Búsqueda dentro de la conversación ---
   const [searchOpen, setSearchOpen] = useState(false)
@@ -368,6 +437,8 @@ export function MessageList({
 
     const { scrollTop, scrollHeight } = scrollRef.current
 
+    updateFloatingDay()
+
     if (scrollTop === 0 && !isLoadingMore && hasMore) {
       prevScrollHeightRef.current = scrollHeight
       onLoadMore()
@@ -476,6 +547,20 @@ export function MessageList({
           </div>
         )}
 
+        {/* Chip flotante con el día visible durante el scroll */}
+        {floatingDay && (
+          <div
+            aria-hidden={!floatingVisible}
+            className={`pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 motion-safe:transition-opacity motion-safe:duration-200 ${
+              searchOpen ? "top-16" : "top-3"
+            } ${floatingVisible ? "opacity-100" : "opacity-0"}`}
+          >
+            <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur dark:shadow-none">
+              {floatingDay}
+            </span>
+          </div>
+        )}
+
         <div
           ref={scrollRef}
           className={`flex-1 p-4 overflow-y-auto min-h-0 transition-[padding] ${searchOpen ? "pt-16" : ""}`}
@@ -488,7 +573,17 @@ export function MessageList({
         )}
 
         <div className="space-y-4">
-          {messages.map((msg) => {
+          {messages.map((msg, index) => {
+            const msgTimestamp = msg.delivered_at || msg.created_at
+            const msgDate = msgTimestamp ? new Date(msgTimestamp) : null
+            const prevMsg = index > 0 ? messages[index - 1] : null
+            const prevTimestamp = prevMsg ? prevMsg.delivered_at || prevMsg.created_at : null
+            const prevDate = prevTimestamp ? new Date(prevTimestamp) : null
+            const dayLabel =
+              msgDate && !isNaN(msgDate.getTime()) && (!prevDate || !isSameDay(msgDate, prevDate))
+                ? getDayLabel(msgDate, language, t)
+                : null
+
             const isUser = msg.sender_type === "user"
             const isBot = msg.sender_type === "system" && msg.direction === "outbound"
             const isDeleted = !!msg.deleted_at
@@ -509,8 +604,15 @@ export function MessageList({
             const matchKeyPrefix = `msg-${msg.id}`
 
             return (
+              <Fragment key={msg.id}>
+                {dayLabel && (
+                  <div data-day-label={dayLabel} className="flex justify-center">
+                    <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground dark:bg-card">
+                      {dayLabel}
+                    </span>
+                  </div>
+                )}
               <div
-                key={msg.id}
                 className={`group/msg flex ${isUser || isBot ? "justify-end" : "justify-start"}`}
               >
                 {/* Action button - before bubble for user messages */}
@@ -658,6 +760,7 @@ export function MessageList({
                   </div>
                 )}
               </div>
+              </Fragment>
             )
           })}
           </div>
