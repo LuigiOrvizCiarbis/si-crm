@@ -86,7 +86,6 @@ import {
   ArchiveRestore,
   Bot,
   CheckSquare,
-  FileText,
   Loader2,
   Mail,
   MailOpen,
@@ -110,7 +109,6 @@ interface ChatsCompactHeaderProps {
   onSearchChange: (query: string) => void
   onNewConversation: () => void
   onConnectChannel: () => void
-  onTemplates: () => void
   onOpenChannels: () => void
 }
 
@@ -119,7 +117,6 @@ function ChatsCompactHeader({
   onSearchChange,
   onNewConversation,
   onConnectChannel,
-  onTemplates,
   onOpenChannels,
 }: ChatsCompactHeaderProps) {
   return (
@@ -160,10 +157,6 @@ function ChatsCompactHeader({
               <Zap className="h-4 w-4" />
               Conectar canal
             </Button>
-            <Button variant="outline" size="sm" onClick={onTemplates} className="gap-2 bg-transparent">
-              <FileText className="h-4 w-4" />
-              Plantillas
-            </Button>
           </div>
 
           <DropdownMenu>
@@ -176,10 +169,6 @@ function ChatsCompactHeader({
               <DropdownMenuItem onClick={onConnectChannel}>
                 <Zap className="mr-2 h-4 w-4" />
                 Conectar canal
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onTemplates}>
-                <FileText className="mr-2 h-4 w-4" />
-                Plantillas
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -796,10 +785,6 @@ export default function ChatsPage() {
     }
 
     launchWhatsAppSignup()
-  }
-
-  const handleOpenTemplates = () => {
-    router.push("/plantillas-wa")
   }
 
   const handleNewConversation = () => {
@@ -1521,7 +1506,6 @@ export default function ChatsPage() {
         onSearchChange={setSearchQuery}
         onNewConversation={handleNewConversation}
         onConnectChannel={handleConnectChannel}
-        onTemplates={handleOpenTemplates}
         onOpenChannels={() => setIsChannelsSheetOpen(true)}
       />
 
