@@ -4,9 +4,9 @@ import { ConversationHeader } from './ConversationHeader'
 import { MessageList } from './MessageList'
 import { MessageInput } from './MessageInput'
 import { AISuggestions } from './AISuggestions'
-import { Conversation } from '@/data/types'
-import { sendMessage } from '@/lib/api/messages'
-import { getConversationWithMessages } from '@/lib/api/conversations'
+import { Conversation, TranslationLanguage } from '@/data/types'
+import { sendMessage, translateMessage } from '@/lib/api/messages'
+import { getConversationWithMessages, setConversationTranslationLanguage, translateDraft } from '@/lib/api/conversations'
 import { isExpectedBusinessErrorMessage } from '@/lib/observability/sentry'
 import { useToast } from '@/components/Toast'
 import { aiSuggestions } from '@/data/constants'
@@ -32,10 +32,11 @@ export function ConversationView({
     onConversationUpdate,
 }: ConversationViewProps) {
     const { addToast } = useToast()
-    const { t } = useTranslation()
+    const { t, language } = useTranslation()
     const authUser = useAuthStore((state) => state.user)
     const [message, setMessage] = useState("")
     const [isSending, setIsSending] = useState(false)
+    const [contactLanguage, setContactLanguage] = useState<TranslationLanguage>(conversation.contactLanguage ?? "es")
 
     const expansionContext = {
         contactName: conversation.contact?.name ?? null,
@@ -85,14 +86,18 @@ export function ConversationView({
         <>
             <ConversationHeader
                 conversation={conversation}
+                isContactInfoOpen={false}
                 onBack={onBack}
-                onOpenInfo={onOpenInfo}
+                onToggleContactInfo={onOpenInfo}
             />
 
             <MessageList
-                conversationId={conversation.id}
                 messages={conversation.messages || []}
-                isLoading={false}
+                onLoadMore={async () => undefined}
+                hasMore={false}
+                isLoadingMore={false}
+                translationLanguage={language}
+                onTranslateMessage={(targetMessage, targetLanguage) => translateMessage(targetMessage.id, targetLanguage)}
             />
 
             <AISuggestions
@@ -107,6 +112,27 @@ export function ConversationView({
                 disabled={isSending}
                 placeholder={t("chats.messagePlaceholder")}
                 expansionContext={expansionContext}
+                conversationId={conversation.id}
+                contactLanguage={contactLanguage}
+                onContactLanguageChange={async (nextLanguage) => {
+                    const previous = contactLanguage
+                    setContactLanguage(nextLanguage)
+                    try {
+                        await setConversationTranslationLanguage(conversation.id, nextLanguage)
+                        onConversationUpdate({ ...conversation, contactLanguage: nextLanguage })
+                    } catch (error) {
+                        setContactLanguage(previous)
+                        addToast({
+                            type: "error",
+                            title: t("chats.languageSaveError"),
+                            description: error instanceof Error ? error.message : undefined,
+                        })
+                    }
+                }}
+                onTranslateDraft={async (content, targetLanguage) => {
+                    const result = await translateDraft(conversation.id, content, targetLanguage)
+                    return result.translated_content
+                }}
             />
         </>
     )

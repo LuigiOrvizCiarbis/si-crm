@@ -19,7 +19,7 @@ const ContactInfoPanel = dynamic(
 )
 import { useChatState } from "@/hooks/useChatState"
 import { useToast } from "@/components/Toast"
-import { FilterType, Channel, Conversation, Message } from "@/data/types"
+import { FilterType, Channel, Conversation, Message, TranslationLanguage } from "@/data/types"
 import { filterTypeToChannelType } from "@/data/enums"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
@@ -38,6 +38,8 @@ import {
   markConversationAsRead,
   markConversationAsUnread,
   searchConversationsByContent,
+  setConversationTranslationLanguage,
+  translateDraft,
 } from "@/lib/api/conversations"
 const BulkTagsConversationsDialog = dynamic(
   () => import("@/components/chat/BulkTagsConversationsDialog").then(m => m.BulkTagsConversationsDialog),
@@ -62,7 +64,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-import { sendMessage, editMessage, deleteMessage } from "@/lib/api/messages"
+import { sendMessage, editMessage, deleteMessage, translateMessage } from "@/lib/api/messages"
 import { ConversationHeader } from "@/components/chat/ConversationHeader"
 import { MessageList } from "@/components/chat/MessageList"
 import { MessageInput } from "@/components/chat/MessageInput"
@@ -197,7 +199,7 @@ function ChatsCompactHeader({
 
 export default function ChatsPage() {
   const { addToast, removeToast } = useToast()
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { chatStates, ...chatHandlers } = useChatState()
@@ -1039,6 +1041,52 @@ export default function ChatsPage() {
     }
   }, [selectedConversationId, addToast, t]);
 
+  const handleTranslateMessage = useCallback(
+    (targetMessage: Message, targetLanguage: TranslationLanguage) => (
+      translateMessage(targetMessage.id, targetLanguage)
+    ),
+    [],
+  )
+
+  const handleTranslateDraft = useCallback(async (
+    content: string,
+    targetLanguage: TranslationLanguage,
+  ) => {
+    if (!selectedConversationId) throw new Error(t("chats.noConversationSelected"))
+    const result = await translateDraft(selectedConversationId, content, targetLanguage)
+    return result.translated_content
+  }, [selectedConversationId, t])
+
+  const handleTranslationLanguageChange = useCallback(async (nextLanguage: TranslationLanguage) => {
+    if (!selectedConversationId) return
+
+    const targetId = selectedConversationId
+    const previous = (currentConversation ?? activeConversation)?.contactLanguage ?? "es"
+
+    setConversations((items) => items.map((conversation) => (
+      conversation.id === targetId ? { ...conversation, contactLanguage: nextLanguage } : conversation
+    )))
+    setCurrentConversation((conversation) => (
+      conversation?.id === targetId ? { ...conversation, contactLanguage: nextLanguage } : conversation
+    ))
+
+    try {
+      await setConversationTranslationLanguage(targetId, nextLanguage)
+    } catch (error) {
+      setConversations((items) => items.map((conversation) => (
+        conversation.id === targetId ? { ...conversation, contactLanguage: previous } : conversation
+      )))
+      setCurrentConversation((conversation) => (
+        conversation?.id === targetId ? { ...conversation, contactLanguage: previous } : conversation
+      ))
+      addToast({
+        type: "error",
+        title: t("chats.languageSaveError"),
+        description: error instanceof Error ? error.message : undefined,
+      })
+    }
+  }, [activeConversation, addToast, currentConversation, selectedConversationId, t])
+
   const handleDeleteMessage = async (msg: Message) => {
     try {
       await deleteMessage(msg.id);
@@ -1762,6 +1810,7 @@ export default function ChatsPage() {
                 onTagsChange={handleConversationTagsChange}
               />
               <MessageList
+                key={selectedConversationId}
                 messages={currentConversation?.messages || []}
                 onLoadMore={handleLoadMoreMessages}
                 hasMore={hasMore}
@@ -1770,6 +1819,8 @@ export default function ChatsPage() {
                 onDeleteMessage={handleDeleteMessage}
                 currentUserId={currentUserId}
                 isAdmin={isAdmin}
+                translationLanguage={language}
+                onTranslateMessage={handleTranslateMessage}
               />
               <MessageInput
                 value={message}
@@ -1782,6 +1833,9 @@ export default function ChatsPage() {
                 editingMessage={editingMessage}
                 onCancelEdit={handleCancelEdit}
                 expansionContext={hotkeyExpansionContext}
+                contactLanguage={(currentConversation ?? activeConversation)?.contactLanguage ?? "es"}
+                onContactLanguageChange={handleTranslationLanguageChange}
+                onTranslateDraft={handleTranslateDraft}
               />
             </>
 

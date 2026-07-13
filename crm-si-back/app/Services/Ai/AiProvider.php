@@ -25,6 +25,12 @@ interface AiProvider
     public function generate(array $messages, string $systemPrompt, string $model): ?string;
 
     /**
+     * Traduce un texto con un request corto y determinista. Usa un modelo
+     * económico separado del configurado para el auto-responder.
+     */
+    public function translate(string $content, string $systemPrompt, string $model): ?string;
+
+    /**
      * Lista los modelos de chat disponibles para la API key del tenant.
      *
      * Consulta el endpoint de modelos del proveedor. Nunca lanza: ante cualquier

@@ -63,6 +63,43 @@ class AnthropicProvider implements AiProvider
         }
     }
 
+    public function translate(string $content, string $systemPrompt, string $model): ?string
+    {
+        try {
+            $client = new Client(
+                apiKey: $this->apiKey,
+                requestOptions: [
+                    'transporter' => new GuzzleClient([
+                        'timeout' => (int) config('services.ai.generate_timeout', 60),
+                    ]),
+                ],
+            );
+
+            $response = $client->messages->create(
+                model: $model,
+                maxTokens: 2048,
+                system: $systemPrompt,
+                messages: [['role' => 'user', 'content' => $content]],
+                temperature: 0,
+            );
+
+            foreach ($response->content as $block) {
+                if ($block->type === 'text' && trim($block->text) !== '') {
+                    return trim($block->text);
+                }
+            }
+
+            return null;
+        } catch (\Throwable $e) {
+            Log::error('AnthropicProvider: error traduciendo texto', [
+                'model' => $model,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
     /**
      * Traduce un mensaje del historial al formato de la API de Anthropic. Si el
      * content es string plano, pasa sin tocar. Si es una lista de bloques
