@@ -1,6 +1,7 @@
-import { Message } from "@/data/types"
+import { Message, TranslationLanguage } from "@/data/types"
 import { Fragment, useEffect, useRef, useLayoutEffect, useState, useMemo, useCallback } from "react"
-import { Loader2, MoreHorizontal, Pencil, Trash2, Music2, Search, X, ChevronUp, ChevronDown, Bot } from "lucide-react"
+import { Loader2, MoreHorizontal, Pencil, Trash2, Music2, Search, X, ChevronUp, ChevronDown, Bot, Languages, EyeOff, RefreshCw } from "lucide-react"
+import type { MessageTranslationResponse } from "@/lib/api/messages"
 import { useTranslation } from "@/hooks/useTranslation"
 import { pauseOtherAudios } from "@/lib/audio"
 import { Input } from "@/components/ui/input"
@@ -31,6 +32,17 @@ interface MessageListProps {
   onDeleteMessage?: (message: Message) => void
   currentUserId?: number
   isAdmin?: boolean
+  translationLanguage: TranslationLanguage
+  onTranslateMessage: (message: Message, targetLanguage: TranslationLanguage) => Promise<MessageTranslationResponse>
+}
+
+interface TranslationState {
+  content?: string
+  sourceContent: string
+  targetLanguage: TranslationLanguage
+  visible: boolean
+  loading: boolean
+  error?: string
 }
 
 function escapeRegExp(value: string): string {
@@ -263,12 +275,15 @@ export function MessageList({
   onDeleteMessage,
   currentUserId,
   isAdmin,
+  translationLanguage,
+  onTranslateMessage,
 }: MessageListProps) {
   const { t, language } = useTranslation()
   const scrollRef = useRef<HTMLDivElement>(null)
   const prevScrollHeightRef = useRef(0)
   const lastMessageIdRef = useRef<number | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Message | null>(null)
+  const [translations, setTranslations] = useState<Record<string, TranslationState>>({})
 
   // --- Chip flotante de fecha (estilo WhatsApp) ---
   const [floatingDay, setFloatingDay] = useState("")
@@ -459,7 +474,61 @@ export function MessageList({
       isAdmin
     )
 
-  const hasActions = (msg: Message) => canEdit(msg) || canDelete(msg)
+  const canTranslate = (msg: Message) =>
+    !msg.deleted_at &&
+    !!msg.content?.trim() &&
+    (!msg.message_type || msg.message_type === "text" || msg.message_type === "image")
+
+  const hasActions = (msg: Message) => canEdit(msg) || canDelete(msg) || canTranslate(msg)
+
+  const handleTranslate = async (msg: Message) => {
+    const key = String(msg.id)
+    const current = translations[key]
+    const isCurrent = current?.sourceContent === msg.content && current.targetLanguage === translationLanguage
+
+    if (isCurrent && current.content) {
+      setTranslations((prev) => ({
+        ...prev,
+        [key]: { ...current, visible: !current.visible, error: undefined },
+      }))
+      return
+    }
+
+    setTranslations((prev) => ({
+      ...prev,
+      [key]: {
+        sourceContent: msg.content,
+        targetLanguage: translationLanguage,
+        visible: true,
+        loading: true,
+      },
+    }))
+
+    try {
+      const result = await onTranslateMessage(msg, translationLanguage)
+      setTranslations((prev) => ({
+        ...prev,
+        [key]: {
+          sourceContent: msg.content,
+          targetLanguage: result.target_language,
+          content: result.translated_content,
+          visible: true,
+          loading: false,
+        },
+      }))
+    } catch (error) {
+      setTranslations((prev) => ({
+        ...prev,
+        [key]: {
+          sourceContent: msg.content,
+          targetLanguage: translationLanguage,
+          visible: true,
+          loading: false,
+          error: error instanceof Error ? error.message : t("chats.translationError"),
+        },
+      }))
+    }
+  }
 
   return (
     <>
@@ -602,6 +671,9 @@ export function MessageList({
               ? parseTemplateContent(msg.content || "")
               : { isTemplate: false, title: "", body: "" }
             const matchKeyPrefix = `msg-${msg.id}`
+            const translationState = translations[String(msg.id)]
+            const isCurrentTranslation = translationState?.sourceContent === msg.content
+              && translationState.targetLanguage === translationLanguage
 
             return (
               <Fragment key={msg.id}>
@@ -625,6 +697,23 @@ export function MessageList({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {canTranslate(msg) && (
+                          <DropdownMenuItem
+                            onClick={() => void handleTranslate(msg)}
+                            disabled={isCurrentTranslation && translationState.loading}
+                          >
+                            {isCurrentTranslation && translationState.visible ? (
+                              <EyeOff className="h-4 w-4 mr-2" />
+                            ) : (
+                              <Languages className="h-4 w-4 mr-2" />
+                            )}
+                            {isCurrentTranslation && translationState.visible
+                              ? t("chats.hideTranslation")
+                              : isCurrentTranslation && translationState.content
+                                ? t("chats.showTranslation")
+                                : t("chats.translateMessage")}
+                          </DropdownMenuItem>
+                        )}
                         {canEdit(msg) && onEditMessage && (
                           <DropdownMenuItem onClick={() => onEditMessage(msg)}>
                             <Pencil className="h-4 w-4 mr-2" />
@@ -718,6 +807,55 @@ export function MessageList({
                         : msg.content}
                     </p>
                   )}
+                  {(() => {
+                    const translation = translationState
+                    if (!translation?.visible || !isCurrentTranslation) return null
+
+                    return (
+                      <div
+                        className="mt-2 border-t border-current/15 pt-2"
+                        aria-live="polite"
+                      >
+                        <div className="mb-1 flex items-center justify-between gap-3 text-[11px] font-medium opacity-70">
+                          <span className="inline-flex items-center gap-1">
+                            <Languages className="h-3 w-3" />
+                            {t("chats.translationTo", { language: t(`chats.language.${translationLanguage}`) })}
+                          </span>
+                          {!translation.loading && !translation.error && (
+                            <button
+                              type="button"
+                              className="rounded-sm underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              onClick={() => void handleTranslate(msg)}
+                            >
+                              {t("chats.hideTranslation")}
+                            </button>
+                          )}
+                        </div>
+                        {translation.loading ? (
+                          <div className="space-y-1.5 py-1" aria-label={t("chats.translating") }>
+                            <div className="h-3 w-full animate-pulse rounded-sm bg-current/10 motion-reduce:animate-none" />
+                            <div className="h-3 w-2/3 animate-pulse rounded-sm bg-current/10 motion-reduce:animate-none" />
+                          </div>
+                        ) : translation.error ? (
+                          <div className="flex items-start justify-between gap-2 text-xs">
+                            <span className="opacity-80">{translation.error}</span>
+                            <button
+                              type="button"
+                              className="inline-flex shrink-0 items-center gap-1 rounded-sm font-medium underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              onClick={() => void handleTranslate(msg)}
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              {t("chats.retry")}
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere]">
+                            {translation.content}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })()}
                   {(msg.delivered_at || msg.created_at) && (
                     <div className="flex items-center gap-1">
                       <span className="text-xs text-muted-foreground">
@@ -746,6 +884,23 @@ export function MessageList({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
+                        {canTranslate(msg) && (
+                          <DropdownMenuItem
+                            onClick={() => void handleTranslate(msg)}
+                            disabled={isCurrentTranslation && translationState.loading}
+                          >
+                            {isCurrentTranslation && translationState.visible ? (
+                              <EyeOff className="h-4 w-4 mr-2" />
+                            ) : (
+                              <Languages className="h-4 w-4 mr-2" />
+                            )}
+                            {isCurrentTranslation && translationState.visible
+                              ? t("chats.hideTranslation")
+                              : isCurrentTranslation && translationState.content
+                                ? t("chats.showTranslation")
+                                : t("chats.translateMessage")}
+                          </DropdownMenuItem>
+                        )}
                         {canDelete(msg) && onDeleteMessage && (
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"

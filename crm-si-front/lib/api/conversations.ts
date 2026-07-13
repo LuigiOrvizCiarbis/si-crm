@@ -1,4 +1,4 @@
-import type { Conversation } from "@/data/types";
+import type { Conversation, TranslationLanguage } from "@/data/types";
 import { getAuthToken } from "./auth-token";
 import { throwApiError } from "./api-error";
 
@@ -17,6 +17,7 @@ function mapConversation(c: any): Conversation {
     assigneeId: c.assigned_to,
     archived: c.archived,
     aiAutoreplyEnabled: Boolean(c.ai_autoreply_enabled),
+    contactLanguage: c.contact_language ?? undefined,
     channel: c.channel,
     last_message_at: c.last_message_at,
     created_at: c.created_at,
@@ -271,6 +272,47 @@ export async function setAiAutoreply(conversationId: number, enabled: boolean) {
 
   const payload = await res.json();
   return payload.data as { id: number; ai_autoreply_enabled: boolean };
+}
+
+export async function translateDraft(
+  conversationId: number,
+  content: string,
+  targetLanguage: TranslationLanguage,
+): Promise<{ translated_content: string; target_language: TranslationLanguage }> {
+  const token = requireToken();
+  const res = await fetch(`/api/conversations/${conversationId}/translate-draft`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ content, target_language: targetLanguage }),
+  });
+
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) throwApiError(res.status, payload, "No se pudo traducir el borrador");
+  return payload.data;
+}
+
+export async function setConversationTranslationLanguage(
+  conversationId: number,
+  contactLanguage: TranslationLanguage,
+): Promise<{ id: number; contact_language: TranslationLanguage }> {
+  const token = requireToken();
+  const res = await fetch(`/api/conversations/${conversationId}/translation-language`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ contact_language: contactLanguage }),
+  });
+
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) throwApiError(res.status, payload, "No se pudo guardar el idioma del contacto");
+  return payload.data;
 }
 
 export type BulkConversationTagAction = "add" | "remove" | "replace";
