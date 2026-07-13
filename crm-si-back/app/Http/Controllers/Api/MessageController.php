@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ChannelType;
 use App\Events\MessageDeleted;
 use App\Events\MessageEdited;
+use App\Exceptions\MetaApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateMessageRequest;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Services\InstagramMessageService;
 use App\Services\WhatsAppMessageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -16,7 +19,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 class MessageController extends Controller
 {
     public function __construct(
-        private WhatsAppMessageService $messageService
+        private WhatsAppMessageService $messageService,
+        private InstagramMessageService $instagramService,
     ) {}
 
     public function index(Request $request, Conversation $conversation): JsonResponse
@@ -50,7 +54,7 @@ class MessageController extends Controller
         ]);
 
         $conversation = Conversation::query()
-            ->with(['channel.whatsappConfig', 'contact'])
+            ->with(['channel.whatsappConfig', 'channel.instagramConfig', 'contact'])
             ->whereKey($data['conversation_id'])
             ->where('tenant_id', $request->user()->tenant_id)
             ->firstOrFail();
@@ -60,12 +64,34 @@ class MessageController extends Controller
         $type = $data['type'] ?? 'text';
         $tenantId = $request->user()->tenant_id;
 
+        // El servicio de transporte se elige por el tipo de canal. Las firmas de
+        // los métodos send*FromCRM son idénticas entre ambos servicios.
+        $channelType = $conversation->channel?->type;
+        $service = $channelType === ChannelType::INSTAGRAM
+            ? $this->instagramService
+            : $this->messageService;
+
+        // Instagram sólo acepta ciertos formatos de audio (aac/m4a/wav/mp4).
+        // La validación general acepta formatos de WhatsApp (ogg/amr) que IG
+        // rechaza; los cortamos acá con un mensaje claro antes de llamar a Meta.
+        if ($type === 'audio'
+            && $channelType === ChannelType::INSTAGRAM
+            && $request->hasFile('audio')) {
+            $mime = $request->file('audio')->getMimeType();
+            $allowed = ['audio/aac', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav'];
+            if (! in_array($mime, $allowed, true)) {
+                return response()->json([
+                    'message' => 'Instagram no admite este formato de audio. Usá AAC, M4A o WAV.',
+                ], 422);
+            }
+        }
+
         try {
             if ($type === 'image' && $request->hasFile('image')) {
                 $file = $request->file('image');
                 $path = $file->store("messages/{$tenantId}", 'public');
 
-                $message = $this->messageService->sendImageMessageFromCRM(
+                $message = $service->sendImageMessageFromCRM(
                     $conversation,
                     $path,
                     '/storage/'.$path,
@@ -77,7 +103,7 @@ class MessageController extends Controller
                 $file = $request->file('audio');
                 $path = $file->store("messages/{$tenantId}", 'public');
 
-                $message = $this->messageService->sendAudioMessageFromCRM(
+                $message = $service->sendAudioMessageFromCRM(
                     $conversation,
                     $path,
                     '/storage/'.$path,
@@ -85,7 +111,7 @@ class MessageController extends Controller
                     $request->user()
                 );
             } else {
-                $message = $this->messageService->sendTextMessageFromCRM(
+                $message = $service->sendTextMessageFromCRM(
                     $conversation,
                     $data['content'],
                     $request->user()
@@ -93,6 +119,32 @@ class MessageController extends Controller
             }
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
+        } catch (MetaApiException $e) {
+            $channelName = $e->channelType === ChannelType::INSTAGRAM ? 'Instagram' : 'WhatsApp';
+
+            $errorMessage = match ($e->reason) {
+                MetaApiException::REASON_WINDOW_CLOSED => 'La ventana de 24 horas de '.$channelName.
+                    ' expiró: el contacto debe escribir primero para poder responderle.',
+                MetaApiException::REASON_TOKEN_INVALID => 'La conexión de '.$channelName.
+                    ' expiró. Reconectá el canal desde Configuración para volver a enviar mensajes.',
+                MetaApiException::REASON_UNSUPPORTED_MEDIA => 'El archivo adjunto no es compatible con '.
+                    $channelName.'. Probá con otro formato.',
+                MetaApiException::REASON_MISSING_PERMISSION => 'Faltan permisos en la conexión de '.
+                    $channelName.'. Reconectá el canal desde Configuración.',
+                default => 'No se pudo enviar el mensaje a '.$channelName.
+                    '. Verificá la configuración del canal e inténtalo de nuevo.',
+            };
+
+            Log::warning('Error de Meta API al enviar mensaje', [
+                'conversation_id' => $conversation->id,
+                'tenant_id' => $request->user()->tenant_id,
+                'channel_type' => $e->channelType->name,
+                'reason' => $e->reason,
+                'code' => $e->metaCode,
+                'subcode' => $e->metaSubcode,
+            ]);
+
+            return response()->json(['message' => $errorMessage], 422);
         } catch (\RuntimeException $e) {
             // El mensaje de la excepción incluye el body crudo de Meta; detectamos
             // el code 190 (token expirado/revocado) para dar una instrucción accionable

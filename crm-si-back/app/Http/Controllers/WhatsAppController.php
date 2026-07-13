@@ -8,6 +8,7 @@ use App\Http\Requests\ChannelStoreRequest;
 use App\Models\Channel;
 use App\Models\WhatsAppConfig;
 use App\Services\WhatsAppMessageService;
+use App\Support\MetaOAuth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -114,106 +115,37 @@ class WhatsAppController extends Controller
 
     /**
      * Resume una excepción a campos seguros para loguear.
-     * Evita getTraceAsString() (filtra args de método) y getMessage() crudo
-     * cuando la excepción puede contener URLs con secretos (Guzzle).
      *
      * @return array{exception: class-string<\Throwable>, message: string, file: string, line: int}
      */
     private function describeException(\Throwable $e): array
     {
-        return [
-            'exception' => $e::class,
-            'message' => $this->scrubMessage($e->getMessage()),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-        ];
+        return MetaOAuth::describeException($e);
     }
 
     /**
      * Saca tokens y secretos de un mensaje libre antes de loguearlo.
-     * Cubre los formatos típicos de Guzzle/Meta: query strings con `code=`,
-     * `access_token=`, `client_secret=`, y headers `Bearer ...`.
      */
     private function scrubMessage(string $message): string
     {
-        $patterns = [
-            '/(client_secret|access_token|code|bussines_token|business_token)=[^\s&"\']+/i' => '$1=[REDACTED]',
-            '/Bearer\s+[A-Za-z0-9._\-]+/i' => 'Bearer [REDACTED]',
-        ];
-
-        return preg_replace(array_keys($patterns), array_values($patterns), $message) ?? '[unloggable]';
+        return MetaOAuth::scrubMessage($message);
     }
 
     /**
      * Extrae solo los campos seguros de un error de Graph API.
-     * El body crudo puede contener `fbtrace_id`, payloads o eco de credenciales.
      *
      * @return array{code: int|null, type: string|null, subcode: int|null, message: string|null}
      */
     private function describeMetaError(?array $body): array
     {
-        return [
-            'code' => data_get($body, 'error.code'),
-            'type' => data_get($body, 'error.type'),
-            'subcode' => data_get($body, 'error.error_subcode'),
-            'message' => data_get($body, 'error.message'),
-        ];
+        return MetaOAuth::describeMetaError($body);
     }
 
     private function exchangeCodeForToken(string $code): ?string
     {
-        try {
-            $response = Http::timeout(10)->get('https://graph.facebook.com/v21.0/oauth/access_token', [
-                'client_id' => config('services.facebook.app_id'),
-                'client_secret' => config('services.facebook.app_secret'),
-                'code' => $code,
-            ]);
-
-            if ($response->successful()) {
-                $token = $response->json('access_token');
-
-                // El token del Embedded Signup nace con ~60 días de vida.
-                // Lo convertimos a permanente (expires_at=0) antes de persistirlo,
-                // así el cliente no se cae a los 60 días del onboarding.
-                return $this->extendTokenToPermanent($token);
-            }
-
-            Log::error('Token exchange failed', [
-                'status' => $response->status(),
-                'error' => $this->describeMetaError($response->json()),
-            ]);
-        } catch (\Exception $e) {
-            // getMessage() de Guzzle puede incluir la URL completa con
-            // ?client_secret=...&code=..., por eso pasa por scrubMessage.
-            Log::error('Exception exchanging code for token', $this->describeException($e));
-        }
-
-        return null;
-    }
-
-    private function extendTokenToPermanent(string $token): string
-    {
-        try {
-            $response = Http::timeout(10)->get('https://graph.facebook.com/v21.0/oauth/access_token', [
-                'grant_type' => 'fb_exchange_token',
-                'client_id' => config('services.facebook.app_id'),
-                'client_secret' => config('services.facebook.app_secret'),
-                'fb_exchange_token' => $token,
-            ]);
-
-            if ($response->successful() && $response->json('access_token')) {
-                return $response->json('access_token');
-            }
-
-            Log::warning('No se pudo extender el token a permanente, se usa el de 60 días', [
-                'status' => $response->status(),
-                'error' => $this->describeMetaError($response->json()),
-            ]);
-        } catch (\Exception $e) {
-            Log::warning('Excepción extendiendo token a permanente', $this->describeException($e));
-        }
-
-        return $token;
+        // El token del Embedded Signup nace con ~60 días de vida; el helper lo
+        // extiende a long-lived antes de devolverlo.
+        return MetaOAuth::exchangeCodeForToken($code);
     }
 
     private function saveChannel(Request $request, string $businessToken): Channel

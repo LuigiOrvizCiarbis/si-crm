@@ -69,6 +69,17 @@ return [
         'app_secret' => env('FACEBOOK_APP_SECRET'),
         'graph_version' => env('FACEBOOK_GRAPH_API_VERSION', 'v21.0'),
         'verify_token' => env('FACEBOOK_VERIFY_TOKEN', 'embbebedsecret'),
+        // Base pública desde la que Meta puede fetchear media saliente (imágenes,
+        // audio) enviada por attachment.url. Debe ser HTTPS y accesible desde
+        // internet. En local requiere un túnel (p. ej. ngrok). Fallback a app.url.
+        'public_media_base_url' => env('META_PUBLIC_MEDIA_BASE_URL', env('APP_URL')),
+    ],
+
+    'instagram' => [
+        // Permiso exacto de mensajería de Instagram: verificar el nombre vigente
+        // en el dashboard de Meta (App Review). Documentado como
+        // 'instagram_manage_messages' al momento de implementar.
+        'messaging_permission' => env('INSTAGRAM_MESSAGING_PERMISSION', 'instagram_manage_messages'),
     ],
 
 ];

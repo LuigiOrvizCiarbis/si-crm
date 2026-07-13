@@ -56,6 +56,8 @@ interface MessageInputProps {
   channelId?: number | null
   conversationId?: number | null
   onSendTemplate?: (content: string) => void
+  /** Las plantillas son exclusivas de WhatsApp. En Instagram se oculta el picker. */
+  supportsTemplates?: boolean
   editingMessage?: Message | null
   onCancelEdit?: () => void
   expansionContext?: HotkeyExpansionContext
@@ -76,6 +78,7 @@ export function MessageInput({
   channelId,
   conversationId,
   onSendTemplate,
+  supportsTemplates = true,
   editingMessage,
   onCancelEdit,
   expansionContext,
@@ -344,7 +347,7 @@ export function MessageInput({
               >
                 <Paperclip className="w-4 h-4" />
               </Button>
-              {channelId && conversationId && onSendTemplate && (
+              {supportsTemplates && channelId && conversationId && onSendTemplate && (
                 <TemplatePicker
                   channelId={channelId}
                   conversationId={conversationId}

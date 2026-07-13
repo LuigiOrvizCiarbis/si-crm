@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Models\WhatsAppConfig;
 use App\Models\WhatsAppTemplate;
 use App\Services\AiReplyService;
+use App\Services\InstagramMessageService;
 use App\Services\WhatsAppMessageService;
 use App\Services\WhatsAppTemplateService;
 use App\Support\PermissionCatalog;
@@ -217,6 +218,7 @@ class AiAutoreplyTest extends TestCase
         (new GenerateAiReplyJob($conversation->id))->handle(
             app(AiReplyService::class),
             app(WhatsAppMessageService::class),
+            app(InstagramMessageService::class),
         );
     }
 
@@ -235,6 +237,7 @@ class AiAutoreplyTest extends TestCase
         (new GenerateAiReplyJob($conversation->id))->handle(
             app(AiReplyService::class),
             app(WhatsAppMessageService::class),
+            app(InstagramMessageService::class),
         );
     }
 
@@ -258,6 +261,7 @@ class AiAutoreplyTest extends TestCase
         (new GenerateAiReplyJob($conversation->id))->handle(
             app(AiReplyService::class),
             app(WhatsAppMessageService::class),
+            app(InstagramMessageService::class),
         );
     }
 
