@@ -57,6 +57,42 @@ class OpenAiProvider implements AiProvider
         }
     }
 
+    public function translate(string $content, string $systemPrompt, string $model): ?string
+    {
+        try {
+            $client = OpenAI::factory()
+                ->withApiKey($this->apiKey)
+                ->withHttpClient(new GuzzleClient([
+                    'timeout' => (int) config('services.ai.generate_timeout', 60),
+                ]))
+                ->make();
+
+            $response = $client->chat()->create([
+                'model' => $model,
+                'max_completion_tokens' => 2048,
+                'reasoning_effort' => 'minimal',
+                'verbosity' => 'low',
+                'messages' => [
+                    ['role' => 'system', 'content' => $systemPrompt],
+                    ['role' => 'user', 'content' => $content],
+                ],
+            ]);
+
+            $translated = $response->choices[0]->message->content ?? null;
+
+            return is_string($translated) && trim($translated) !== ''
+                ? trim($translated)
+                : null;
+        } catch (\Throwable $e) {
+            Log::error('OpenAiProvider: error traduciendo texto', [
+                'model' => $model,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
     /**
      * Traduce un mensaje del historial al formato de la API de OpenAI. Si el
      * content es string plano, pasa sin tocar. Si es una lista de bloques

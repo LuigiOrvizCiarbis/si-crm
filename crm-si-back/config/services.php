@@ -62,6 +62,12 @@ return [
         // request cortaba antes de que el modelo respondiera y el autoreply
         // quedaba sin respuesta. 60s cubre visión con Opus/GPT-4o holgadamente.
         'generate_timeout' => env('AI_GENERATE_TIMEOUT', 60),
+        // Traducciones de chat: usan la misma API key BYOK del tenant, pero un
+        // modelo económico independiente del modelo elegido para el bot.
+        'translation_models' => [
+            'openai' => env('AI_OPENAI_TRANSLATION_MODEL', 'gpt-5-mini'),
+            'claude' => env('AI_CLAUDE_TRANSLATION_MODEL', 'claude-haiku-4-5-20251001'),
+        ],
     ],
 
     'facebook' => [

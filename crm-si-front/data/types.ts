@@ -1,5 +1,6 @@
 import { ChannelType } from "./enums"
 
+export type TranslationLanguage = "es" | "en" | "pt" | "fr" | "it" | "de" | "zh"
 
 
 export interface Channel {
@@ -68,6 +69,7 @@ export interface Conversation {
   assigneeId?: number | string
   archived?: boolean,
   aiAutoreplyEnabled?: boolean,
+  contactLanguage?: TranslationLanguage,
   channel?: Channel,
   last_message_at?: string,
   created_at?: string,

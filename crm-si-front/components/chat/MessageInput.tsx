@@ -3,12 +3,13 @@
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTranslation } from "@/hooks/useTranslation"
-import { Paperclip, Smile, Send, X, Pencil, Check, Music2 } from "lucide-react"
+import { Paperclip, Smile, Send, X, Pencil, Check, Music2, Languages, Loader2, RotateCcw } from "lucide-react"
 import { KeyboardEvent, SyntheticEvent, useMemo, useRef, useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import Image from "next/image"
-import { Message } from "@/data/types"
+import { Message, TranslationLanguage } from "@/data/types"
 import { getMessageHotkeys, type MessageHotkey } from "@/lib/api/message-hotkeys"
 import { pauseOtherAudios } from "@/lib/audio"
 import { expandHotkey, parseSlashCommand, type HotkeyExpansionContext } from "@/lib/utils/hotkeys"
@@ -61,6 +62,9 @@ interface MessageInputProps {
   editingMessage?: Message | null
   onCancelEdit?: () => void
   expansionContext?: HotkeyExpansionContext
+  contactLanguage: TranslationLanguage
+  onContactLanguageChange: (language: TranslationLanguage) => void | Promise<void>
+  onTranslateDraft: (content: string, targetLanguage: TranslationLanguage) => Promise<string>
 }
 
 interface SlashState {
@@ -82,6 +86,9 @@ export function MessageInput({
   editingMessage,
   onCancelEdit,
   expansionContext,
+  contactLanguage,
+  onContactLanguageChange,
+  onTranslateDraft,
 }: MessageInputProps) {
   const { t } = useTranslation()
   const resolvedPlaceholder = placeholder ?? t("chats.messagePlaceholder")
@@ -93,6 +100,10 @@ export function MessageInput({
   const [hotkeys, setHotkeys] = useState<MessageHotkey[]>([])
   const [slashState, setSlashState] = useState<SlashState | null>(null)
   const [activeHotkeyIndex, setActiveHotkeyIndex] = useState(0)
+  const [isTranslating, setIsTranslating] = useState(false)
+  const [translationError, setTranslationError] = useState<string | null>(null)
+  const [originalDraft, setOriginalDraft] = useState<string | null>(null)
+  const [translatedLanguage, setTranslatedLanguage] = useState<TranslationLanguage | null>(null)
 
   const isEditing = !!editingMessage
   const isAudio = !!selectedMedia?.type.startsWith("audio/")
@@ -156,6 +167,20 @@ export function MessageInput({
       inputRef.current?.focus()
     }
   }, [editingMessage])
+
+  useEffect(() => {
+    setOriginalDraft(null)
+    setTranslatedLanguage(null)
+    setTranslationError(null)
+  }, [conversationId])
+
+  useEffect(() => {
+    if (!value && !isTranslating) {
+      setOriginalDraft(null)
+      setTranslatedLanguage(null)
+      setTranslationError(null)
+    }
+  }, [value, isTranslating])
 
   const stopPropagation = (e: SyntheticEvent) => {
     e.stopPropagation()
@@ -222,6 +247,37 @@ export function MessageInput({
     onSend(value.trim(), selectedMedia || undefined)
     setSelectedMedia(null)
     setIsEmojiPickerOpen(false)
+    setOriginalDraft(null)
+    setTranslatedLanguage(null)
+    setTranslationError(null)
+  }
+
+  const handleTranslateDraft = async () => {
+    const source = value
+    if (!source.trim() || isEditing || isAudio || isTranslating) return
+
+    setIsTranslating(true)
+    setTranslationError(null)
+    try {
+      const translated = await onTranslateDraft(source, contactLanguage)
+      setOriginalDraft((current) => current ?? source)
+      setTranslatedLanguage(contactLanguage)
+      onChange(translated)
+      requestAnimationFrame(() => inputRef.current?.focus())
+    } catch (error) {
+      setTranslationError(error instanceof Error ? error.message : t("chats.translationError"))
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+
+  const restoreOriginalDraft = () => {
+    if (originalDraft === null) return
+    onChange(originalDraft)
+    setOriginalDraft(null)
+    setTranslatedLanguage(null)
+    setTranslationError(null)
+    requestAnimationFrame(() => inputRef.current?.focus())
   }
 
   const acceptMediaFile = (file: File) => {
@@ -326,6 +382,78 @@ export function MessageInput({
               <X className="w-3 h-3" />
             </button>
           </div>
+        </div>
+      )}
+      {!isEditing && (
+        <div className="flex min-h-9 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-1.5 text-xs text-muted-foreground">
+          <div className="flex min-w-0 items-center gap-2">
+            <Languages className="h-3.5 w-3.5 shrink-0" />
+            <span className="hidden sm:inline">{t("chats.contactLanguage")}</span>
+            <Select
+              value={contactLanguage}
+              onValueChange={(next) => void onContactLanguageChange(next as TranslationLanguage)}
+              disabled={disabled || isTranslating}
+            >
+              <SelectTrigger
+                className="h-7 w-[128px] border-0 bg-transparent px-2 text-xs font-medium shadow-none focus:ring-2"
+                aria-label={t("chats.contactLanguage")}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(["es", "en", "pt", "fr", "it", "de", "zh"] as TranslationLanguage[]).map((lang) => (
+                  <SelectItem key={lang} value={lang}>
+                    {t(`chats.language.${lang}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex min-w-0 items-center gap-2" aria-live="polite">
+            {translatedLanguage && originalDraft !== null && (
+              <span className="hidden truncate text-[11px] sm:inline">
+                {t("chats.draftTranslatedTo", { language: t(`chats.language.${translatedLanguage}`) })}
+              </span>
+            )}
+            {originalDraft !== null ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 px-2 text-xs"
+                onClick={restoreOriginalDraft}
+                disabled={disabled || isTranslating}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                {t("chats.restoreOriginal")}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 px-2 text-xs"
+                onClick={() => void handleTranslateDraft()}
+                disabled={disabled || isTranslating || isAudio || !value.trim()}
+              >
+                {isTranslating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                ) : (
+                  <Languages className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">
+                  {isTranslating ? t("chats.translating") : t("chats.translateDraft")}
+                </span>
+                <span className="sm:hidden">{t("chats.translateShort")}</span>
+              </Button>
+            )}
+          </div>
+          {translationError && (
+            <div className="w-full text-right text-[11px] text-destructive" role="status">
+              {translationError}
+            </div>
+          )}
         </div>
       )}
       <div className="p-4">

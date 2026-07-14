@@ -192,6 +192,7 @@ class MessageController extends Controller
             'edited_at' => now(),
             'original_content' => $message->original_content,
         ]);
+        $message->translations()->delete();
 
         try {
             broadcast(new MessageEdited($message->fresh()));
@@ -207,6 +208,7 @@ class MessageController extends Controller
         $this->authorize('delete', $message);
 
         $conversationId = $message->conversation_id;
+        $message->translations()->delete();
         $message->delete();
 
         try {

@@ -8,9 +8,11 @@ use App\Http\Controllers\Api\ContactFieldController;
 use App\Http\Controllers\Api\ContactHistoryController;
 use App\Http\Controllers\Api\ContactTimelineController;
 use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\ConversationTranslationController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MessageController;
+use App\Http\Controllers\Api\MessageTranslationController;
 use App\Http\Controllers\Api\MessageHotkeyController;
 use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\OpportunityController;
@@ -408,6 +410,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('messages', [MessageController::class, 'store']);
     Route::put('messages/{message}', [MessageController::class, 'update']);
     Route::delete('messages/{message}', [MessageController::class, 'destroy']);
+    Route::post('messages/{message}/translation', [MessageTranslationController::class, 'store']);
 
     Route::apiResource('message-hotkeys', MessageHotkeyController::class)->except(['show']);
 
@@ -432,6 +435,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('conversations/{id}/stage', [ConversationController::class, 'updateStage']);
     Route::patch('conversations/{id}/archive', [ConversationController::class, 'archive']);
     Route::patch('conversations/{id}/ai-autoreply', [ConversationController::class, 'aiAutoreply']);
+    Route::post('conversations/{conversation}/translate-draft', [ConversationTranslationController::class, 'translateDraft']);
+    Route::patch('conversations/{conversation}/translation-language', [ConversationTranslationController::class, 'updateLanguage']);
     Route::post('conversations/{id}/read', [ConversationController::class, 'markAsRead']);
     Route::post('conversations/{id}/unread', [ConversationController::class, 'markAsUnread']);
 

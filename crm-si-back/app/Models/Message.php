@@ -7,6 +7,7 @@ use App\Enums\MessageType;
 use App\Enums\SenderType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -77,6 +78,11 @@ class Message extends Model
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);
+    }
+
+    public function translations(): HasMany
+    {
+        return $this->hasMany(MessageTranslation::class);
     }
 
     /**

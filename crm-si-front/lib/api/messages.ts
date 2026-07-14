@@ -1,4 +1,4 @@
-import { Message } from "@/data/types";
+import { Message, TranslationLanguage } from "@/data/types";
 import { getAuthToken } from "./auth-token";
 import { throwApiError } from "./api-error";
 
@@ -121,4 +121,33 @@ export async function deleteMessage(messageId: number): Promise<void> {
     const data = await res.json().catch(() => ({}));
     throwApiError(res.status, data, "No se pudo eliminar el mensaje");
   }
+}
+
+export interface MessageTranslationResponse {
+  message_id: number;
+  target_language: TranslationLanguage;
+  translated_content: string;
+  cached: boolean;
+}
+
+export async function translateMessage(
+  messageId: number,
+  targetLanguage: TranslationLanguage,
+): Promise<MessageTranslationResponse> {
+  const token = getAuthToken();
+  if (!token) throw new Error("Token faltante");
+
+  const res = await fetch(`/api/messages/${messageId}/translation`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ target_language: targetLanguage }),
+  });
+
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) throwApiError(res.status, payload, "No se pudo traducir el mensaje");
+  return payload.data;
 }

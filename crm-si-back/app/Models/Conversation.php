@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $last_message_content
  * @property int|null $pipeline_stage_id
  * @property bool $ai_autoreply_enabled
+ * @property string|null $contact_language
  * @property Carbon|null $archived_at
  */
 class Conversation extends Model
@@ -45,6 +46,7 @@ class Conversation extends Model
         'last_message_content',
         'pipeline_stage_id',
         'ai_autoreply_enabled',
+        'contact_language',
         'archived_at',
     ];
 

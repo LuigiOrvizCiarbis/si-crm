@@ -160,6 +160,7 @@ class ConversationController extends Controller
                 'archived_at' => $conversation->archived_at,
                 'archived' => $conversation->archived,
                 'ai_autoreply_enabled' => (bool) $conversation->ai_autoreply_enabled,
+                'contact_language' => $conversation->contact_language,
                 'created_at' => $conversation->created_at,
                 'updated_at' => $conversation->updated_at,
                 'messages' => $conversation->messages,
