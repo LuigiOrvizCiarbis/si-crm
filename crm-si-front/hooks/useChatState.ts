@@ -3,19 +3,19 @@ import { Conversation } from '@/data/types'
 
 export const useChatState = () => {
   const [chatStates, setChatStates] = useState<Record<string, Conversation>>({
-    conv1: { 
-      id: "conv1", 
-      accountId: "wp1", 
-      contactName: "María González", 
-      lastMessage: "¿Está disponible el departamento?", 
-      timestamp: "14:30", 
-      stage: "nuevo", 
-      priority: "alta", 
-      assigneeId: 1, 
-      unread: true, 
-      archived: false 
+   /*  conv1: {
+      id: "conv1",
+      accountId: "wp1",
+      contactName: "María González",
+      lastMessage: "¿Está disponible el departamento?",
+      timestamp: "14:30",
+      stage: "nuevo",
+      priority: "alta",
+      assigneeId: 1,
+      unread: true,
+      archived: false
     },
-   /*  conv2: {
+    conv2: {
       id: "conv2", 
       accountId: "wp1", 
       contactName: "Carlos Pérez", 

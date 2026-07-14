@@ -144,7 +144,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
     },
   ]
 
-  const menuItems = [
+  const menuItems: { href: string; icon: typeof Settings; label: string; onClick?: () => void }[] = [
     {
       href: "/configuracion",
       icon: Settings,

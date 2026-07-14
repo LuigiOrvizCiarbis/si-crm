@@ -84,7 +84,7 @@ export function ProfileCard() {
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    persona: { ...formData.persona, dni: e.target.value },
+                    persona: { nombre: "", ...formData.persona, dni: e.target.value },
                   })
                 }
                 placeholder="12345678"
@@ -98,7 +98,7 @@ export function ProfileCard() {
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    persona: { ...formData.persona, apodo: e.target.value },
+                    persona: { nombre: "", ...formData.persona, apodo: e.target.value },
                   })
                 }
                 placeholder="@usuario"
@@ -129,7 +129,7 @@ export function ProfileCard() {
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    empresa: { ...formData.empresa, cuit: e.target.value },
+                    empresa: { razonSocial: "", ...formData.empresa, cuit: e.target.value },
                   })
                 }
                 placeholder="20-12345678-9"
@@ -143,7 +143,7 @@ export function ProfileCard() {
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    empresa: { ...formData.empresa, fantasia: e.target.value },
+                    empresa: { razonSocial: "", ...formData.empresa, fantasia: e.target.value },
                   })
                 }
               />
