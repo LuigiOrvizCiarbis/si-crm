@@ -57,7 +57,7 @@ interface Contact {
   id: number
   name: string
   email: string | null
-  phone: string
+  phone: string | null
   source: string
   custom_data?: Record<string, unknown>
   created_at: string

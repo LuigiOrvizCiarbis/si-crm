@@ -3,7 +3,7 @@ import { proxyToLaravel } from "@/lib/api/proxy-helper";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authHeader = req.headers.get("authorization");
 
