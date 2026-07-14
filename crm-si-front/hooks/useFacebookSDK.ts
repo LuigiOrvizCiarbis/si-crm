@@ -6,6 +6,8 @@ declare global {
   interface Window {
     FB: any;
     fbAsyncInit: () => void;
+    // true recién tras FB.init(); compartido con useInstagramLogin.
+    __fbSdkInitialized?: boolean;
   }
 }
 
@@ -68,31 +70,61 @@ export const useFacebookSDK = () => {
     }
   }, []);
 
-  // Load Facebook SDK script
+  // Load Facebook SDK script.
+  //
+  // Comparte el flag global __fbSdkInitialized con useInstagramLogin: el SDK y
+  // FB.init() son globales y deben correr UNA sola vez, sin importar qué hook se
+  // monta primero. Marcamos "listo" recién tras init (no por presencia del
+  // <script>), porque FB.login()/launchWhatsAppSignup fallan si init no corrió.
   useEffect(() => {
-    if (document.getElementById("facebook-jssdk")) {
+    if (window.__fbSdkInitialized) {
       setIsFacebookSDKLoaded(true);
       return;
     }
 
-    const script = document.createElement("script");
-    script.id = "facebook-jssdk";
-    script.src = "https://connect.facebook.net/en_US/sdk.js";
-    script.async = true;
-    script.defer = true;
-    script.crossOrigin = "anonymous";
+    let cancelled = false;
 
-    document.head.appendChild(script);
+    const runInit = () => {
+      if (!window.__fbSdkInitialized && window.FB) {
+        window.FB.init({
+          appId: process.env.NEXT_PUBLIC_FACEBOOK_APP_ID,
+          autoLogAppEvents: true,
+          xfbml: true,
+          version: process.env.NEXT_PUBLIC_FACEBOOK_GRAPH_API_VERSION,
+        });
+        window.__fbSdkInitialized = true;
+      }
+    };
 
-    window.fbAsyncInit = function () {
-      window.FB.init({
-        appId: process.env.NEXT_PUBLIC_FACEBOOK_APP_ID,
-        autoLogAppEvents: true,
-        xfbml: true,
-        version: process.env.NEXT_PUBLIC_FACEBOOK_GRAPH_API_VERSION,
-      });
+    if (!document.getElementById("facebook-jssdk")) {
+      const script = document.createElement("script");
+      script.id = "facebook-jssdk";
+      script.src = "https://connect.facebook.net/en_US/sdk.js";
+      script.async = true;
+      script.defer = true;
+      script.crossOrigin = "anonymous";
+      const prevInit = window.fbAsyncInit;
+      window.fbAsyncInit = function () {
+        if (typeof prevInit === "function") prevInit();
+        runInit();
+      };
+      document.head.appendChild(script);
+    }
 
-      setIsFacebookSDKLoaded(true);
+    const interval = setInterval(() => {
+      if (cancelled) return;
+      if (window.FB && !window.__fbSdkInitialized) {
+        runInit();
+      }
+      if (window.__fbSdkInitialized) {
+        setIsFacebookSDKLoaded(true);
+        clearInterval(interval);
+      }
+    }, 150);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
     };
   }, []);
 
@@ -210,7 +242,8 @@ export const useFacebookSDK = () => {
   }, [sendToBackend]);
 
   const launchWhatsAppSignup = useCallback(() => {
-    if (!window.FB) {
+    if (!window.FB || !window.__fbSdkInitialized) {
+      console.warn("WhatsApp: el SDK de Facebook todavía no está listo.");
       return;
     }
 

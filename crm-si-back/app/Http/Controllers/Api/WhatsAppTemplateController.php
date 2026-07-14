@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ChannelType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SendTemplateRequest;
 use App\Models\Channel;
@@ -90,6 +91,14 @@ class WhatsAppTemplateController extends Controller
      */
     public function send(SendTemplateRequest $request, Conversation $conversation): JsonResponse
     {
+        // Las plantillas son un concepto exclusivo de WhatsApp. Guard explícito
+        // en el backend (el front también lo oculta, pero la defensa real es acá).
+        if ($conversation->channel?->type !== ChannelType::WHATSAPP) {
+            return response()->json([
+                'message' => 'Las plantillas solo están disponibles para canales de WhatsApp.',
+            ], 422);
+        }
+
         $template = WhatsAppTemplate::findOrFail($request->validated('template_id'));
 
         if (! $template->status->isApproved()) {

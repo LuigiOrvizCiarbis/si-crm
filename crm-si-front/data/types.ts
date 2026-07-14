@@ -24,9 +24,10 @@ export interface Channel {
   }
   instagram_config?: {
     id: number
-    channel_id: number
+    tenant_id: number
+    ig_user_id: string
     page_id: string
-    access_token: string
+    username: string | null
     created_at: string
     updated_at: string
   }

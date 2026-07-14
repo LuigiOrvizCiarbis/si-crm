@@ -2,9 +2,11 @@
 
 namespace App\Jobs;
 
+use App\Enums\ChannelType;
 use App\Models\AiConfig;
 use App\Models\Conversation;
 use App\Services\AiReplyService;
+use App\Services\InstagramMessageService;
 use App\Services\WhatsAppMessageService;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -43,8 +45,11 @@ class GenerateAiReplyJob implements ShouldBeUnique, ShouldQueue
         return (string) $this->conversationId;
     }
 
-    public function handle(AiReplyService $aiReplyService, WhatsAppMessageService $whatsAppMessageService): void
-    {
+    public function handle(
+        AiReplyService $aiReplyService,
+        WhatsAppMessageService $whatsAppMessageService,
+        InstagramMessageService $instagramMessageService,
+    ): void {
         $conversation = Conversation::withoutGlobalScopes()->find($this->conversationId);
 
         if (! $conversation) {
@@ -88,6 +93,12 @@ class GenerateAiReplyJob implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        $whatsAppMessageService->sendSystemTextMessageFromCRM($conversation, $reply);
+        // El transporte depende del canal de la conversación: mismas firmas de
+        // envío en ambos servicios.
+        if ($conversation->channel?->type === ChannelType::INSTAGRAM) {
+            $instagramMessageService->sendSystemTextMessageFromCRM($conversation, $reply);
+        } else {
+            $whatsAppMessageService->sendSystemTextMessageFromCRM($conversation, $reply);
+        }
     }
 }
