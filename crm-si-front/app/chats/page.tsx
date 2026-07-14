@@ -20,7 +20,7 @@ const ContactInfoPanel = dynamic(
 import { useChatState } from "@/hooks/useChatState"
 import { useToast } from "@/components/Toast"
 import { FilterType, Channel, Conversation, Message, TranslationLanguage } from "@/data/types"
-import { filterTypeToChannelType } from "@/data/enums"
+import { ChannelType, filterTypeToChannelType } from "@/data/enums"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ChatQuickBar } from "@/components/ChatQuickBar"
