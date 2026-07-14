@@ -83,13 +83,17 @@ import { useTenantSSE } from "@/hooks/useTenantSSE"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useFacebookSDK } from "@/hooks/useFacebookSDK"
+import { useInstagramLogin } from "@/hooks/useInstagramLogin"
+import { InstagramPageSelectDialog } from "@/components/chat/InstagramPageSelectDialog"
 import {
   Archive,
   ArchiveRestore,
   Bot,
   CheckSquare,
+  Instagram,
   Loader2,
   Mail,
+  MessageCircle,
   MailOpen,
   Megaphone,
   Menu,
@@ -110,7 +114,7 @@ interface ChatsCompactHeaderProps {
   searchQuery: string
   onSearchChange: (query: string) => void
   onNewConversation: () => void
-  onConnectChannel: () => void
+  onConnectChannel: (channelType?: "whatsapp" | "instagram") => void
   onOpenChannels: () => void
 }
 
@@ -155,10 +159,24 @@ function ChatsCompactHeader({
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <div className="hidden items-center gap-2 lg:flex">
-            <Button variant="outline" size="sm" onClick={onConnectChannel} className="gap-2 bg-transparent">
-              <Zap className="h-4 w-4" />
-              Conectar canal
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                  <Zap className="h-4 w-4" />
+                  Conectar canal
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onConnectChannel("whatsapp")}>
+                  <MessageCircle className="mr-2 h-4 w-4 text-green-600" />
+                  WhatsApp
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onConnectChannel("instagram")}>
+                  <Instagram className="mr-2 h-4 w-4 text-pink-600" />
+                  Instagram
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <DropdownMenu>
@@ -168,9 +186,13 @@ function ChatsCompactHeader({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onConnectChannel}>
-                <Zap className="mr-2 h-4 w-4" />
-                Conectar canal
+              <DropdownMenuItem onClick={() => onConnectChannel("whatsapp")}>
+                <MessageCircle className="mr-2 h-4 w-4 text-green-600" />
+                Conectar WhatsApp
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onConnectChannel("instagram")}>
+                <Instagram className="mr-2 h-4 w-4 text-pink-600" />
+                Conectar Instagram
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -205,6 +227,13 @@ export default function ChatsPage() {
   const { chatStates, ...chatHandlers } = useChatState()
   const { user, permissions } = useAuthStore()
   const { launchWhatsAppSignup, isFacebookSDKLoaded } = useFacebookSDK()
+  const {
+    launchInstagramLogin,
+    isFacebookSDKLoaded: isInstagramSDKLoaded,
+    pageOptions: instagramPageOptions,
+    selectPage: selectInstagramPage,
+    cancelPageSelection: cancelInstagramPageSelection,
+  } = useInstagramLogin()
   const currentUserId = user?.id
   const isAdmin = (permissions ?? []).includes("conversations.view_any")
   const canUpdateChannels = (permissions ?? []).includes("channels.update")
@@ -776,8 +805,9 @@ export default function ChatsPage() {
   }, [selectedConversationId]);
 
 
-  const handleConnectChannel = () => {
-    if (!isFacebookSDKLoaded) {
+  const handleConnectChannel = (channelType: "whatsapp" | "instagram" = "whatsapp") => {
+    const sdkLoaded = channelType === "instagram" ? isInstagramSDKLoaded : isFacebookSDKLoaded
+    if (!sdkLoaded) {
       addToast({
         type: "loading",
         title: "Preparando Facebook",
@@ -786,7 +816,11 @@ export default function ChatsPage() {
       return
     }
 
-    launchWhatsAppSignup()
+    if (channelType === "instagram") {
+      launchInstagramLogin()
+    } else {
+      launchWhatsAppSignup()
+    }
   }
 
   const handleNewConversation = () => {
@@ -1454,7 +1488,7 @@ export default function ChatsPage() {
 
   const renderChannelsSidebar = (
     onChannelSelect: (channelId: number) => void,
-    onConnectChannelClick: () => void,
+    onConnectChannelClick: (channelType?: "whatsapp" | "instagram") => void,
   ) => (
     <>
       <div className="grid h-[70px] grid-cols-[0.86fr_1.12fr_1.34fr] border-b border-border bg-card/95">
@@ -1504,7 +1538,7 @@ export default function ChatsPage() {
       <ChatFilters
         activeFilter={activeFilter}
         onFilterChange={handleFilterChange}
-        availableChannelTypes={["whatsapp"]}
+        availableChannelTypes={["whatsapp", "instagram"]}
       />
 
       <div className="border-b border-border bg-card/80 px-4 py-3">
@@ -1529,10 +1563,24 @@ export default function ChatsPage() {
       </div>
 
       <div className="border-t border-border p-4">
-        <Button variant="outline" className="w-full justify-center gap-2 bg-transparent" onClick={onConnectChannelClick}>
-          <Zap className="h-4 w-4 text-primary" />
-          + Connect chat
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="w-full justify-center gap-2 bg-transparent">
+              <Zap className="h-4 w-4 text-primary" />
+              + Connect chat
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-[--radix-dropdown-menu-trigger-width]">
+            <DropdownMenuItem onClick={() => onConnectChannelClick("whatsapp")}>
+              <MessageCircle className="mr-2 h-4 w-4 text-green-600" />
+              WhatsApp
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onConnectChannelClick("instagram")}>
+              <Instagram className="mr-2 h-4 w-4 text-pink-600" />
+              Instagram
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </>
   )
@@ -1542,9 +1590,9 @@ export default function ChatsPage() {
     setIsChannelsSheetOpen(false)
   }
 
-  const handleMobileConnectChannel = () => {
+  const handleMobileConnectChannel = (channelType?: "whatsapp" | "instagram") => {
     setIsChannelsSheetOpen(false)
-    handleConnectChannel()
+    handleConnectChannel(channelType)
   }
 
   return (
@@ -1830,6 +1878,7 @@ export default function ChatsPage() {
                 channelId={activeConversation?.channel?.id ?? activeConversation?.channelId}
                 conversationId={selectedConversationId}
                 onSendTemplate={handleSendTemplate}
+                supportsTemplates={activeConversation?.channel?.type === ChannelType.WHATSAPP}
                 editingMessage={editingMessage}
                 onCancelEdit={handleCancelEdit}
                 expansionContext={hotkeyExpansionContext}
@@ -1887,6 +1936,12 @@ export default function ChatsPage() {
           refreshConversations()
           handleExitSelectionMode()
         }}
+      />
+
+      <InstagramPageSelectDialog
+        pages={instagramPageOptions}
+        onSelect={selectInstagramPage}
+        onCancel={cancelInstagramPageSelection}
       />
 
       <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => { if (!bulkSubmitting) setBulkDeleteOpen(open) }}>

@@ -22,7 +22,9 @@ export function getChannelIdentifier(channel: Channel): string | undefined {
       return formatPhoneNumber(channel.whatsapp_config?.display_phone_number) || channel.whatsapp_config?.phone_number_id;
 
     case ChannelType.INSTAGRAM:
-      return channel.instagram_config?.page_id;
+      return channel.instagram_config?.username
+        ? `@${channel.instagram_config.username}`
+        : channel.instagram_config?.ig_user_id;
 
     case ChannelType.FACEBOOK:
       return channel.facebook_config?.page_id;
