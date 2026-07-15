@@ -1,12 +1,12 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { ShoppingBag, Loader2, PlugZap, RefreshCw } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Loader2, PlugZap, RefreshCw } from "lucide-react"
 import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useAuthStore } from "@/store/useAuthStore"
@@ -18,7 +18,7 @@ import {
   syncWooProducts,
 } from "@/lib/api/woocommerce"
 
-export function WooCommerceCard() {
+export function WooCommerceSettings() {
   const { addToast } = useToast()
   const { t } = useTranslation()
   const role = useAuthStore((state) => state.role)
@@ -159,17 +159,13 @@ export function WooCommerceCard() {
   const canSync = hasCredentials && !!storeUrl.trim()
 
   return (
-    <Card className="rounded-2xl border-[#1e2533]">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ShoppingBag className="w-5 h-5" />
-          {t("settings.woocommerce.title")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="space-y-4">
         {loading ? (
-          <div className="flex justify-center py-6">
-            <Loader2 className="w-5 h-5 animate-spin" />
+          <div className="space-y-4">
+            <Skeleton className="h-12 w-full rounded-lg" />
+            <Skeleton className="h-16 w-full rounded-md" />
+            <Skeleton className="h-16 w-full rounded-md" />
+            <Skeleton className="h-16 w-full rounded-md" />
           </div>
         ) : (
           <>
@@ -281,7 +277,6 @@ export function WooCommerceCard() {
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+    </div>
   )
 }

@@ -792,8 +792,20 @@
       "testErrorRateLimit": "The provider is rate limiting requests. Try again in a few seconds.",
       "testErrorUnknown": "Couldn't verify the connection."
     },
+    "integrationsHub": {
+      "back": "Integrations",
+      "connect": "Connect",
+      "configure": "Configure",
+      "status": {
+        "connected": "Connected",
+        "available": "Available",
+        "error": "Error",
+        "comingSoon": "Coming soon"
+      }
+    },
     "woocommerce": {
       "title": "WooCommerce",
+      "description": "Import your WooCommerce store catalog and keep it in sync with the CRM.",
       "enabled": "Integration enabled",
       "enabledHint": "Connect your WooCommerce store to import its products into the catalog.",
       "storeUrl": "Store URL",
@@ -814,6 +826,67 @@
       "syncOk": "Sync complete",
       "syncResult": "{{created}} products created, {{updated}} updated.",
       "lastSynced": "Last sync: {{date}}"
+    },
+    "webhooks": {
+      "title": "Incoming webhooks",
+      "description": "Receive contacts from your own system. Create an endpoint, copy its URL and API key, and POST your users to it.",
+      "create": "New endpoint",
+      "createTitle": "New incoming webhook",
+      "createHint": "A public URL and an API key will be generated. The key is shown only once.",
+      "name": "Name",
+      "namePlaceholder": "e.g. Billing system",
+      "signingSecret": "Signing secret (optional)",
+      "signingSecretPlaceholder": "Leave empty to skip signing",
+      "signingSecretHint": "If set, every request must include the HMAC-SHA256 signature in the X-Signature-256 header. Stored encrypted.",
+      "empty": "No endpoints yet. Create the first one to start receiving contacts.",
+      "colName": "Name",
+      "colUrl": "Public URL",
+      "colKey": "API key",
+      "colLastReceived": "Last received",
+      "colEnabled": "Enabled",
+      "colActions": "Actions",
+      "viewDeliveries": "View deliveries",
+      "rotateKey": "Rotate API key",
+      "delete": "Delete",
+      "deleteConfirm": "Delete endpoint \"{{name}}\"? Its API key will stop working.",
+      "deleted": "Endpoint deleted",
+      "copied": "Copied to clipboard",
+      "keyTitle": "Your API key",
+      "keyWarning": "Save it now: for security it won't be shown again. If you lose it, you can rotate it.",
+      "keyDone": "I saved it",
+      "deliveriesTitle": "{{name}} deliveries",
+      "deliveriesEmpty": "No requests received on this endpoint yet.",
+      "colStatus": "Status",
+      "colResult": "Created / Updated / Failed",
+      "colDate": "Date",
+      "detailPayload": "Detail",
+      "payload": {
+        "title": "Request format",
+        "description": "Send a POST request with this JSON body. You can include up to 500 contacts in a single request.",
+        "copy": "Copy JSON",
+        "authenticationTitle": "Request authentication",
+        "authenticationDescription": "Send a POST request to the endpoint's public URL and include these headers. The API key identifies the endpoint and the tenant that will receive the contacts.",
+        "apiKeyDescription": "Required on every request. Send the API key in the header, never inside the JSON body or URL:",
+        "contentTypeDescription": "Specifies that the request body uses JSON:",
+        "signatureDescription": "Only required when a signing secret is configured. It contains the HMAC-SHA256 signature of the exact request body.",
+        "apiKeyWarning": "The complete API key is shown only when created or rotated. If you lose it, rotate it: the previous credential will stop working.",
+        "fieldsTitle": "Accepted fields",
+        "customFieldsTitle": "Your custom fields",
+        "noCustomFields": "This tenant has no custom fields yet. The example updates automatically when you add one.",
+        "allowedValues": "Allowed values: {{values}}",
+        "required": "Required",
+        "optional": "Optional",
+        "fields": {
+          "contacts": "A list containing between 1 and 500 contacts.",
+          "externalId": "A stable identifier for the contact in your system.",
+          "name": "Full name, up to 255 characters.",
+          "email": "A valid email address.",
+          "phone": "Phone number, up to 50 characters.",
+          "customData": "An object using the keys configured for this tenant, listed below."
+        },
+        "upsertTitle": "No duplicates.",
+        "upsertDescription": "If external_id already exists, the contact is updated. Fields you omit keep their current value."
+      }
     }
   },
   "team": {

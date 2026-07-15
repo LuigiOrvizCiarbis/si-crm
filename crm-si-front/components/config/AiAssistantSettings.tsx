@@ -1,19 +1,12 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Select,
   SelectContent,
@@ -23,11 +16,8 @@ import {
 } from "@/components/ui/select"
 import {
   AlertTriangle,
-  Bot,
-  CheckCircle2,
   Eraser,
   Loader2,
-  PauseCircle,
   PlugZap,
   RefreshCw,
   WandSparkles,
@@ -51,7 +41,7 @@ const PROVIDERS: { id: AiProviderId; label: string; defaultModel: string }[] = [
 
 const SYSTEM_PROMPT_MAX_LENGTH = 20000
 
-export function AiAssistantCard() {
+export function AiAssistantSettings() {
   const { addToast } = useToast()
   const { t } = useTranslation()
   const role = useAuthStore((state) => state.role)
@@ -238,39 +228,15 @@ export function AiAssistantCard() {
   }
 
   return (
-    <Card className="rounded-lg border-border">
-      <CardHeader className="gap-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1.5">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Bot className="h-5 w-5 text-primary" />
-              {t("settings.aiAssistant.title")}
-            </CardTitle>
-            <CardDescription>
-              {t("settings.aiAssistant.description")}
-            </CardDescription>
-          </div>
-          {!loading && (
-            <Badge
-              variant={enabled ? "default" : "outline"}
-              className="w-fit gap-1.5"
-            >
-              {enabled ? (
-                <CheckCircle2 className="h-3 w-3" />
-              ) : (
-                <PauseCircle className="h-3 w-3" />
-              )}
-              {enabled
-                ? t("settings.aiAssistant.statusEnabled")
-                : t("settings.aiAssistant.statusPaused")}
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-5">
+    <div className="space-y-5">
         {loading ? (
-          <div className="flex justify-center py-6">
-            <Loader2 className="w-5 h-5 animate-spin" />
+          <div className="space-y-5">
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <div className="grid gap-4 md:grid-cols-2">
+              <Skeleton className="h-16 rounded-md" />
+              <Skeleton className="h-16 rounded-md" />
+            </div>
+            <Skeleton className="h-64 w-full rounded-lg" />
           </div>
         ) : (
           <>
@@ -534,7 +500,6 @@ export function AiAssistantCard() {
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+    </div>
   )
 }
