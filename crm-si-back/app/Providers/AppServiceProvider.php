@@ -29,9 +29,12 @@ use App\Policies\TaskPolicy;
 use App\Policies\UserPolicy;
 use App\Policies\WhatsAppTemplatePolicy;
 use Illuminate\Auth\Events\Authenticated;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Sentry\Laravel\Integration;
 use Sentry\State\Scope;
@@ -58,6 +61,11 @@ class AppServiceProvider extends ServiceProvider
         );
 
         Message::observe(MessageObserver::class);
+
+        // Rate limit del endpoint público de webhooks entrantes: por api key
+        // (varios tenants pueden compartir IP), con fallback a IP si no vino la key.
+        RateLimiter::for('incoming-webhooks', fn (Request $request) => Limit::perMinute(60)
+            ->by($request->header('X-Api-Key') ?: $request->ip()));
 
         Gate::policy(Branch::class, BranchPolicy::class);
         Gate::policy(Channel::class, ChannelPolicy::class);

@@ -28,7 +28,7 @@ export function AppSidebar() {
 
       <div
         className={`
-          fixed lg:static inset-y-0 left-0 z-50 transform transition-all duration-300 ease-in-out
+          fixed inset-y-0 left-0 z-50 h-dvh max-h-dvh shrink-0 transform transition-all duration-300 ease-in-out lg:static
           ${sidebarOpen ? "translate-x-0 w-60" : "-translate-x-full lg:translate-x-0 lg:w-20"}
         `}
       >

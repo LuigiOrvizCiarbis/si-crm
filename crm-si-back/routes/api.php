@@ -10,10 +10,11 @@ use App\Http\Controllers\Api\ContactTimelineController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationTranslationController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\IncomingWebhookController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MessageController;
-use App\Http\Controllers\Api\MessageTranslationController;
 use App\Http\Controllers\Api\MessageHotkeyController;
+use App\Http\Controllers\Api\MessageTranslationController;
 use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\PermissionController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\WebhookEndpointController;
 use App\Http\Controllers\Api\WhatsAppTemplateController;
 use App\Http\Controllers\Api\WooCommerceConfigController;
 use App\Http\Controllers\FacebookDataDeletionController;
@@ -394,6 +396,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('woocommerce-config/test', [WooCommerceConfigController::class, 'test']);
     Route::post('woocommerce-config/sync', [WooCommerceConfigController::class, 'sync']);
 
+    // Config de webhooks entrantes por tenant (el endpoint público de recepción
+    // está fuera de este grupo, al final del archivo).
+    Route::get('webhook-endpoints', [WebhookEndpointController::class, 'index']);
+    Route::get('webhook-endpoints/schema', [WebhookEndpointController::class, 'schema']);
+    Route::post('webhook-endpoints', [WebhookEndpointController::class, 'store']);
+    Route::put('webhook-endpoints/{id}', [WebhookEndpointController::class, 'update']);
+    Route::delete('webhook-endpoints/{id}', [WebhookEndpointController::class, 'destroy']);
+    Route::post('webhook-endpoints/{id}/rotate-key', [WebhookEndpointController::class, 'rotateKey']);
+    Route::get('webhook-endpoints/{id}/deliveries', [WebhookEndpointController::class, 'deliveries']);
+    Route::get('webhook-endpoints/{id}/deliveries/{deliveryId}', [WebhookEndpointController::class, 'deliveryShow']);
+
     Route::get('conversations', [ConversationController::class, 'index']);
     Route::post('conversations/bulk-tags', [ConversationController::class, 'bulkTags']);
     Route::post('conversations/bulk-assign', [ConversationController::class, 'bulkAssign']);
@@ -466,3 +479,8 @@ Route::match(['get', 'post'], 'whatsapp-webhook', [WhatsAppController::class, 'w
 Route::match(['get', 'post'], 'instagram-webhook', [InstagramController::class, 'webhook']);
 
 Route::post('facebook/data-deletion', [FacebookDataDeletionController::class, 'handle']);
+
+// Public: webhooks entrantes configurables por tenant. Se autentican con
+// X-Api-Key por endpoint (no Sanctum). Rate limit por api key (ver AppServiceProvider).
+Route::post('incoming-webhooks/{slug}', [IncomingWebhookController::class, 'handle'])
+    ->middleware('throttle:incoming-webhooks');

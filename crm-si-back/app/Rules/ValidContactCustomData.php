@@ -16,10 +16,14 @@ class ValidContactCustomData implements ValidationRule
      *                                           required-field check is skipped for keys absent from this list so a
      *                                           partial update of a single cell does not fail on unrelated required
      *                                           fields that are empty on the contact.
+     * @param  int|null  $tenantId  Explicit tenant. Required when there is no authenticated user (e.g. incoming
+     *                              webhooks): without it the tenant is resolved from Auth and the unique check would
+     *                              run cross-tenant since the global TenantScope is a no-op without auth.
      */
     public function __construct(
         private ?int $ignoreContactId = null,
         private ?array $providedKeys = null,
+        private ?int $tenantId = null,
     ) {}
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
@@ -34,7 +38,7 @@ class ValidContactCustomData implements ValidationRule
             return;
         }
 
-        $tenantId = Auth::user()?->tenant_id;
+        $tenantId = $this->tenantId ?? Auth::user()?->tenant_id;
 
         if (! $tenantId) {
             return;
@@ -75,6 +79,7 @@ class ValidContactCustomData implements ValidationRule
 
             if ($field->is_unique) {
                 $exists = Contact::query()
+                    ->where('tenant_id', $tenantId)
                     ->where('id', '!=', $this->ignoreContactId ?? 0)
                     ->whereRaw('custom_data ->> ? = ?', [$key, (string) (is_bool($rawValue) ? ($rawValue ? 'true' : 'false') : $rawValue)])
                     ->exists();

@@ -792,8 +792,20 @@
       "testErrorRateLimit": "El proveedor está limitando las solicitudes. Probá de nuevo en unos segundos.",
       "testErrorUnknown": "No se pudo verificar la conexión."
     },
+    "integrationsHub": {
+      "back": "Integraciones",
+      "connect": "Conectar",
+      "configure": "Configurar",
+      "status": {
+        "connected": "Conectada",
+        "available": "Disponible",
+        "error": "Error",
+        "comingSoon": "Próximamente"
+      }
+    },
     "woocommerce": {
       "title": "WooCommerce",
+      "description": "Importá el catálogo de tu tienda WooCommerce y mantenelo sincronizado con el CRM.",
       "enabled": "Integración habilitada",
       "enabledHint": "Conectá tu tienda WooCommerce para importar sus productos al catálogo.",
       "storeUrl": "URL de la tienda",
@@ -814,6 +826,67 @@
       "syncOk": "Sincronización completada",
       "syncResult": "{{created}} productos creados, {{updated}} actualizados.",
       "lastSynced": "Última sincronización: {{date}}"
+    },
+    "webhooks": {
+      "title": "Webhooks entrantes",
+      "description": "Recibí contactos desde tu propio sistema. Creá un endpoint, copiá su URL y su API key, y hacé POST con tus usuarios.",
+      "create": "Nuevo endpoint",
+      "createTitle": "Nuevo webhook entrante",
+      "createHint": "Se generará una URL pública y una API key. La key se muestra una única vez.",
+      "name": "Nombre",
+      "namePlaceholder": "Ej: Sistema de facturación",
+      "signingSecret": "Signing secret (opcional)",
+      "signingSecretPlaceholder": "Dejalo vacío para no firmar",
+      "signingSecretHint": "Si lo cargás, cada request deberá incluir la firma HMAC-SHA256 en el header X-Signature-256. Se guarda encriptado.",
+      "empty": "Todavía no hay endpoints. Creá el primero para empezar a recibir contactos.",
+      "colName": "Nombre",
+      "colUrl": "URL pública",
+      "colKey": "API key",
+      "colLastReceived": "Última recepción",
+      "colEnabled": "Activo",
+      "colActions": "Acciones",
+      "viewDeliveries": "Ver entregas",
+      "rotateKey": "Rotar API key",
+      "delete": "Eliminar",
+      "deleteConfirm": "¿Eliminar el endpoint \"{{name}}\"? Su API key dejará de funcionar.",
+      "deleted": "Endpoint eliminado",
+      "copied": "Copiado al portapapeles",
+      "keyTitle": "Tu API key",
+      "keyWarning": "Guardala ahora: por seguridad no se vuelve a mostrar. Si la perdés, podés rotarla.",
+      "keyDone": "Ya la guardé",
+      "deliveriesTitle": "Entregas de {{name}}",
+      "deliveriesEmpty": "Todavía no se recibió ningún request en este endpoint.",
+      "colStatus": "Estado",
+      "colResult": "Creados / Actualizados / Fallidos",
+      "colDate": "Fecha",
+      "detailPayload": "Detalle",
+      "payload": {
+        "title": "Formato del request",
+        "description": "Enviá un POST con este cuerpo JSON. Podés incluir hasta 500 contactos en una misma solicitud.",
+        "copy": "Copiar JSON",
+        "authenticationTitle": "Autenticación de la llamada",
+        "authenticationDescription": "Hacé un POST a la URL pública del endpoint e incluí estos headers. La API key identifica el endpoint y el tenant que recibirá los contactos.",
+        "apiKeyDescription": "Obligatorio en cada solicitud. Enviá la API key en el header, nunca dentro del JSON ni en la URL:",
+        "contentTypeDescription": "Indica que el cuerpo de la solicitud está en formato JSON:",
+        "signatureDescription": "Sólo es obligatorio si configuraste un signing secret. Contiene la firma HMAC-SHA256 del body exacto.",
+        "apiKeyWarning": "La API key completa se muestra únicamente al crearla o rotarla. Si la perdés, rotala: la credencial anterior dejará de funcionar.",
+        "fieldsTitle": "Campos aceptados",
+        "customFieldsTitle": "Tus campos personalizados",
+        "noCustomFields": "Este tenant todavía no tiene campos personalizados. El ejemplo se actualiza automáticamente cuando agregás uno.",
+        "allowedValues": "Valores permitidos: {{values}}",
+        "required": "Obligatorio",
+        "optional": "Opcional",
+        "fields": {
+          "contacts": "Lista de contactos, entre 1 y 500 elementos.",
+          "externalId": "Identificador estable del contacto en tu sistema.",
+          "name": "Nombre completo, hasta 255 caracteres.",
+          "email": "Dirección de email válida.",
+          "phone": "Número de teléfono, hasta 50 caracteres.",
+          "customData": "Objeto con las keys configuradas para este tenant, listadas debajo."
+        },
+        "upsertTitle": "Sin duplicados.",
+        "upsertDescription": "Si external_id ya existe, el contacto se actualiza. Los campos que no envíes conservan su valor actual."
+      }
     }
   },
   "team": {

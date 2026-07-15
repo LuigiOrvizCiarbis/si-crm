@@ -153,7 +153,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
   return (
     <div
       className={cn(
-        "flex h-full flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300",
+        "flex h-dvh max-h-dvh min-h-0 flex-col overflow-hidden bg-sidebar border-r border-sidebar-border transition-all duration-300",
         isCollapsed ? "w-20" : "w-60",
         className,
       )}
@@ -210,7 +210,12 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
       )}
 
       {/* Navigation */}
-      <nav className={cn("flex-1 space-y-2", isCollapsed ? "p-2" : "p-4")}>
+      <nav
+        className={cn(
+          "min-h-0 flex-1 space-y-2 overflow-y-auto",
+          isCollapsed ? "p-2" : "p-4",
+        )}
+      >
         {/* Main navigation items */}
         {navItems.map((item) => {
           const isActive = pathname === item.href
@@ -336,7 +341,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
 
       {/* Footer */}
       {!isCollapsed && (
-        <div className="p-4 border-t border-sidebar-border space-y-3">
+        <div className="mt-auto shrink-0 space-y-3 border-t border-sidebar-border p-4">
           {/* User info + Logout */}
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8">
@@ -382,7 +387,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
       )}
 
       {isCollapsed && (
-        <div className="p-2 border-t border-sidebar-border space-y-2">
+        <div className="mt-auto shrink-0 space-y-2 border-t border-sidebar-border p-2">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
