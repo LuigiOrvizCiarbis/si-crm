@@ -101,6 +101,10 @@ class PermissionCatalog
                 'woocommerce.view',
                 'woocommerce.manage',
             ],
+            'webhooks' => [
+                'webhooks.view',
+                'webhooks.manage',
+            ],
             'templates' => [
                 'templates.view',
                 'templates.sync',

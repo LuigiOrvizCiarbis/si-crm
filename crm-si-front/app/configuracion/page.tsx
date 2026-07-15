@@ -10,14 +10,13 @@ import {
 } from "lucide-react"
 
 import { SidebarLayout } from "@/components/SidebarLayout"
-import { AiAssistantCard } from "@/components/config/AiAssistantCard"
 import { FieldsCard } from "@/components/config/FieldsCard"
 import { MessageHotkeysCard } from "@/components/config/MessageHotkeysCard"
 import { PipelineStagesCard } from "@/components/config/PipelineStagesCard"
 import { RolesCard } from "@/components/config/RolesCard"
 import { SucursalesCard } from "@/components/config/SucursalesCard"
 import { TeamInvitationsCard } from "@/components/config/TeamInvitationsCard"
-import { WooCommerceCard } from "@/components/config/WooCommerceCard"
+import { IntegrationsSection } from "@/components/config/integrations/IntegrationsSection"
 import { usePermission, useIsAdmin } from "@/hooks/usePermission"
 import { useTranslation } from "@/hooks/useTranslation"
 import { cn } from "@/lib/utils"
@@ -113,7 +112,11 @@ export default function ConfiguracionPage() {
 
     if (sectionIds.length === 0) return
 
-    const hashSection = window.location.hash.slice(1) as SettingsSectionId
+    // El hash puede traer subruta de detalle (#integrations/woocommerce):
+    // el primer segmento identifica la sección.
+    const hashSection = window.location.hash
+      .slice(1)
+      .split("/")[0] as SettingsSectionId
     const initialSection = sectionIds.includes(hashSection)
       ? hashSection
       : sectionIds[0]
@@ -141,7 +144,12 @@ export default function ConfiguracionPage() {
 
         const id = visibleEntry.target.id as SettingsSectionId
         setActiveSection(id)
-        window.history.replaceState(null, "", `#${id}`)
+        // No pisar el deep-link de detalle (#integrations/<id>) mientras
+        // la sección visible siga siendo la misma.
+        const currentHash = window.location.hash.slice(1)
+        if (currentHash !== id && !currentHash.startsWith(`${id}/`)) {
+          window.history.replaceState(null, "", `#${id}`)
+        }
       },
       {
         root: scrollContainerRef.current,
@@ -242,12 +250,7 @@ export default function ConfiguracionPage() {
 
                 {isAdmin && (
                   <SettingsSectionHeading section={sections[2]}>
-                    <div className="space-y-6">
-                      <AiAssistantCard />
-                      <div className="max-w-3xl">
-                        <WooCommerceCard />
-                      </div>
-                    </div>
+                    <IntegrationsSection />
                   </SettingsSectionHeading>
                 )}
               </>

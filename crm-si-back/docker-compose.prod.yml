@@ -166,6 +166,59 @@ services:
     networks:
       - laravel-network
 
+  # Scheduler: corre las tareas programadas de routes/console.php (ej. purga de
+  # webhook_deliveries vía model:prune). Sin este proceso, Schedule::command()
+  # nunca se dispara en producción y la tabla crece sin límite.
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    restart: always
+    command: php artisan schedule:work
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      SENTRY_ENVIRONMENT: production
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PORT: "6379"
+      BROADCAST_CONNECTION: reverb
+      REVERB_HOST: reverb
+      REVERB_PORT: "8080"
+      REVERB_SCHEME: "http"
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+    env_file:
+      - .env
+    volumes:
+      - app-storage:/var/www/html/storage
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+    healthcheck:
+      # Verifica que el proceso del scheduler siga vivo.
+      test: ["CMD-SHELL", "pgrep -f 'schedule:work' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - laravel-network
+
   db:
     image: postgres:16-alpine
     restart: always
