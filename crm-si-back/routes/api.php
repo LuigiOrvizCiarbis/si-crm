@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\ContactTimelineController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\ConversationTranslationController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\GoogleCalendarConnectionController;
 use App\Http\Controllers\Api\IncomingWebhookController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MessageController;
@@ -92,8 +93,9 @@ Route::post('register', function (Request $request): JsonResponse {
     ]);
 
     $invitation = null;
+    $tenant = null;
     $roleName = 'Owner';
-    $isNewTenant = false;
+    $isNewTenant = true;
 
     // If invitation token provided, join existing tenant
     if ($request->invitation_token) {
@@ -112,7 +114,7 @@ Route::post('register', function (Request $request): JsonResponse {
 
         $tenant = $invitation->tenant;
         $roleName = $invitation->role_name ?? 'Admin';
-        $isNewTenant = true;
+        $isNewTenant = false;
     }
 
     // Tenant creation, user creation, provisioning and role syncing must all
@@ -454,7 +456,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('conversations/{id}/unread', [ConversationController::class, 'markAsUnread']);
 
     Route::apiResource('tasks', TaskController::class);
+    Route::post('tasks/{task}/google-calendar/retry', [TaskController::class, 'retryCalendarSync']);
     Route::apiResource('notes', NoteController::class)->only(['index', 'store', 'destroy']);
+
+    Route::get('google-calendar/connection', [GoogleCalendarConnectionController::class, 'show']);
+    Route::post('google-calendar/authorization-url', [GoogleCalendarConnectionController::class, 'authorizationUrl']);
+    Route::delete('google-calendar/connection', [GoogleCalendarConnectionController::class, 'destroy']);
 
     Route::post('conversations/{id}/users', [ConversationController::class, 'assignUsers']);
     Route::post('conversations/{id}/users/add', [ConversationController::class, 'addUser']);
@@ -479,6 +486,10 @@ Route::match(['get', 'post'], 'whatsapp-webhook', [WhatsAppController::class, 'w
 Route::match(['get', 'post'], 'instagram-webhook', [InstagramController::class, 'webhook']);
 
 Route::post('facebook/data-deletion', [FacebookDataDeletionController::class, 'handle']);
+
+// Público: Google redirige acá tras el consentimiento OAuth, sin credenciales
+// Sanctum. El `state` de un solo uso es el único vínculo de identidad.
+Route::get('google-calendar/callback', [GoogleCalendarConnectionController::class, 'callback']);
 
 // Public: webhooks entrantes configurables por tenant. Se autentican con
 // X-Api-Key por endpoint (no Sanctum). Rate limit por api key (ver AppServiceProvider).
