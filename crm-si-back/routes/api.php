@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PipelineStageController;
+use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProductFieldController;
 use App\Http\Controllers\Api\RoleController;
@@ -367,6 +368,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('roles/{role}/permissions', [RoleController::class, 'syncPermissions']);
 
     Route::get('permissions', [PermissionController::class, 'index']);
+
+    Route::get('plans', [PlanController::class, 'index']);
 
     Route::get('contacts', [ContactController::class, 'index']);
     Route::get('contacts/summary', [ContactController::class, 'summary']);

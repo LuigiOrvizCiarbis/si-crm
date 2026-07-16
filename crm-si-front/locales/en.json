@@ -1216,5 +1216,49 @@
       "viewPlans": "View plans",
       "logout": "Log out"
     }
+  },
+  "pricing": {
+    "back": "Back to Settings",
+    "title": "Plans and pricing",
+    "subtitle": "Pick the plan that fits your team best",
+    "perMonth": "USD/mo",
+    "freePrice": "Free",
+    "customPrice": "Custom",
+    "currentPlan": "Your plan",
+    "currentPlanCta": "Current plan",
+    "contactSales": "Contact sales",
+    "trialDaysLeft": "{{count}} trial days left",
+    "trialDaysLeftOne": "1 trial day left",
+    "comparisonTitle": "Detailed comparison",
+    "comparisonFeature": "Features",
+    "loadError": "We couldn't load the plans.",
+    "retry": "Retry",
+    "helpTitle": "Need help choosing?",
+    "helpDescription": "Our team will help you find the plan that best fits your operation.",
+    "customValue": "Custom",
+    "compare": {
+      "users": "Users",
+      "channel_accounts": "Accounts per channel",
+      "conversations_month": "New conversations per month",
+      "ai": "AI chatbot"
+    },
+    "features": {
+      "users_1": "1 user",
+      "channel_accounts_1": "1 account per channel",
+      "contacts_csv": "Contacts and CSV import",
+      "realtime_inbox": "Real-time multichannel inbox",
+      "pipeline_kanban": "Sales pipeline with Kanban",
+      "everything_free": "Everything in Free",
+      "team_roles": "Team with roles and permissions",
+      "multi_channel_accounts": "Multiple accounts per channel",
+      "ai_autoreply": "AI chatbot with your own API key",
+      "product_catalog": "Product catalog",
+      "webhooks": "Incoming and outgoing webhooks",
+      "custom_fields": "Custom fields",
+      "everything_pro": "Everything in Pro",
+      "custom_limits": "Custom limits",
+      "priority_support": "Priority support",
+      "custom_integrations": "Custom integrations"
+    }
   }
 }
