@@ -100,6 +100,22 @@ export default function ConfiguracionPage() {
     .map((section) => section.id)
     .join(",")
 
+  
+  const scrollSectionIntoView = (
+    id: SettingsSectionId,
+    behavior: ScrollBehavior,
+  ) => {
+    const container = scrollContainerRef.current
+    const section = document.getElementById(id)
+    if (!container || !section) return
+
+    const top =
+      section.getBoundingClientRect().top -
+      container.getBoundingClientRect().top +
+      container.scrollTop
+    container.scrollTo({ top, behavior })
+  }
+
   useEffect(() => {
     if (!hasHydrated) return
 
@@ -121,9 +137,7 @@ export default function ConfiguracionPage() {
     setActiveSection(initialSection)
     const initialScrollFrame = sectionIds.includes(hashSection)
       ? window.requestAnimationFrame(() => {
-          document
-            .getElementById(hashSection)
-            ?.scrollIntoView({ block: "start" })
+          scrollSectionIntoView(hashSection, "auto")
         })
       : null
 
@@ -165,18 +179,12 @@ export default function ConfiguracionPage() {
   }, [hasHydrated, visibleSectionIds])
 
   const navigateToSection = (id: SettingsSectionId) => {
-    const section = document.getElementById(id)
-    if (!section) return
-
     setActiveSection(id)
     window.history.replaceState(null, "", `#${id}`)
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches
-    section.scrollIntoView({
-      behavior: reduceMotion ? "auto" : "smooth",
-      block: "start",
-    })
+    scrollSectionIntoView(id, reduceMotion ? "auto" : "smooth")
   }
 
   return (
