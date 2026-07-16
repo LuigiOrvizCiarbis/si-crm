@@ -16,6 +16,7 @@ import { PipelineStagesCard } from "@/components/config/PipelineStagesCard"
 import { RolesCard } from "@/components/config/RolesCard"
 import { SucursalesCard } from "@/components/config/SucursalesCard"
 import { TeamInvitationsCard } from "@/components/config/TeamInvitationsCard"
+import { WhatsAppTemplatesSettings } from "@/components/config/WhatsAppTemplatesSettings"
 import { IntegrationsSection } from "@/components/config/integrations/IntegrationsSection"
 import { usePermission } from "@/hooks/usePermission"
 import { useTranslation } from "@/hooks/useTranslation"
@@ -60,6 +61,7 @@ export default function ConfiguracionPage() {
     "pipeline_stages.view",
     "pipeline_stages.manage",
   ])
+  const canViewTemplates = usePermission("templates.view")
   const sections = useMemo<SettingsSection[]>(
     () => [
       {
@@ -100,6 +102,22 @@ export default function ConfiguracionPage() {
     .map((section) => section.id)
     .join(",")
 
+  
+  const scrollSectionIntoView = (
+    id: SettingsSectionId,
+    behavior: ScrollBehavior,
+  ) => {
+    const container = scrollContainerRef.current
+    const section = document.getElementById(id)
+    if (!container || !section) return
+
+    const top =
+      section.getBoundingClientRect().top -
+      container.getBoundingClientRect().top +
+      container.scrollTop
+    container.scrollTo({ top, behavior })
+  }
+
   useEffect(() => {
     if (!hasHydrated) return
 
@@ -121,9 +139,7 @@ export default function ConfiguracionPage() {
     setActiveSection(initialSection)
     const initialScrollFrame = sectionIds.includes(hashSection)
       ? window.requestAnimationFrame(() => {
-          document
-            .getElementById(hashSection)
-            ?.scrollIntoView({ block: "start" })
+          scrollSectionIntoView(hashSection, "auto")
         })
       : null
 
@@ -165,18 +181,12 @@ export default function ConfiguracionPage() {
   }, [hasHydrated, visibleSectionIds])
 
   const navigateToSection = (id: SettingsSectionId) => {
-    const section = document.getElementById(id)
-    if (!section) return
-
     setActiveSection(id)
     window.history.replaceState(null, "", `#${id}`)
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches
-    section.scrollIntoView({
-      behavior: reduceMotion ? "auto" : "smooth",
-      block: "start",
-    })
+    scrollSectionIntoView(id, reduceMotion ? "auto" : "smooth")
   }
 
   return (
@@ -240,6 +250,11 @@ export default function ConfiguracionPage() {
                     {canViewFields && (
                       <div className="xl:col-span-2">
                         <FieldsCard />
+                      </div>
+                    )}
+                    {canViewTemplates && (
+                      <div className="xl:col-span-2">
+                        <WhatsAppTemplatesSettings />
                       </div>
                     )}
                   </div>

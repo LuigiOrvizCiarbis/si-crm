@@ -8,6 +8,12 @@ enum TemplateStatus: string
     case Pending = 'PENDING';
     case Rejected = 'REJECTED';
     case Disabled = 'DISABLED';
+    case InAppeal = 'IN_APPEAL';
+    case PendingDeletion = 'PENDING_DELETION';
+    case Deleted = 'DELETED';
+    case Paused = 'PAUSED';
+    case LimitExceeded = 'LIMIT_EXCEEDED';
+    case Unknown = 'UNKNOWN';
 
     /**
      * Obtener todos los valores posibles
@@ -27,6 +33,12 @@ enum TemplateStatus: string
             self::Pending => 'Pendiente',
             self::Rejected => 'Rechazado',
             self::Disabled => 'Deshabilitado',
+            self::InAppeal => 'En apelación',
+            self::PendingDeletion => 'Eliminación pendiente',
+            self::Deleted => 'Eliminado',
+            self::Paused => 'Pausado',
+            self::LimitExceeded => 'Límite excedido',
+            self::Unknown => 'Estado desconocido',
         };
     }
 

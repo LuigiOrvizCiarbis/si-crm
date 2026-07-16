@@ -129,6 +129,8 @@ export interface WhatsAppTemplate {
   language: string
   category: "MARKETING" | "UTILITY" | "AUTHENTICATION"
   status: "APPROVED" | "PENDING" | "REJECTED" | "DISABLED"
+    | "IN_APPEAL" | "PENDING_DELETION" | "DELETED" | "PAUSED" | "LIMIT_EXCEEDED" | "UNKNOWN"
+  rejected_reason?: string | null
   components: TemplateComponent[]
   synced_at: string
   created_at: string

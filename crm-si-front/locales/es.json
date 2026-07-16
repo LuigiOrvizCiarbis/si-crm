@@ -1090,6 +1090,7 @@
       "ai_config.manage": "Gestionar configuración de IA",
       "templates.view": "Ver plantillas",
       "templates.sync": "Sincronizar plantillas con Meta",
+      "templates.create": "Crear plantillas de WhatsApp",
       "templates.send": "Enviar plantillas",
       "analytics.view": "Ver analíticas propias",
       "analytics.view_team": "Ver analíticas del equipo",

@@ -1090,6 +1090,7 @@
       "ai_config.manage": "Manage AI configuration",
       "templates.view": "View templates",
       "templates.sync": "Sync templates with Meta",
+      "templates.create": "Create WhatsApp templates",
       "templates.send": "Send templates",
       "analytics.view": "View own analytics",
       "analytics.view_team": "View team analytics",
