@@ -27,6 +27,9 @@ class WebhookDelivery extends Model
     use BelongsToTenant;
     use MassPrunable;
 
+    /** Tope de tamaño del payload persistido como debug (~64KB). */
+    public const PAYLOAD_MAX_BYTES = 65536;
+
     protected $table = 'webhook_deliveries';
 
     protected $fillable = [
@@ -53,6 +56,42 @@ class WebhookDelivery extends Model
     public function endpoint(): BelongsTo
     {
         return $this->belongsTo(WebhookEndpoint::class, 'webhook_endpoint_id');
+    }
+
+    /**
+     * Evita persistir payloads enormes como debug. Si el JSON supera el tope,
+     * se guarda un resumen en lugar del cuerpo completo. NO usar en el flujo
+     * bulk antes de procesar: ahí el payload completo es la fuente del job.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public static function truncatePayload(array $payload): array
+    {
+        $encoded = json_encode($payload);
+
+        if ($encoded !== false && strlen($encoded) <= self::PAYLOAD_MAX_BYTES) {
+            return $payload;
+        }
+
+        return [
+            '_truncated' => true,
+            'contacts_count' => is_array($payload['contacts'] ?? null) ? count($payload['contacts']) : null,
+        ];
+    }
+
+    /**
+     * Status final de un delivery a partir del resultado del upsert.
+     *
+     * @param  array{created: int, updated: int, failed: int}  $result
+     */
+    public static function statusFromResult(array $result): string
+    {
+        if ($result['failed'] === 0) {
+            return 'processed';
+        }
+
+        return ($result['created'] + $result['updated']) > 0 ? 'partial' : 'failed';
     }
 
     /**
