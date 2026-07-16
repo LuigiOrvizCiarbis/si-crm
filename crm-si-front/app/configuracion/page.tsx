@@ -17,7 +17,7 @@ import { RolesCard } from "@/components/config/RolesCard"
 import { SucursalesCard } from "@/components/config/SucursalesCard"
 import { TeamInvitationsCard } from "@/components/config/TeamInvitationsCard"
 import { IntegrationsSection } from "@/components/config/integrations/IntegrationsSection"
-import { usePermission, useIsAdmin } from "@/hooks/usePermission"
+import { usePermission } from "@/hooks/usePermission"
 import { useTranslation } from "@/hooks/useTranslation"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/useAuthStore"
@@ -60,8 +60,6 @@ export default function ConfiguracionPage() {
     "pipeline_stages.view",
     "pipeline_stages.manage",
   ])
-  const isAdmin = useIsAdmin()
-
   const sections = useMemo<SettingsSection[]>(
     () => [
       {
@@ -83,14 +81,13 @@ export default function ConfiguracionPage() {
         label: t("settings.page.integrations.title"),
         description: t("settings.page.integrations.description"),
         icon: Cable,
-        visible: isAdmin,
+        visible: true,
       },
     ],
     [
       canViewBranches,
       canViewInvitations,
       canViewRoles,
-      isAdmin,
       t,
     ],
   )
@@ -248,11 +245,9 @@ export default function ConfiguracionPage() {
                   </div>
                 </SettingsSectionHeading>
 
-                {isAdmin && (
-                  <SettingsSectionHeading section={sections[2]}>
-                    <IntegrationsSection />
-                  </SettingsSectionHeading>
-                )}
+                <SettingsSectionHeading section={sections[2]}>
+                  <IntegrationsSection />
+                </SettingsSectionHeading>
               </>
             )}
           </main>

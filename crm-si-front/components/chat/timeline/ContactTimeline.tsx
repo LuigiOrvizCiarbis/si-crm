@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { Loader2, Plus, ListTodo } from "lucide-react"
+import { Loader2, Plus, ListTodo, CalendarClock } from "lucide-react"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useAuthStore } from "@/store/useAuthStore"
 import { getContactTimeline, type TimelineEvent as TimelineEventData, type TimelineEventType } from "@/lib/api/timeline"
@@ -58,6 +58,7 @@ export function ContactTimeline({
   const [filter, setFilter] = useState<FilterValue>("all")
   const [showNoteForm, setShowNoteForm] = useState(false)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
+  const [meetingModalOpen, setMeetingModalOpen] = useState(false)
 
   const loadTimeline = useCallback(() => {
     if (!contactId) return
@@ -156,7 +157,11 @@ export function ContactTimeline({
           </TabsContent>
 
           <TabsContent value="tasks" className="flex-1 flex flex-col min-h-0 m-0">
-            <div className="px-4 py-3 flex justify-end border-b border-border">
+            <div className="px-4 py-3 flex justify-end gap-2 border-b border-border">
+              <Button size="sm" variant="outline" className="gap-2" onClick={() => setMeetingModalOpen(true)}>
+                <CalendarClock className="w-4 h-4" />
+                {t("chats.scheduleMeeting")}
+              </Button>
               <Button size="sm" variant="outline" className="gap-2" onClick={() => setTaskModalOpen(true)}>
                 <ListTodo className="w-4 h-4" />
                 {t("chats.createTask")}
@@ -183,6 +188,23 @@ export function ContactTimeline({
           prefilledData={{
             relationType: conversationId ? "chat" : "contact",
             relationId: String(conversationId ?? contactId),
+            relationLabel: contactName,
+            lockRelation: true,
+            ...(currentUser ? { assigneeId: String(currentUser.id) } : {}),
+          }}
+        />
+
+        <NewTaskModal
+          open={meetingModalOpen}
+          onOpenChange={setMeetingModalOpen}
+          onCreateTask={() => {
+            loadTasks()
+            if (filter === "all" || filter === "task") loadTimeline()
+          }}
+          prefilledData={{
+            type: "reunion",
+            relationType: "contact",
+            relationId: String(contactId),
             relationLabel: contactName,
             lockRelation: true,
             ...(currentUser ? { assigneeId: String(currentUser.id) } : {}),

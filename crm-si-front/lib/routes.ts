@@ -21,9 +21,12 @@ export const unverifiedAllowedRoutes = [
   "/verify-email/confirm",
 ]
 
+export const trialExpiredAllowedRoutes = ["/trial-expired", "/pricing"]
+
 export const routesWithoutAppShell = [
   ...publicRoutes,
   "/verify-email",
+  "/trial-expired",
 ]
 
 export function isRouteMatch(pathname: string, routes: string[]) {

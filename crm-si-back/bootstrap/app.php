@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureTrialNotExpired;
 use App\Http\Middleware\SetSpatieTeamId;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -30,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhooks/*',
         ]);
         $middleware->appendToGroup('api', SetSpatieTeamId::class);
+        $middleware->appendToGroup('api', EnsureTrialNotExpired::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (Throwable $e, Request $request) {

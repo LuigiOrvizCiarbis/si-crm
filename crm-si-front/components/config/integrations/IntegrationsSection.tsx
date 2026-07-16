@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { ArrowLeft, ChevronRight } from "lucide-react"
 
 import { Skeleton } from "@/components/ui/skeleton"
+import { useIsAdmin } from "@/hooks/usePermission"
 import { useTranslation } from "@/hooks/useTranslation"
 import { cn } from "@/lib/utils"
 import {
@@ -24,12 +25,20 @@ type StatusMap = Partial<Record<string, IntegrationStatus>>
 
 export function IntegrationsSection() {
   const { t } = useTranslation()
+  const isAdmin = useIsAdmin()
   const [openId, setOpenId] = useState<string | null>(null)
   const [statuses, setStatuses] = useState<StatusMap>({})
 
+  // Las integraciones a nivel tenant (credenciales compartidas) son solo para
+  // admins; las personales por usuario (ej. Google Calendar) son para todos.
+  const visibleIntegrations = useMemo(
+    () => INTEGRATIONS.filter((def) => !def.adminOnly || isAdmin),
+    [isAdmin],
+  )
+
   const refreshStatuses = useCallback(async () => {
     const entries = await Promise.all(
-      INTEGRATIONS.map(async (def): Promise<[string, IntegrationStatus]> => {
+      visibleIntegrations.map(async (def): Promise<[string, IntegrationStatus]> => {
         try {
           return [def.id, await def.fetchStatus()]
         } catch {
@@ -38,15 +47,15 @@ export function IntegrationsSection() {
       }),
     )
     setStatuses(Object.fromEntries(entries))
-  }, [])
+  }, [visibleIntegrations])
 
   useEffect(() => {
     const [, detailId] = window.location.hash.slice(1).split("/")
-    if (detailId && INTEGRATIONS.some((def) => def.id === detailId)) {
+    if (detailId && visibleIntegrations.some((def) => def.id === detailId)) {
       setOpenId(detailId)
     }
     void refreshStatuses()
-  }, [refreshStatuses])
+  }, [refreshStatuses, visibleIntegrations])
 
   const openDetail = (id: string) => {
     setOpenId(id)
@@ -61,16 +70,16 @@ export function IntegrationsSection() {
   }
 
   const sortedIntegrations = useMemo(() => {
-    return [...INTEGRATIONS].sort((a, b) => {
+    return [...visibleIntegrations].sort((a, b) => {
       const statusA = statuses[a.id]
       const statusB = statuses[b.id]
       if (!statusA || !statusB) return 0
       return STATUS_ORDER[statusA] - STATUS_ORDER[statusB]
     })
-  }, [statuses])
+  }, [statuses, visibleIntegrations])
 
   const openIntegration = openId
-    ? INTEGRATIONS.find((def) => def.id === openId)
+    ? visibleIntegrations.find((def) => def.id === openId)
     : undefined
 
   if (openIntegration) {
