@@ -1,4 +1,5 @@
 export const publicRoutes = [
+  "/",
   "/login",
   "/register",
   "/forgot-password",
@@ -30,5 +31,5 @@ export const routesWithoutAppShell = [
 ]
 
 export function isRouteMatch(pathname: string, routes: string[]) {
-  return routes.some((route) => pathname.startsWith(route))
+  return routes.some((route) => (route === "/" ? pathname === "/" : pathname.startsWith(route)))
 }
