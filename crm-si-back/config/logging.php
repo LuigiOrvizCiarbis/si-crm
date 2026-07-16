@@ -74,6 +74,10 @@ return [
             'days' => env('LOG_DAILY_DAYS', 14),
             'tap' => [TenantLogTap::class],
             'replace_placeholders' => true,
+            // group-writable: apache (www-data) y los procesos artisan comparten
+            // el volumen de storage; sin esto, quien crea el archivo del día
+            // bloquea el append de los demás
+            'permissions' => 0664,
         ],
 
         'slack' => [

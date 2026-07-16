@@ -69,6 +69,9 @@ services:
       dockerfile: Dockerfile
       target: production
     restart: always
+    # www-data: mismo usuario que apache; los procesos artisan como root crean
+    # archivos en storage que apache después no puede escribir
+    user: www-data
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
     environment:
       APP_ENV: production
@@ -122,6 +125,7 @@ services:
       dockerfile: Dockerfile
       target: production
     restart: always
+    user: www-data
     command: php artisan queue:work redis --tries=1 --timeout=130 --sleep=3
     environment:
       APP_ENV: production
@@ -175,6 +179,7 @@ services:
       dockerfile: Dockerfile
       target: production
     restart: always
+    user: www-data
     command: php artisan schedule:work
     environment:
       APP_ENV: production
