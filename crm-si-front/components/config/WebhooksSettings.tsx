@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +16,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Table,
   TableBody,
   TableCell,
@@ -25,6 +35,9 @@ import {
 } from "@/components/ui/table"
 import {
   Braces,
+  CheckCircle2,
+  Clock,
+  Inbox,
   Loader2,
   Plus,
   Copy,
@@ -32,6 +45,9 @@ import {
   Trash2,
   ListChecks,
   ShieldCheck,
+  TriangleAlert,
+  XCircle,
+  type LucideIcon,
 } from "lucide-react"
 import { useToast } from "@/components/Toast"
 import { useTranslation } from "@/hooks/useTranslation"
@@ -98,15 +114,48 @@ function buildContactsPayload(fields: WebhookContactField[]): string {
   )
 }
 
-const STATUS_VARIANTS: Record<
+// Estado codificado con ícono + etiqueta traducida, nunca solo color.
+const STATUS_META: Record<
   WebhookDelivery["status"],
-  "default" | "secondary" | "destructive" | "outline"
+  {
+    variant: "default" | "secondary" | "destructive" | "outline"
+    icon: LucideIcon
+    spin?: boolean
+  }
 > = {
-  processed: "default",
-  received: "secondary",
-  partial: "outline",
-  failed: "destructive",
-  rejected: "destructive",
+  received: { variant: "secondary", icon: Inbox },
+  queued: { variant: "secondary", icon: Clock },
+  processing: { variant: "secondary", icon: Loader2, spin: true },
+  processed: { variant: "default", icon: CheckCircle2 },
+  partial: { variant: "outline", icon: TriangleAlert },
+  failed: { variant: "destructive", icon: XCircle },
+  rejected: { variant: "destructive", icon: XCircle },
+}
+
+// Estados no terminales de un delivery bulk: mientras haya uno, se refresca solo.
+const ACTIVE_STATUSES: ReadonlyArray<WebhookDelivery["status"]> = [
+  "queued",
+  "processing",
+]
+
+function isActiveDelivery(status: WebhookDelivery["status"]): boolean {
+  return ACTIVE_STATUSES.includes(status)
+}
+
+function DeliveryStatusBadge({ status }: { status: WebhookDelivery["status"] }) {
+  const { t } = useTranslation()
+  const meta = STATUS_META[status]
+  const Icon = meta.icon
+
+  return (
+    <Badge variant={meta.variant} className="gap-1">
+      <Icon
+        className={`size-3 ${meta.spin ? "animate-spin motion-reduce:animate-none" : ""}`}
+        aria-hidden="true"
+      />
+      {t(`settings.webhooks.statusLabels.${status}`)}
+    </Badge>
+  )
 }
 
 export function WebhooksSettings() {
@@ -134,6 +183,12 @@ export function WebhooksSettings() {
 
   // Drawer de deliveries.
   const [deliveriesFor, setDeliveriesFor] = useState<WebhookEndpoint | null>(null)
+
+  // Confirmaciones destructivas (AlertDialog transversal de la app).
+  const [deleteTarget, setDeleteTarget] = useState<WebhookEndpoint | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [rotateTarget, setRotateTarget] = useState<WebhookEndpoint | null>(null)
+  const [rotating, setRotating] = useState(false)
 
   useEffect(() => {
     if (canView) void load()
@@ -197,8 +252,12 @@ export function WebhooksSettings() {
     }
   }
 
-  const handleRotate = async (endpoint: WebhookEndpoint) => {
-    const result = await rotateWebhookKey(endpoint.id)
+  const handleRotate = async () => {
+    if (!rotateTarget) return
+    setRotating(true)
+    const result = await rotateWebhookKey(rotateTarget.id)
+    setRotating(false)
+    setRotateTarget(null)
     if (result.error || !result.data) {
       addToast({ type: "error", title: t("common.error"), description: result.error })
       return
@@ -207,10 +266,12 @@ export function WebhooksSettings() {
     await load()
   }
 
-  const handleDelete = async (endpoint: WebhookEndpoint) => {
-    if (!window.confirm(t("settings.webhooks.deleteConfirm", { name: endpoint.name })))
-      return
-    const result = await deleteWebhookEndpoint(endpoint.id)
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    const result = await deleteWebhookEndpoint(deleteTarget.id)
+    setDeleting(false)
+    setDeleteTarget(null)
     if (!result.ok) {
       addToast({ type: "error", title: t("common.error"), description: result.error })
       return
@@ -223,10 +284,10 @@ export function WebhooksSettings() {
 
   return (
     <div className="space-y-4">
-        {canManage && (
+        {canManage && endpoints.length > 0 && (
           <div className="flex justify-end">
             <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="size-4 mr-2" />
               {t("settings.webhooks.create")}
             </Button>
           </div>
@@ -239,9 +300,26 @@ export function WebhooksSettings() {
             <Skeleton className="h-10 w-full rounded-md" />
           </div>
         ) : endpoints.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            {t("settings.webhooks.empty")}
-          </p>
+          <div className="rounded-lg border border-dashed py-10 px-6 text-center">
+            <p className="text-sm font-medium">
+              {t("settings.webhooks.emptyTitle")}
+            </p>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+              {t("settings.webhooks.empty")}
+            </p>
+            {canManage && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-4"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus className="size-4 mr-1" />
+                {t("settings.webhooks.create")}
+              </Button>
+            )}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
@@ -259,13 +337,13 @@ export function WebhooksSettings() {
               </TableHeader>
               <TableBody>
                 {endpoints.map((endpoint) => (
-                  <TableRow key={endpoint.id}>
+                  <TableRow key={endpoint.id} className="group">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
-                        {endpoint.name}
+                        <span className="truncate">{endpoint.name}</span>
                         {endpoint.has_signing_secret && (
-                          <Badge variant="secondary" className="gap-1">
-                            <ShieldCheck className="w-3 h-3" />
+                          <Badge variant="secondary" className="shrink-0 gap-1">
+                            <ShieldCheck className="size-3" aria-hidden="true" />
                             HMAC
                           </Badge>
                         )}
@@ -275,17 +353,18 @@ export function WebhooksSettings() {
                       <button
                         type="button"
                         onClick={() => copy(endpoint.public_url)}
-                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                        className="flex items-center gap-1 rounded-sm text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label={t("settings.webhooks.payload.copyUrl")}
                         title={endpoint.public_url}
                       >
                         <span className="max-w-[220px] truncate">
                           {endpoint.public_url}
                         </span>
-                        <Copy className="w-3 h-3 shrink-0" />
+                        <Copy className="size-3 shrink-0" aria-hidden="true" />
                       </button>
                     </TableCell>
                     <TableCell>
-                      <code className="text-xs text-muted-foreground">
+                      <code className="font-mono text-xs text-muted-foreground">
                         {endpoint.api_key_prefix}…
                       </code>
                     </TableCell>
@@ -302,15 +381,16 @@ export function WebhooksSettings() {
                       />
                     </TableCell>
                     <TableCell>
-                      <div className="flex justify-end gap-1">
+                      <div className="flex items-center justify-end gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          title={t("settings.webhooks.viewDeliveries")}
+                          className="size-8"
+                          aria-label={t("settings.webhooks.viewDeliveries")}
                           onClick={() => setDeliveriesFor(endpoint)}
                         >
-                          <ListChecks className="w-4 h-4" />
+                          <ListChecks className="size-4" />
                         </Button>
                         {canManage && (
                           <>
@@ -318,19 +398,21 @@ export function WebhooksSettings() {
                               type="button"
                               variant="ghost"
                               size="icon"
-                              title={t("settings.webhooks.rotateKey")}
-                              onClick={() => handleRotate(endpoint)}
+                              className="size-8"
+                              aria-label={t("settings.webhooks.rotateKey")}
+                              onClick={() => setRotateTarget(endpoint)}
                             >
-                              <KeyRound className="w-4 h-4" />
+                              <KeyRound className="size-4" />
                             </Button>
                             <Button
                               type="button"
                               variant="ghost"
                               size="icon"
-                              title={t("settings.webhooks.delete")}
-                              onClick={() => handleDelete(endpoint)}
+                              className="size-8 text-muted-foreground hover:text-destructive"
+                              aria-label={t("settings.webhooks.delete")}
+                              onClick={() => setDeleteTarget(endpoint)}
                             >
-                              <Trash2 className="w-4 h-4 text-destructive" />
+                              <Trash2 className="size-4" />
                             </Button>
                           </>
                         )}
@@ -346,7 +428,8 @@ export function WebhooksSettings() {
         <PayloadGuide
           payload={payloadExample}
           customFields={customFields}
-          onCopy={() => copy(payloadExample)}
+          endpointUrl={endpoints[0]?.public_url ?? null}
+          onCopyText={copy}
         />
 
       {/* Modal de creación */}
@@ -394,7 +477,9 @@ export function WebhooksSettings() {
               onClick={handleCreate}
               disabled={saving || !newName.trim()}
             >
-              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {saving && (
+                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-none" />
+              )}
               {t("settings.webhooks.create")}
             </Button>
           </DialogFooter>
@@ -411,16 +496,18 @@ export function WebhooksSettings() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-2">
-            <code className="flex-1 overflow-x-auto rounded-md bg-muted px-3 py-2 text-sm">
+            <code className="min-w-0 flex-1 break-all rounded-md bg-muted px-3 py-2 font-mono text-sm">
               {plainKey}
             </code>
             <Button
               type="button"
               variant="outline"
               size="icon"
+              className="shrink-0"
+              aria-label={t("settings.webhooks.payload.copy")}
               onClick={() => plainKey && copy(plainKey)}
             >
-              <Copy className="w-4 h-4" />
+              <Copy className="size-4" />
             </Button>
           </div>
           <DialogFooter>
@@ -437,6 +524,157 @@ export function WebhooksSettings() {
           onClose={() => setDeliveriesFor(null)}
         />
       )}
+
+      <AlertDialog
+        open={rotateTarget !== null}
+        onOpenChange={(open) => !open && !rotating && setRotateTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("settings.webhooks.rotateTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("settings.webhooks.rotateConfirm", {
+                name: rotateTarget?.name ?? "",
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={rotating}>
+              {t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                void handleRotate()
+              }}
+              disabled={rotating}
+            >
+              {rotating && (
+                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-none" />
+              )}
+              {t("settings.webhooks.rotateKey")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("settings.webhooks.deleteTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("settings.webhooks.deleteConfirm", {
+                name: deleteTarget?.name ?? "",
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>
+              {t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                void handleDelete()
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && (
+                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-none" />
+              )}
+              {t("settings.webhooks.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
+function CodeBlock({
+  label,
+  meta,
+  code,
+  copyTitle,
+  onCopy,
+}: {
+  label: string
+  meta?: string
+  code: string
+  copyTitle: string
+  onCopy: () => void
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-muted/40">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+        <span className="font-mono text-xs font-medium text-foreground">
+          {label}
+        </span>
+        <span className="flex min-w-0 items-center gap-2">
+          {meta && (
+            <span className="truncate font-mono text-[11px] text-muted-foreground">
+              {meta}
+            </span>
+          )}
+          <button
+            type="button"
+            title={copyTitle}
+            onClick={onCopy}
+            className="shrink-0 rounded-sm p-0.5 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Copy className="size-3.5" aria-hidden="true" />
+            <span className="sr-only">{copyTitle}</span>
+          </button>
+        </span>
+      </div>
+      <pre className="overflow-x-auto p-3 font-mono text-xs leading-5 text-foreground">
+        <code>{code}</code>
+      </pre>
+    </div>
+  )
+}
+
+function VariantRow({
+  name,
+  url,
+  detail,
+  copyLabel,
+  onCopy,
+}: {
+  name: string
+  url: string
+  detail: string
+  copyLabel: string
+  onCopy: () => void
+}) {
+  return (
+    <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
+      <dt className="text-sm font-medium text-foreground">{name}</dt>
+      <dd className="min-w-0 space-y-1">
+        <button
+          type="button"
+          onClick={onCopy}
+          aria-label={copyLabel}
+          title={url}
+          className="flex max-w-full items-center gap-1.5 rounded-sm font-mono text-xs text-foreground transition-colors hover:text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="font-medium">POST</span>
+          <span className="truncate text-muted-foreground">{url}</span>
+          <Copy
+            className="size-3 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
+        </button>
+        <p className="text-xs leading-5 text-muted-foreground">{detail}</p>
+      </dd>
     </div>
   )
 }
@@ -444,13 +682,66 @@ export function WebhooksSettings() {
 function PayloadGuide({
   payload,
   customFields,
-  onCopy,
+  endpointUrl,
+  onCopyText,
 }: {
   payload: string
   customFields: WebhookContactField[]
-  onCopy: () => void
+  endpointUrl: string | null
+  onCopyText: (value: string) => void
 }) {
   const { t } = useTranslation()
+
+  const baseUrl =
+    endpointUrl ?? "https://TU-DOMINIO/api/incoming-webhooks/{slug}"
+  const compactPayload = JSON.stringify(JSON.parse(payload))
+
+  const curlSync = [
+    `curl -X POST ${baseUrl} \\`,
+    `  -H "X-Api-Key: whk_TU_API_KEY" \\`,
+    `  -H "Content-Type: application/json" \\`,
+    `  -d '${compactPayload}'`,
+  ].join("\n")
+
+  const responseSync = JSON.stringify(
+    { delivery_id: 12, created: 1, updated: 0, failed: 0, errors: [] },
+    null,
+    2,
+  )
+
+  const curlBulk = [
+    `curl -X POST ${baseUrl}/bulk \\`,
+    `  -H "X-Api-Key: whk_TU_API_KEY" \\`,
+    `  -H "Content-Type: application/json" \\`,
+    `  -d '${compactPayload}'`,
+  ].join("\n")
+
+  const responseBulk = JSON.stringify(
+    {
+      delivery_id: 13,
+      status: "queued",
+      contacts_received: 1,
+      status_url: `${baseUrl}/deliveries/13`,
+    },
+    null,
+    2,
+  )
+
+  const curlStatus = [
+    `curl ${baseUrl}/deliveries/13 \\`,
+    `  -H "X-Api-Key: whk_TU_API_KEY"`,
+  ].join("\n")
+
+  const responseStatus = JSON.stringify(
+    {
+      delivery_id: 13,
+      status: "processed",
+      result: { created: 1, updated: 0, failed: 0, errors: [] },
+      error: null,
+    },
+    null,
+    2,
+  )
 
   const fields = [
     {
@@ -490,28 +781,38 @@ function PayloadGuide({
       aria-labelledby="webhook-payload-title"
       className="mt-8 border-t border-border pt-6"
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <h4
-            id="webhook-payload-title"
-            className="text-base font-semibold text-foreground"
-          >
-            {t("settings.webhooks.payload.title")}
-          </h4>
-          <p className="max-w-[68ch] text-sm leading-6 text-muted-foreground">
-            {t("settings.webhooks.payload.description")}
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="shrink-0"
-          onClick={onCopy}
+      <div className="space-y-1">
+        <h4
+          id="webhook-payload-title"
+          className="text-base font-semibold text-foreground"
         >
-          <Copy className="mr-2 size-3.5" />
-          {t("settings.webhooks.payload.copy")}
-        </Button>
+          {t("settings.webhooks.payload.title")}
+        </h4>
+        <p className="max-w-[68ch] text-sm leading-6 text-muted-foreground">
+          {t("settings.webhooks.payload.description")}
+        </p>
+      </div>
+
+      <div className="mt-5">
+        <h5 className="text-sm font-semibold text-foreground">
+          {t("settings.webhooks.payload.variantsTitle")}
+        </h5>
+        <dl className="mt-3 divide-y divide-border border-y border-border">
+          <VariantRow
+            name={t("settings.webhooks.payload.variantSyncName")}
+            url={baseUrl}
+            detail={t("settings.webhooks.payload.variantSyncDetail")}
+            copyLabel={t("settings.webhooks.payload.copyUrl")}
+            onCopy={() => onCopyText(baseUrl)}
+          />
+          <VariantRow
+            name={t("settings.webhooks.payload.variantBulkName")}
+            url={`${baseUrl}/bulk`}
+            detail={t("settings.webhooks.payload.variantBulkDetail")}
+            copyLabel={t("settings.webhooks.payload.copyUrl")}
+            onCopy={() => onCopyText(`${baseUrl}/bulk`)}
+          />
+        </dl>
       </div>
 
       <div className="mt-5">
@@ -568,18 +869,13 @@ function PayloadGuide({
       </div>
 
       <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(16rem,0.75fr)]">
-        <div className="overflow-hidden rounded-lg border border-border bg-muted/40">
-          <div className="flex items-center justify-between border-b border-border px-4 py-2.5 text-xs text-muted-foreground">
-            <span className="flex items-center gap-2 font-medium text-foreground">
-              <Braces className="size-3.5" aria-hidden="true" />
-              JSON
-            </span>
-            <span className="font-mono">application/json</span>
-          </div>
-          <pre className="overflow-x-auto p-4 font-mono text-[13px] leading-6 text-foreground">
-            <code>{payload}</code>
-          </pre>
-        </div>
+        <CodeBlock
+          label="JSON"
+          meta="application/json"
+          code={payload}
+          copyTitle={t("settings.webhooks.payload.copy")}
+          onCopy={() => onCopyText(payload)}
+        />
 
         <div>
           <h5 className="text-sm font-semibold text-foreground">
@@ -645,6 +941,77 @@ function PayloadGuide({
         </div>
       </div>
 
+      <div className="mt-8">
+        <h5 className="text-sm font-semibold text-foreground">
+          {t("settings.webhooks.payload.exampleSyncTitle")}
+        </h5>
+        <p className="mt-1 max-w-[68ch] text-xs leading-5 text-muted-foreground">
+          {t("settings.webhooks.payload.exampleSyncDescription")}
+        </p>
+        <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+          <CodeBlock
+            label="POST"
+            meta={baseUrl}
+            code={curlSync}
+            copyTitle={t("settings.webhooks.payload.copyCurl")}
+            onCopy={() => onCopyText(curlSync)}
+          />
+          <CodeBlock
+            label="200 OK"
+            code={responseSync}
+            copyTitle={t("settings.webhooks.payload.copyCurl")}
+            onCopy={() => onCopyText(responseSync)}
+          />
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <h5 className="text-sm font-semibold text-foreground">
+          {t("settings.webhooks.payload.exampleBulkTitle")}
+        </h5>
+        <p className="mt-1 max-w-[68ch] text-xs leading-5 text-muted-foreground">
+          {t("settings.webhooks.payload.exampleBulkDescription")}
+        </p>
+        <div className="mt-3 grid gap-6 lg:grid-cols-2">
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-foreground">
+              {t("settings.webhooks.payload.exampleBulkSend")}
+            </p>
+            <CodeBlock
+              label="POST"
+              meta="/bulk"
+              code={curlBulk}
+              copyTitle={t("settings.webhooks.payload.copyCurl")}
+              onCopy={() => onCopyText(curlBulk)}
+            />
+            <CodeBlock
+              label="202 Accepted"
+              code={responseBulk}
+              copyTitle={t("settings.webhooks.payload.copyCurl")}
+              onCopy={() => onCopyText(responseBulk)}
+            />
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-foreground">
+              {t("settings.webhooks.payload.exampleBulkPoll")}
+            </p>
+            <CodeBlock
+              label="GET"
+              meta="/deliveries/{id}"
+              code={curlStatus}
+              copyTitle={t("settings.webhooks.payload.copyCurl")}
+              onCopy={() => onCopyText(curlStatus)}
+            />
+            <CodeBlock
+              label="200 OK"
+              code={responseStatus}
+              copyTitle={t("settings.webhooks.payload.copyCurl")}
+              onCopy={() => onCopyText(responseStatus)}
+            />
+          </div>
+        </div>
+      </div>
+
       <p className="mt-5 rounded-md border border-border bg-muted/30 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
         <strong className="font-medium text-foreground">
           {t("settings.webhooks.payload.upsertTitle")}
@@ -676,9 +1043,51 @@ function DeliveriesDialog({
     })()
   }, [endpoint.id])
 
+  // Mientras haya deliveries bulk sin terminar (queued/processing), la lista y
+  // el detalle abierto se refrescan solos. Se corta cuando todo es terminal.
+  const hasActive =
+    deliveries.some((d) => isActiveDelivery(d.status)) ||
+    (detail !== null && isActiveDelivery(detail.status))
+
+  // El detalle se lee por ref dentro del intervalo: tenerlo como dependencia
+  // recrearía el timer en cada refresco (setDetail cambia la referencia) y el
+  // ciclo de 5s nunca llegaría a completarse.
+  const detailRef = useRef(detail)
+  detailRef.current = detail
+
+  useEffect(() => {
+    if (!hasActive) return
+    const interval = setInterval(() => {
+      void (async () => {
+        const page = await listWebhookDeliveries(endpoint.id)
+        if (page) setDeliveries(page.data)
+        const current = detailRef.current
+        if (current && isActiveDelivery(current.status)) {
+          const fresh = await getWebhookDelivery(endpoint.id, current.id)
+          if (fresh) setDetail(fresh)
+        }
+      })()
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [hasActive, endpoint.id])
+
   const openDetail = async (deliveryId: number) => {
     setDetail(await getWebhookDelivery(endpoint.id, deliveryId))
   }
+
+  // Cuántos contactos trae un delivery bulk en curso: el payload completo tiene
+  // contacts[]; si ya fue truncado por el job, queda contacts_count.
+  const detailContactsCount = (() => {
+    if (!detail || typeof detail.payload !== "object" || detail.payload === null)
+      return null
+    const payload = detail.payload as {
+      contacts?: unknown
+      contacts_count?: unknown
+    }
+    if (Array.isArray(payload.contacts)) return payload.contacts.length
+    if (typeof payload.contacts_count === "number") return payload.contacts_count
+    return null
+  })()
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -690,7 +1099,10 @@ function DeliveriesDialog({
         </DialogHeader>
         {loading ? (
           <div className="flex justify-center py-6">
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <Loader2
+              className="size-5 animate-spin motion-reduce:animate-none text-muted-foreground"
+              aria-hidden="true"
+            />
           </div>
         ) : deliveries.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
@@ -710,11 +1122,20 @@ function DeliveriesDialog({
                 {deliveries.map((d) => (
                   <TableRow
                     key={d.id}
-                    className="cursor-pointer"
+                    tabIndex={0}
+                    aria-selected={detail?.id === d.id}
+                    data-state={detail?.id === d.id ? "selected" : undefined}
+                    className="cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                     onClick={() => openDetail(d.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        void openDetail(d.id)
+                      }
+                    }}
                   >
                     <TableCell>
-                      <Badge variant={STATUS_VARIANTS[d.status]}>{d.status}</Badge>
+                      <DeliveryStatusBadge status={d.status} />
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {d.created === null && d.updated === null && d.failed === null
@@ -736,13 +1157,27 @@ function DeliveriesDialog({
         {detail && (
           <div className="space-y-2 border-t pt-4">
             <Label>{t("settings.webhooks.detailPayload")}</Label>
-            <pre className="max-h-[30vh] overflow-auto rounded-md bg-muted p-3 text-xs">
-              {JSON.stringify(
-                { result: detail.result, error: detail.error, payload: detail.payload },
-                null,
-                2,
-              )}
-            </pre>
+            {isActiveDelivery(detail.status) ? (
+              <p className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+                <Loader2
+                  className="size-4 shrink-0 animate-spin motion-reduce:animate-none"
+                  aria-hidden="true"
+                />
+                {detailContactsCount !== null
+                  ? t("settings.webhooks.processingDetailCount", {
+                      count: detailContactsCount,
+                    })
+                  : t("settings.webhooks.processingDetail")}
+              </p>
+            ) : (
+              <pre className="max-h-[30vh] overflow-auto rounded-md bg-muted p-3 text-xs">
+                {JSON.stringify(
+                  { result: detail.result, error: detail.error, payload: detail.payload },
+                  null,
+                  2,
+                )}
+              </pre>
+            )}
           </div>
         )}
       </DialogContent>
