@@ -56,7 +56,7 @@ export function CommandPalette() {
           nextKey.then((key) => {
             switch (key) {
               case "p":
-                router.push("/")
+                router.push("/dashboard")
                 break
               case "c":
                 router.push("/chats")
@@ -108,7 +108,7 @@ export function CommandPalette() {
 
             <Command.Group heading="Navegación">
               <Command.Item
-                onSelect={() => runCommand(() => router.push("/"))}
+                onSelect={() => runCommand(() => router.push("/dashboard"))}
                 className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg cursor-pointer hover:bg-accent"
               >
                 <Home className="w-4 h-4" />

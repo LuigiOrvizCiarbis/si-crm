@@ -130,8 +130,14 @@ export function AuthGuard({ children }: AuthGuardProps) {
     isTrialExpiredAllowed,
   ])
 
+  // Las rutas públicas se renderizan siempre: no dependen del estado de auth y
+  // deben quedar en el HTML inicial para los crawlers.
+  if (isPublicRoute) {
+    return <>{children}</>
+  }
+
   // Mostrar loader mientras se hidrata o verifica autenticación
-  if (!_hasHydrated || (isChecking && !hasCompletedInitialCheck) || (!isAuthenticated && !isPublicRoute)) {
+  if (!_hasHydrated || (isChecking && !hasCompletedInitialCheck) || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

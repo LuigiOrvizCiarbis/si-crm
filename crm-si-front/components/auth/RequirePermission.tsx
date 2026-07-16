@@ -11,7 +11,7 @@ interface RequirePermissionProps {
   children: ReactNode
 }
 
-export function RequirePermission({ perm, redirectTo = "/", children }: RequirePermissionProps) {
+export function RequirePermission({ perm, redirectTo = "/chats", children }: RequirePermissionProps) {
   const router = useRouter()
   const allowed = usePermission(perm)
   const hydrated = useAuthStore((s) => s._hasHydrated)

@@ -61,7 +61,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
 
   const navItems = [
     {
-      href: "/",
+      href: "/dashboard",
       emoji: "📊",
       label: t("nav.panel"),
       shortLabel: t("nav.panelShort"),
