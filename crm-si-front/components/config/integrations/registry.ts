@@ -1,11 +1,13 @@
 import type { ComponentType } from "react"
 import type { LucideIcon } from "lucide-react"
-import { Bot, ShoppingBag, Webhook } from "lucide-react"
+import { Bot, CalendarClock, ShoppingBag, Webhook } from "lucide-react"
 
 import { AiAssistantSettings } from "@/components/config/AiAssistantSettings"
+import { GoogleCalendarConnectionCard } from "@/components/config/GoogleCalendarConnectionCard"
 import { WebhooksSettings } from "@/components/config/WebhooksSettings"
 import { WooCommerceSettings } from "@/components/config/WooCommerceSettings"
 import { getAiConfig } from "@/lib/api/ai-config"
+import { getGoogleCalendarConnection } from "@/lib/api/google-calendar"
 import { listWebhookEndpoints } from "@/lib/api/webhooks"
 import { getWooConfig } from "@/lib/api/woocommerce"
 
@@ -25,6 +27,9 @@ export interface IntegrationDefinition {
   category: IntegrationCategory
   Detail: ComponentType
   fetchStatus: () => Promise<IntegrationStatus>
+  /** Integraciones a nivel tenant (credenciales compartidas): solo admins las gestionan.
+   * Las que son personales por usuario (ej. Google Calendar) quedan visibles para todos. */
+  adminOnly?: boolean
 }
 
 // Agregar una integración = agregar una entrada acá. El directorio, el detalle
@@ -36,10 +41,24 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     nameKey: "settings.aiAssistant.title",
     descriptionKey: "settings.aiAssistant.description",
     category: "ai",
+    adminOnly: true,
     Detail: AiAssistantSettings,
     fetchStatus: async () => {
       const config = await getAiConfig()
       return config?.has_api_key ? "connected" : "available"
+    },
+  },
+  {
+    id: "google-calendar",
+    icon: CalendarClock,
+    nameKey: "settings.googleCalendar.title",
+    descriptionKey: "settings.googleCalendar.description",
+    category: "developer",
+    Detail: GoogleCalendarConnectionCard,
+    fetchStatus: async () => {
+      const connection = await getGoogleCalendarConnection()
+      if (!connection) return "available"
+      return connection.status === "needs_reauth" ? "error" : "connected"
     },
   },
   {
@@ -48,6 +67,7 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     nameKey: "settings.woocommerce.title",
     descriptionKey: "settings.woocommerce.description",
     category: "ecommerce",
+    adminOnly: true,
     Detail: WooCommerceSettings,
     fetchStatus: async () => {
       const config = await getWooConfig()
@@ -60,6 +80,7 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     nameKey: "settings.webhooks.title",
     descriptionKey: "settings.webhooks.description",
     category: "developer",
+    adminOnly: true,
     Detail: WebhooksSettings,
     fetchStatus: async () => {
       const endpoints = await listWebhookEndpoints()

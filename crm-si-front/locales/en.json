@@ -401,6 +401,7 @@
     "contactInfo": "Contact information",
     "viewFullHistory": "View full history",
     "createTask": "Create task",
+    "scheduleMeeting": "Schedule meeting",
     "editContactName": "Edit contact name",
     "save": "Save",
     "cancel": "Cancel",
@@ -803,6 +804,23 @@
         "comingSoon": "Coming soon"
       }
     },
+    "googleCalendar": {
+      "title": "Google Calendar",
+      "description": "Connect your Google account to automatically create meetings in your calendar, with a Google Meet link.",
+      "connect": "Connect",
+      "reconnect": "Reconnect",
+      "disconnect": "Disconnect",
+      "connected": "Google Calendar connected",
+      "disconnected": "Google Calendar disconnected",
+      "connectError": "Could not connect to Google Calendar",
+      "stateExpired": "The connection session expired, please try again",
+      "notConnectedHint": "Connect your account so your meetings sync automatically.",
+      "needsReauthHint": "The connection needs to be renewed. Reconnect your account to keep syncing meetings.",
+      "status": {
+        "connected": "Connected",
+        "needsReauth": "Needs reconnection"
+      }
+    },
     "woocommerce": {
       "title": "WooCommerce",
       "description": "Import your WooCommerce store catalog and keep it in sync with the CRM.",
@@ -1184,6 +1202,19 @@
       "email": "Email",
       "url": "URL",
       "phone": "Phone"
+    }
+  },
+  "trial": {
+    "banner": {
+      "daysLeft": "{{count}} days left in your trial",
+      "daysLeftOne": "1 day left in your trial",
+      "cta": "View plans"
+    },
+    "expired": {
+      "title": "Your trial has ended",
+      "description": "Upgrade your plan to keep using the CRM without interruptions.",
+      "viewPlans": "View plans",
+      "logout": "Log out"
     }
   }
 }

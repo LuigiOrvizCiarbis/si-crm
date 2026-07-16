@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuthStore } from "@/store/useAuthStore"
 import { Loader2 } from "lucide-react"
-import { authOnlyRoutes, isRouteMatch, publicRoutes, unverifiedAllowedRoutes } from "@/lib/routes"
+import { authOnlyRoutes, isRouteMatch, publicRoutes, trialExpiredAllowedRoutes, unverifiedAllowedRoutes } from "@/lib/routes"
+import { isTrialExpired } from "@/lib/trial"
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -20,6 +21,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const isPublicRoute = isRouteMatch(pathname, publicRoutes)
   const isAuthOnlyRoute = isRouteMatch(pathname, authOnlyRoutes)
   const isUnverifiedAllowed = isRouteMatch(pathname, unverifiedAllowedRoutes)
+  const isTrialExpiredAllowed = isRouteMatch(pathname, trialExpiredAllowedRoutes)
 
   useEffect(() => {
     // Esperar a que Zustand se hidrate desde localStorage
@@ -73,8 +75,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
           const isVerified = !!data.user?.email_verified_at
           if (isVerified !== emailVerified) {
             setEmailVerified(isVerified)
-            updateUser(data.user)
           }
+          updateUser(data.user)
 
           // Si el email no está verificado y no está en ruta permitida, redirigir
           if (!isVerified && !isUnverifiedAllowed) {
@@ -84,6 +86,20 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
           // Si el email está verificado y está en verify-email, redirigir a chats
           if (isVerified && pathname === "/verify-email") {
+            router.replace("/chats")
+            return
+          }
+
+          const trialExpired = isTrialExpired(data.user?.tenant)
+
+          // Trial vencido y no está en ruta permitida, redirigir a pantalla de bloqueo
+          if (isVerified && trialExpired && !isTrialExpiredAllowed) {
+            router.replace("/trial-expired")
+            return
+          }
+
+          // Trial ya no está vencido (upgrade) y sigue en la pantalla de bloqueo
+          if (isVerified && !trialExpired && pathname === "/trial-expired") {
             router.replace("/chats")
             return
           }
@@ -111,6 +127,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     isPublicRoute,
     isAuthOnlyRoute,
     isUnverifiedAllowed,
+    isTrialExpiredAllowed,
   ])
 
   // Mostrar loader mientras se hidrata o verifica autenticación

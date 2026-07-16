@@ -20,6 +20,10 @@ export interface TaskPayload {
   attachments?: Task["attachments"]
   synced_calendars?: string[]
   completed_at?: string | null
+  starts_at?: string | null
+  ends_at?: string | null
+  meeting_timezone?: string | null
+  meeting_guest_email?: string | null
 }
 
 function requireToken() {
@@ -77,6 +81,19 @@ export function normalizeTask(apiTask: any): Task {
     updatedAt: apiTask.updated_at,
     completedAt: apiTask.completed_at ?? undefined,
     syncedCalendars: apiTask.synced_calendars ?? [],
+    startsAt: apiTask.starts_at ?? undefined,
+    endsAt: apiTask.ends_at ?? undefined,
+    meetingTimezone: apiTask.meeting_timezone ?? undefined,
+    meetingGuestEmail: apiTask.meeting_guest_email ?? undefined,
+    calendarSync: apiTask.calendar_sync
+      ? {
+          status: apiTask.calendar_sync.status,
+          htmlLink: apiTask.calendar_sync.html_link ?? null,
+          meetLink: apiTask.calendar_sync.meet_link ?? null,
+          lastError: apiTask.calendar_sync.last_error ?? null,
+          syncedAt: apiTask.calendar_sync.synced_at ?? null,
+        }
+      : null,
   }
 }
 

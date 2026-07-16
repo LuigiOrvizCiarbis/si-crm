@@ -14,7 +14,7 @@ class UserSeeder extends Seeder
     {
         $tenant = Tenant::firstOrCreate(
             ['name' => 'Demo Company'],
-            ['plan' => 'free', 'timezone' => 'UTC'],
+            ['timezone' => 'UTC'],
         );
 
         // Provision Owner/Admin/Member roles for this tenant before assigning them.

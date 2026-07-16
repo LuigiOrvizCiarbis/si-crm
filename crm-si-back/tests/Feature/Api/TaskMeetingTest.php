@@ -106,6 +106,94 @@ class TaskMeetingTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_converting_task_to_meeting_requires_meeting_fields(): void
+    {
+        $task = Task::create([
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Llamar al cliente',
+            'type' => 'llamado',
+        ]);
+
+        // El editor Gantt manda exactamente este PATCH parcial: sin los campos
+        // de reunión se guardaría una reunión incompleta y el job no crearía
+        // el evento en Google.
+        $response = $this->patchJson("/api/tasks/{$task->id}", [
+            'type' => 'reunion',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['assigned_to', 'starts_at', 'ends_at', 'meeting_timezone']);
+    }
+
+    public function test_converting_task_to_meeting_succeeds_when_fields_are_provided(): void
+    {
+        Queue::fake();
+
+        $task = Task::create([
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Llamar al cliente',
+            'type' => 'llamado',
+        ]);
+
+        $response = $this->patchJson("/api/tasks/{$task->id}", [
+            'type' => 'reunion',
+            'assigned_to' => $this->user->id,
+            'starts_at' => '2026-08-01T10:00:00-03:00',
+            'ends_at' => '2026-08-01T10:30:00-03:00',
+            'meeting_timezone' => 'America/Argentina/Buenos_Aires',
+        ]);
+
+        $response->assertOk();
+        Queue::assertPushed(SyncTaskCalendarEventJob::class);
+    }
+
+    public function test_converting_task_to_meeting_only_requires_the_fields_it_lacks(): void
+    {
+        Queue::fake();
+
+        // La tarea ya trae responsable y horarios de antes: sólo falta la
+        // timezone, así que el resto no hay que reenviarlo.
+        $task = Task::create([
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Llamar al cliente',
+            'type' => 'llamado',
+            'assigned_to' => $this->user->id,
+            'starts_at' => '2026-08-01T10:00:00-03:00',
+            'ends_at' => '2026-08-01T10:30:00-03:00',
+        ]);
+
+        $this->patchJson("/api/tasks/{$task->id}", ['type' => 'reunion'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['meeting_timezone'])
+            ->assertJsonMissingValidationErrors(['assigned_to', 'starts_at', 'ends_at']);
+
+        $this->patchJson("/api/tasks/{$task->id}", [
+            'type' => 'reunion',
+            'meeting_timezone' => 'America/Argentina/Buenos_Aires',
+        ])->assertOk();
+    }
+
+    public function test_partial_update_of_existing_meeting_keeps_stored_fields(): void
+    {
+        Queue::fake();
+
+        $task = Task::create([
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Reunión',
+            'type' => 'reunion',
+            'assigned_to' => $this->user->id,
+            'starts_at' => '2026-08-01T10:00:00-03:00',
+            'ends_at' => '2026-08-01T10:30:00-03:00',
+            'meeting_timezone' => 'America/Argentina/Buenos_Aires',
+        ]);
+
+        // Renombrar una reunión ya existente no debe exigir reenviar todo.
+        $this->patchJson("/api/tasks/{$task->id}", ['name' => 'Reunión renombrada'])
+            ->assertOk();
+
+        $this->assertSame($this->user->id, $task->fresh()->assigned_to);
+    }
+
     public function test_creating_meeting_dispatches_sync_job_and_sets_deadline_from_starts_at(): void
     {
         Queue::fake();

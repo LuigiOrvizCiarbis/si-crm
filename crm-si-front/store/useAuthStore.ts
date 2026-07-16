@@ -18,9 +18,17 @@ function setSentryUser(user: User | null) {
   }
 }
 
+export interface UserPlan {
+  id: number
+  key: "free" | "pro" | "enterprise"
+  name: string
+}
+
 export interface UserTenant {
   id: number
   name: string
+  plan?: UserPlan | null
+  trial_ends_at?: string | null
 }
 
 export interface UserRole {

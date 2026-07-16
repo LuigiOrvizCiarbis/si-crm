@@ -38,6 +38,10 @@ function reportApiError(status: number, payload: any, fallback?: string) {
 export function throwApiError(status: number, payload: any, fallback?: string): never {
   reportApiError(status, payload, fallback);
 
+  if (status === 402 && payload?.error === "trial_expired" && typeof window !== "undefined") {
+    window.location.assign("/trial-expired");
+  }
+
   if (status >= 400 && status < 500) {
     throw new Error(payload?.message || fallback || GENERIC_ERROR);
   }

@@ -77,7 +77,7 @@ Route::post('login', function (Request $request): JsonResponse {
 
     return response()->json([
         'token' => $token,
-        'user' => $user->load('tenant:id,name,owner_role_id'),
+        'user' => $user->load(['tenant:id,name,owner_role_id,plan_id,trial_ends_at', 'tenant.plan:id,key,name']),
         'role' => RolePayload::transform($role, $user->tenant),
         'permissions' => $user->getAllPermissions()->pluck('name')->values(),
         'email_verified' => $user->hasVerifiedEmail(),
@@ -125,6 +125,7 @@ Route::post('register', function (Request $request): JsonResponse {
         if ($isNewTenant) {
             $tenant = Tenant::create([
                 'name' => $request->name."'s Workspace",
+                'trial_ends_at' => now()->addDays(14),
             ]);
         }
 
@@ -166,7 +167,7 @@ Route::post('register', function (Request $request): JsonResponse {
 
     return response()->json([
         'token' => $token,
-        'user' => $user,
+        'user' => $user->load(['tenant:id,name,owner_role_id,plan_id,trial_ends_at', 'tenant.plan:id,key,name']),
         'role' => RolePayload::transform($role, $tenant->fresh()),
         'permissions' => $user->getAllPermissions()->pluck('name')->values(),
         'email_verified' => false,
@@ -322,7 +323,7 @@ Route::post('reset-password', function (Request $request) {
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('user', function (Request $request): JsonResponse {
-        $user = $request->user()->load('tenant:id,name,owner_role_id');
+        $user = $request->user()->load(['tenant:id,name,owner_role_id,plan_id,trial_ends_at', 'tenant.plan:id,key,name']);
         $role = $user->roles()->where('roles.tenant_id', $user->tenant_id)->first();
 
         return response()->json([

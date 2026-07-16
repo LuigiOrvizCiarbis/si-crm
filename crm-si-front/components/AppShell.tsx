@@ -4,6 +4,7 @@ import type React from "react"
 import { useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { AppSidebar } from "@/components/AppSidebar"
+import { TrialBanner } from "@/components/TrialBanner"
 import { isRouteMatch, routesWithoutAppShell } from "@/lib/routes"
 
 interface AppShellProps {
@@ -46,6 +47,7 @@ export function AppShell({ children }: AppShellProps) {
       <AppSidebar />
 
       <div className="flex-1 flex min-h-0 flex-col min-w-0 bg-muted/30">
+        <TrialBanner />
         <main className="flex-1 flex min-h-0 flex-col overflow-auto bg-background pb-[max(env(safe-area-inset-bottom),64px)] md:pb-0">
           {children}
         </main>
