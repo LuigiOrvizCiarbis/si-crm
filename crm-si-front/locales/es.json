@@ -1219,6 +1219,7 @@
   },
   "pricing": {
     "back": "Volver a Configuración",
+    "backHome": "Volver al inicio",
     "title": "Planes y precios",
     "subtitle": "Elegí el plan que mejor se adapte a tu equipo",
     "perMonth": "U$D/mes",

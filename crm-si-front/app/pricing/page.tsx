@@ -36,14 +36,20 @@ export default function PricingPage() {
     loadPlans()
   }, [loadPlans])
 
-  // Mismo default que lib/trial.ts: tenant sin plan asignado opera como "free".
-  const currentPlanKey = user?.tenant?.plan?.key ?? "free"
+  // Página pública: sin sesión no hay plan actual. Con sesión, tenant sin plan
+  // asignado opera como "free" (mismo default que lib/trial.ts).
+  const currentPlanKey = user ? (user.tenant?.plan?.key ?? "free") : null
   const daysLeft = trialDaysLeft(user?.tenant)
 
   // One Voice Rule: un solo CTA primario por pantalla — el upgrade inmediato
-  // al plan actual. El resto de los planes usa outline.
-  const currentIndex = plans?.findIndex((p) => p.key === currentPlanKey) ?? -1
-  const upgradeKey = currentIndex >= 0 ? (plans?.[currentIndex + 1]?.key ?? null) : null
+  // al plan actual (o el primer plan pago para visitantes). El resto, outline.
+  const currentIndex = currentPlanKey ? (plans?.findIndex((p) => p.key === currentPlanKey) ?? -1) : -1
+  const upgradeKey =
+    currentIndex >= 0
+      ? (plans?.[currentIndex + 1]?.key ?? null)
+      : !user
+        ? (plans?.find((p) => p.priceMonthly !== 0)?.key ?? null)
+        : null
 
   const featureLabel = (key: string, fallback: string) => {
     const translated = t(`pricing.features.${key}`)
@@ -92,10 +98,10 @@ export default function PricingPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-5xl px-4 py-6">
-        <Link href="/configuracion">
+        <Link href={user ? "/configuracion" : "/"}>
           <Button variant="ghost" size="sm" className="gap-2 -ml-2">
             <ArrowLeft className="w-4 h-4" />
-            {t("pricing.back")}
+            {user ? t("pricing.back") : t("pricing.backHome")}
           </Button>
         </Link>
       </div>

@@ -41,11 +41,13 @@ function mapPlan(raw: RawPlan): Plan {
 }
 
 export async function getPlans(): Promise<Plan[]> {
+  // Catálogo público: se consulta con o sin sesión (la landing linkea a /pricing).
   const token = getAuthToken()
-  if (!token) throw new Error("No auth")
+  const headers: Record<string, string> = { Accept: "application/json" }
+  if (token) headers.Authorization = `Bearer ${token}`
 
   const res = await fetch("/api/plans", {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    headers,
     cache: "no-store",
   })
 
