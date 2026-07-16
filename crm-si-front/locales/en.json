@@ -1219,6 +1219,7 @@
   },
   "pricing": {
     "back": "Back to Settings",
+    "backHome": "Back to home",
     "title": "Plans and pricing",
     "subtitle": "Pick the plan that fits your team best",
     "perMonth": "USD/mo",

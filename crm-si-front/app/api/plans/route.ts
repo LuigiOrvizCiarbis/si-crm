@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { proxyToLaravel } from "@/lib/api/proxy-helper"
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization")
-  if (!authHeader) return NextResponse.json({ message: "No auth" }, { status: 401 })
+  // Endpoint público: el catálogo de planes se muestra también sin sesión.
+  const authHeader = req.headers.get("authorization") ?? ""
 
   try {
     const { data, status } = await proxyToLaravel("/api/plans", authHeader)

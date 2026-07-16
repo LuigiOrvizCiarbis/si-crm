@@ -369,8 +369,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('permissions', [PermissionController::class, 'index']);
 
-    Route::get('plans', [PlanController::class, 'index']);
-
     Route::get('contacts', [ContactController::class, 'index']);
     Route::get('contacts/summary', [ContactController::class, 'summary']);
     Route::post('contacts', [ContactController::class, 'store']);
@@ -484,6 +482,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Public: view invitation details by token (no auth required)
 Route::get('invitations/by-token/{token}', [InvitationController::class, 'showByToken']);
+
+// Public: catálogo de planes (lo consume /pricing, también visible sin sesión)
+Route::get('plans', [PlanController::class, 'index']);
 
 Route::match(['get', 'post'], 'whatsapp-webhook', [WhatsAppController::class, 'webhook']);
 
