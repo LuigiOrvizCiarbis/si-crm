@@ -108,6 +108,7 @@ class PermissionCatalog
             'templates' => [
                 'templates.view',
                 'templates.sync',
+                'templates.create',
                 'templates.send',
             ],
             'analytics' => [
