@@ -24,6 +24,7 @@ class WhatsAppTemplate extends Model
         'language',
         'category',
         'status',
+        'rejected_reason',
         'components',
         'synced_at',
     ];
@@ -51,5 +52,10 @@ class WhatsAppTemplate extends Model
     public function scopeApproved($query)
     {
         return $query->where('status', TemplateStatus::Approved);
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->status === TemplateStatus::Approved;
     }
 }

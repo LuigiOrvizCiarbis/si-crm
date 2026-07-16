@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Enums\ChannelType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SendTemplateRequest;
+use App\Http\Requests\CreateWhatsAppTemplateRequest;
 use App\Models\Channel;
 use App\Models\Conversation;
 use App\Models\WhatsAppTemplate;
@@ -23,6 +24,8 @@ class WhatsAppTemplateController extends Controller
      */
     public function index(Channel $channel): JsonResponse
     {
+        $this->authorizeTemplateChannel(request(), $channel);
+        $this->authorize('viewAny', WhatsAppTemplate::class);
         $waConfig = $channel->whatsappConfig;
 
         if (! $waConfig) {
@@ -30,7 +33,8 @@ class WhatsAppTemplateController extends Controller
         }
 
         $templates = WhatsAppTemplate::where('whatsapp_config_id', $waConfig->id)
-            ->approved()
+            ->when(request()->query('status', 'approved') !== 'all', fn ($query) => $query->approved())
+            ->when(request()->filled('category'), fn ($query) => $query->where('category', request()->string('category')->toString()))
             ->orderBy('name')
             ->get();
 
@@ -42,6 +46,8 @@ class WhatsAppTemplateController extends Controller
      */
     public function sync(Channel $channel): JsonResponse
     {
+        $this->authorizeTemplateChannel(request(), $channel);
+        $this->authorize('sync', WhatsAppTemplate::class);
         $waConfig = $channel->whatsappConfig;
 
         if (! $waConfig) {
@@ -60,12 +66,59 @@ class WhatsAppTemplateController extends Controller
         }
     }
 
+    public function create(CreateWhatsAppTemplateRequest $request, Channel $channel): JsonResponse
+    {
+        $this->authorizeTemplateChannel($request, $channel);
+        $this->authorize('create', WhatsAppTemplate::class);
+
+        $waConfig = $channel->whatsappConfig;
+        if (! $waConfig) {
+            return response()->json(['message' => 'Este canal no tiene configuración de WhatsApp'], 404);
+        }
+
+        try {
+            $template = $this->templateService->createTemplate(
+                $waConfig,
+                (int) $request->user()->tenant_id,
+                $request->validated(),
+            );
+
+            return response()->json($template, 201);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    public function uploadTemplateMedia(Request $request, Channel $channel): JsonResponse
+    {
+        $this->authorizeTemplateChannel($request, $channel);
+        $this->authorize('create', WhatsAppTemplate::class);
+
+        $waConfig = $channel->whatsappConfig;
+        if (! $waConfig) {
+            return response()->json(['message' => 'Este canal no tiene configuración de WhatsApp'], 404);
+        }
+
+        $request->validate([
+            'file' => 'required|file|mimetypes:image/jpeg,image/png,video/mp4,application/pdf|max:16384',
+        ]);
+
+        try {
+            return response()->json([
+                'header_handle' => $this->templateService->uploadTemplateHeaderHandle($waConfig, $request->file('file')),
+            ], 201);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
     /**
      * Subir un archivo a Meta para usarlo como header de plantilla
      * (documento/imagen/video). Devuelve el media id de Meta.
      */
     public function uploadMedia(Request $request, Channel $channel): JsonResponse
     {
+        $this->authorizeTemplateChannel($request, $channel);
         $waConfig = $channel->whatsappConfig;
 
         if (! $waConfig) {
@@ -91,6 +144,7 @@ class WhatsAppTemplateController extends Controller
      */
     public function send(SendTemplateRequest $request, Conversation $conversation): JsonResponse
     {
+        $this->authorize('send', WhatsAppTemplate::class);
         // Las plantillas son un concepto exclusivo de WhatsApp. Guard explícito
         // en el backend (el front también lo oculta, pero la defensa real es acá).
         if ($conversation->channel?->type !== ChannelType::WHATSAPP) {
@@ -100,6 +154,10 @@ class WhatsAppTemplateController extends Controller
         }
 
         $template = WhatsAppTemplate::findOrFail($request->validated('template_id'));
+
+        if ($template->whatsapp_config_id !== $conversation->channel?->whatsapp_config_id) {
+            return response()->json(['message' => 'La plantilla no pertenece a la cuenta de WhatsApp de la conversación.'], 422);
+        }
 
         if (! $template->status->isApproved()) {
             return response()->json(['message' => 'El template no está aprobado'], 422);
@@ -117,5 +175,16 @@ class WhatsAppTemplateController extends Controller
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Template access follows the channel visibility used by conversations.
+     * Members may be channel owners or assignees without having the broader
+     * channels.view_any/view_assigned permission.
+     */
+    private function authorizeTemplateChannel(Request $request, Channel $channel): void
+    {
+        $user = $request->user();
+        abort_unless($user && $channel->visibleTo($user)->whereKey($channel->id)->exists(), 403);
     }
 }

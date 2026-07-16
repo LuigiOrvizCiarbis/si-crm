@@ -20,7 +20,10 @@ use Illuminate\Support\Facades\Log;
 
 class WhatsAppTemplateService
 {
-    private const GRAPH_VERSION = 'v21.0';
+    private function graphVersion(): string
+    {
+        return (string) config('services.facebook.graph_version', 'v21.0');
+    }
 
     /**
      * Sincronizar templates desde Meta Graph API.
@@ -36,48 +39,48 @@ class WhatsAppTemplateService
 
         $wabaId = $config->waba_id;
 
-        $response = Http::withToken($token)
-            ->timeout(15)
-            ->get('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$wabaId}/message_templates", [
-                'fields' => 'id,name,language,status,category,components',
-                'limit' => 250,
-            ]);
-
-        if (! $response->successful()) {
-            Log::error('Error sincronizando templates de WhatsApp', [
-                'waba_id' => $wabaId,
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
-            throw new \RuntimeException('Error sincronizando templates: '.$response->body());
-        }
-
-        $templates = $response->json('data', []);
+        $nextUrl = 'https://graph.facebook.com/'.$this->graphVersion()."/{$wabaId}/message_templates";
+        $query = ['fields' => 'id,name,language,status,category,components,rejected_reason', 'limit' => 250];
         $syncedExternalIds = [];
         $count = 0;
 
-        foreach ($templates as $templateData) {
-            $externalId = $templateData['id'];
-            $syncedExternalIds[] = $externalId;
+        do {
+            $response = Http::withToken($token)->timeout(15)->get($nextUrl, $query);
+            if (! $response->successful()) {
+                Log::error('Error sincronizando templates de WhatsApp', [
+                    'waba_id' => $wabaId,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                throw new \RuntimeException('Error sincronizando templates: '.$response->body());
+            }
 
-            WhatsAppTemplate::updateOrCreate(
-                [
-                    'whatsapp_config_id' => $config->id,
-                    'external_id' => $externalId,
-                    'language' => $templateData['language'],
-                ],
-                [
-                    'tenant_id' => $tenantId,
-                    'name' => $templateData['name'],
-                    'category' => $templateData['category'],
-                    'status' => $templateData['status'],
-                    'components' => $templateData['components'] ?? [],
-                    'synced_at' => now(),
-                ]
-            );
+            foreach ($response->json('data', []) as $templateData) {
+                $externalId = $templateData['id'];
+                $syncedExternalIds[] = $externalId;
 
-            $count++;
-        }
+                WhatsAppTemplate::updateOrCreate(
+                    [
+                        'whatsapp_config_id' => $config->id,
+                        'external_id' => $externalId,
+                        'language' => $templateData['language'],
+                    ],
+                    [
+                        'tenant_id' => $tenantId,
+                        'name' => $templateData['name'],
+                        'category' => $templateData['category'],
+                        'status' => TemplateStatus::tryFrom((string) ($templateData['status'] ?? '')) ?? TemplateStatus::Unknown,
+                        'rejected_reason' => $templateData['rejected_reason'] ?? null,
+                        'components' => $templateData['components'] ?? [],
+                        'synced_at' => now(),
+                    ]
+                );
+                $count++;
+            }
+
+            $nextUrl = $response->json('paging.next');
+            $query = [];
+        } while ($nextUrl);
 
         // Marcar como DISABLED los templates que ya no existen en Meta
         if (! empty($syncedExternalIds)) {
@@ -104,7 +107,7 @@ class WhatsAppTemplateService
         $response = Http::withToken($token)
             ->timeout(60)
             ->attach('file', $file->get(), $file->getClientOriginalName(), ['Content-Type' => $file->getMimeType()])
-            ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$config->phone_number_id}/media", [
+            ->post('https://graph.facebook.com/'.$this->graphVersion()."/{$config->phone_number_id}/media", [
                 'messaging_product' => 'whatsapp',
                 'type' => $file->getMimeType(),
             ]);
@@ -114,6 +117,93 @@ class WhatsAppTemplateService
         }
 
         return (string) $response->json('id');
+    }
+
+    /**
+     * Upload the sample asset used during Meta template review.
+     * This is intentionally separate from /media, which is used to send messages.
+     */
+    public function uploadTemplateHeaderHandle(WhatsAppConfig $config, UploadedFile $file): string
+    {
+        $token = $config->getDecryptedToken();
+        $appId = config('services.facebook.app_id');
+        if (! $token || ! $appId) {
+            throw new \RuntimeException('Faltan credenciales de Meta para cargar el archivo de ejemplo.');
+        }
+
+        $contents = $file->get();
+        $session = Http::withToken($token)
+            ->timeout(60)
+            ->post('https://graph.facebook.com/'.$this->graphVersion()."/{$appId}/uploads", [
+                'file_length' => strlen($contents),
+                'file_type' => $file->getMimeType(),
+                'file_name' => $file->getClientOriginalName(),
+            ]);
+
+        if (! $session->successful() || ! $session->json('id')) {
+            throw new \RuntimeException('Error iniciando la carga del archivo en Meta: '.$session->body());
+        }
+
+        $upload = Http::withToken($token)
+            ->withHeaders(['file_offset' => '0'])
+            ->withBody($contents, $file->getMimeType() ?: 'application/octet-stream')
+            ->timeout(120)
+            ->post('https://graph.facebook.com/'.$this->graphVersion().'/'.$session->json('id'));
+
+        if (! $upload->successful() || ! $upload->json('h')) {
+            throw new \RuntimeException('Error subiendo el archivo de ejemplo a Meta: '.$upload->body());
+        }
+
+        return (string) $upload->json('h');
+    }
+
+    /**
+     * Create a template in the selected WABA and mirror the initial review state locally.
+     *
+     * @param array<string, mixed> $payload
+     */
+    public function createTemplate(WhatsAppConfig $config, int $tenantId, array $payload): WhatsAppTemplate
+    {
+        $token = $config->getDecryptedToken();
+        if (! $token) {
+            throw new \RuntimeException('No se pudo desencriptar el token de WhatsApp');
+        }
+
+        $response = Http::withToken($token)
+            ->timeout(30)
+            ->post('https://graph.facebook.com/'.$this->graphVersion()."/{$config->waba_id}/message_templates", [
+                'name' => $payload['name'],
+                'language' => $payload['language'],
+                'category' => $payload['category'],
+                'parameter_format' => 'named',
+                'components' => $payload['components'],
+            ]);
+
+        if (! $response->successful() || ! $response->json('id')) {
+            Log::warning('Error creando template de WhatsApp', [
+                'waba_id' => $config->waba_id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            throw new \RuntimeException('Meta rechazó la creación de la plantilla: '.$response->json('error.message', $response->body()));
+        }
+
+        return WhatsAppTemplate::updateOrCreate(
+            [
+                'whatsapp_config_id' => $config->id,
+                'name' => $payload['name'],
+                'language' => $payload['language'],
+            ],
+            [
+                'tenant_id' => $tenantId,
+                'external_id' => (string) $response->json('id'),
+                'category' => $response->json('category', $payload['category']),
+                'status' => TemplateStatus::tryFrom((string) $response->json('status', 'PENDING')) ?? TemplateStatus::Pending,
+                'components' => $payload['components'],
+                'rejected_reason' => null,
+                'synced_at' => now(),
+            ],
+        );
     }
 
     /**
@@ -181,7 +271,7 @@ class WhatsAppTemplateService
 
         $response = Http::withToken($businessToken)
             ->timeout(10)
-            ->post('https://graph.facebook.com/'.self::GRAPH_VERSION."/{$businessPhoneId}/messages", $payload);
+            ->post('https://graph.facebook.com/'.$this->graphVersion()."/{$businessPhoneId}/messages", $payload);
 
         if (! $response->successful()) {
             throw new \RuntimeException('Error enviando template de WhatsApp: '.$response->body());

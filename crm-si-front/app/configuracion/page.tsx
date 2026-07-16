@@ -16,6 +16,7 @@ import { PipelineStagesCard } from "@/components/config/PipelineStagesCard"
 import { RolesCard } from "@/components/config/RolesCard"
 import { SucursalesCard } from "@/components/config/SucursalesCard"
 import { TeamInvitationsCard } from "@/components/config/TeamInvitationsCard"
+import { WhatsAppTemplatesSettings } from "@/components/config/WhatsAppTemplatesSettings"
 import { IntegrationsSection } from "@/components/config/integrations/IntegrationsSection"
 import { usePermission } from "@/hooks/usePermission"
 import { useTranslation } from "@/hooks/useTranslation"
@@ -60,6 +61,7 @@ export default function ConfiguracionPage() {
     "pipeline_stages.view",
     "pipeline_stages.manage",
   ])
+  const canViewTemplates = usePermission("templates.view")
   const sections = useMemo<SettingsSection[]>(
     () => [
       {
@@ -248,6 +250,11 @@ export default function ConfiguracionPage() {
                     {canViewFields && (
                       <div className="xl:col-span-2">
                         <FieldsCard />
+                      </div>
+                    )}
+                    {canViewTemplates && (
+                      <div className="xl:col-span-2">
+                        <WhatsAppTemplatesSettings />
                       </div>
                     )}
                   </div>

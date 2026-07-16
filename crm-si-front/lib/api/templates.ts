@@ -20,6 +20,53 @@ export async function getTemplates(channelId: number): Promise<WhatsAppTemplate[
   return Array.isArray(data) ? data : data.data ?? [];
 }
 
+export async function getManagedTemplates(channelId: number): Promise<WhatsAppTemplate[]> {
+  const token = getAuthToken();
+  if (!token) throw new Error("No authentication token found");
+  const res = await fetch(`/api/channels/${channelId}/templates?status=all`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throwApiError(res.status, data, "Error al cargar plantillas");
+  return Array.isArray(data) ? data : data.data ?? [];
+}
+
+export interface CreateTemplatePayload {
+  name: string;
+  language: string;
+  category: "MARKETING" | "UTILITY";
+  parameter_format: "named";
+  components: unknown[];
+}
+
+export async function createTemplate(channelId: number, payload: CreateTemplatePayload): Promise<WhatsAppTemplate> {
+  const token = getAuthToken();
+  if (!token) throw new Error("No authentication token found");
+  const res = await fetch(`/api/channels/${channelId}/templates`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throwApiError(res.status, data, "Error al crear la plantilla");
+  return data.data ?? data;
+}
+
+export async function uploadTemplateHeader(channelId: number, file: File): Promise<{ header_handle: string }> {
+  const token = getAuthToken();
+  if (!token) throw new Error("No authentication token found");
+  const body = new FormData();
+  body.append("file", file);
+  const res = await fetch(`/api/channels/${channelId}/templates/media`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throwApiError(res.status, data, "Error al cargar el archivo de ejemplo");
+  return data;
+}
+
 export async function syncTemplates(channelId: number): Promise<{ message: string; count: number }> {
   const token = getAuthToken();
   if (!token) throw new Error("No authentication token found");

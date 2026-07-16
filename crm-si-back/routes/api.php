@@ -470,7 +470,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('conversations/{id}/users/{userId}', [ConversationController::class, 'removeUser']);
 
     Route::get('channels/{channel}/templates', [WhatsAppTemplateController::class, 'index']);
+    Route::post('channels/{channel}/templates', [WhatsAppTemplateController::class, 'create']);
     Route::post('channels/{channel}/templates/sync', [WhatsAppTemplateController::class, 'sync']);
+    Route::post('channels/{channel}/templates/media', [WhatsAppTemplateController::class, 'uploadTemplateMedia']);
     Route::post('channels/{channel}/media', [WhatsAppTemplateController::class, 'uploadMedia']);
     Route::post('conversations/{conversation}/send-template', [WhatsAppTemplateController::class, 'send']);
 
