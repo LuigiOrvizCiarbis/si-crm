@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, X, CalendarIcon, Bell, Paperclip } from "lucide-react"
 import type { Task, TaskStatus, TaskPriority, TaskType } from "@/lib/types/task"
 import { format } from "date-fns"
+import { fromZonedTime, toZonedTime } from "date-fns-tz"
 import { es } from "date-fns/locale"
 import { toast } from "sonner"
 import { useTaskStore } from "@/store/useTaskStore"
@@ -29,6 +30,57 @@ interface PrefilledData {
   name?: string
   description?: string
   lockRelation?: boolean
+  meetingGuestEmail?: string
+}
+
+const COMMON_TIMEZONES = [
+  "America/Argentina/Buenos_Aires",
+  "America/Santiago",
+  "America/Montevideo",
+  "America/Sao_Paulo",
+  "America/Bogota",
+  "America/Lima",
+  "America/Mexico_City",
+  "America/New_York",
+  "Europe/Madrid",
+]
+
+const TIMEZONE_ALIASES: Record<string, string> = {
+  "America/Buenos_Aires": "America/Argentina/Buenos_Aires",
+}
+
+function normalizeTimezone(timezone: string): string {
+  return TIMEZONE_ALIASES[timezone] ?? timezone
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+function detectBrowserTimezone(): string {
+  try {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return normalizeTimezone(timezone || "America/Argentina/Buenos_Aires")
+  } catch {
+    return "America/Argentina/Buenos_Aires"
+  }
+}
+
+// Las reuniones se editan como "hora de pared" (string `yyyy-MM-ddTHH:mm`, sin
+// zona) y recién se convierten a instante al enviar, usando meetingTimezone.
+// Guardar un Date acá haría que el input se reinterprete en la zona del
+// navegador y no en la que eligió el usuario.
+function formatWallClock(date: Date, timezone: string): string {
+  return format(toZonedTime(date, timezone), "yyyy-MM-dd'T'HH:mm")
+}
+
+function wallClockToInstant(wallClock: string, timezone: string): Date {
+  return fromZonedTime(wallClock, timezone)
+}
+
+function addMinutesToWallClock(wallClock: string, minutes: number, timezone: string): string {
+  const shifted = new Date(wallClockToInstant(wallClock, timezone).getTime() + minutes * 60_000)
+  return formatWallClock(shifted, timezone)
 }
 
 interface NewTaskModalProps {
@@ -64,6 +116,12 @@ export function NewTaskModal({ open, onOpenChange, onCreateTask, prefilledData }
   const [relationId, setRelationId] = useState<string>("")
   const [isSaving, setIsSaving] = useState(false)
 
+  // Reunión (Google Calendar)
+  const [meetingStartsAt, setMeetingStartsAt] = useState<string>("")
+  const [meetingEndsAt, setMeetingEndsAt] = useState<string>("")
+  const [meetingTimezone, setMeetingTimezone] = useState<string>(detectBrowserTimezone())
+  const [meetingGuestEmail, setMeetingGuestEmail] = useState<string>("")
+
   useEffect(() => {
     if (!open) return
 
@@ -87,8 +145,32 @@ export function NewTaskModal({ open, onOpenChange, onCreateTask, prefilledData }
       if (prefilledData.description) setDescription(prefilledData.description)
       if (prefilledData.relationType) setRelationType(prefilledData.relationType)
       if (prefilledData.relationId) setRelationId(prefilledData.relationId)
+      if (prefilledData.meetingGuestEmail) setMeetingGuestEmail(prefilledData.meetingGuestEmail)
     }
   }, [open, prefilledData, users])
+
+  // Reunión: default de inicio/fin (+30min) y auto-completar el email del
+  // contacto relacionado como invitado, si no se cargó uno manualmente.
+  useEffect(() => {
+    if (type !== "reunion") return
+
+    if (!meetingStartsAt) {
+      const start = new Date()
+      start.setMinutes(start.getMinutes() + 30, 0, 0)
+      const startWallClock = formatWallClock(start, meetingTimezone)
+      setMeetingStartsAt(startWallClock)
+      setMeetingEndsAt(addMinutesToWallClock(startWallClock, 30, meetingTimezone))
+    }
+  }, [type, meetingStartsAt, meetingTimezone])
+
+  useEffect(() => {
+    if (type !== "reunion" || relationType !== "contact" || !relationId) return
+    if (meetingGuestEmail) return
+
+    const contact = contacts.find((c) => String(c.id) === relationId)
+    const contactEmail = contact?.email?.trim()
+    if (contactEmail && isValidEmail(contactEmail)) setMeetingGuestEmail(contactEmail)
+  }, [type, relationType, relationId, contacts, meetingGuestEmail])
 
   const handleAddChecklistItem = () => {
     if (newChecklistItem.trim()) {
@@ -117,19 +199,47 @@ export function NewTaskModal({ open, onOpenChange, onCreateTask, prefilledData }
       return
     }
 
-    if (!deadline) {
+    const isMeeting = type === "reunion"
+
+    if (!isMeeting && !deadline) {
       toast.error("El deadline es requerido")
       return
     }
 
+    if (isMeeting) {
+      if (assigneeId === "none") {
+        toast.error("La reunión necesita un responsable")
+        return
+      }
+      if (!meetingStartsAt || !meetingEndsAt) {
+        toast.error("La reunión necesita inicio y fin")
+        return
+      }
+      if (!meetingTimezone) {
+        toast.error("La reunión necesita una zona horaria")
+        return
+      }
+      if (meetingEndsAt <= meetingStartsAt) {
+        toast.error("El fin de la reunión debe ser posterior al inicio")
+        return
+      }
+      if (meetingGuestEmail.trim() && !isValidEmail(meetingGuestEmail.trim())) {
+        toast.error("El email del invitado no es válido")
+        return
+      }
+    }
+
     const relatedId = numericIdOrNull(relationId)
+    const normalizedTimezone = normalizeTimezone(meetingTimezone)
+    const meetingStartInstant = isMeeting ? wallClockToInstant(meetingStartsAt, normalizedTimezone) : null
+    const meetingEndInstant = isMeeting ? wallClockToInstant(meetingEndsAt, normalizedTimezone) : null
     const payload = {
       name: name.trim(),
       status,
       priority,
       type,
       assigned_to: assigneeId === "none" ? null : Number(assigneeId),
-      deadline: deadline.toISOString(),
+      deadline: isMeeting ? meetingStartInstant!.toISOString() : deadline!.toISOString(),
       description: description.trim(),
       checklist: checklistItems.map((item, idx) => ({
         id: `check-${Date.now()}-${idx}`,
@@ -141,6 +251,14 @@ export function NewTaskModal({ open, onOpenChange, onCreateTask, prefilledData }
       depends_on: [],
       attachments: [],
       synced_calendars: [],
+      ...(isMeeting
+        ? {
+            starts_at: meetingStartInstant!.toISOString(),
+            ends_at: meetingEndInstant!.toISOString(),
+            meeting_timezone: normalizedTimezone,
+            meeting_guest_email: meetingGuestEmail.trim() || null,
+          }
+        : {}),
       ...(relationType === "contact" && relatedId ? { contact_id: relatedId } : {}),
       ...(relationType === "pipeline" && relatedId ? { opportunity_id: relatedId } : {}),
       ...(relationType === "chat" && relatedId ? { conversation_id: relatedId } : {}),
@@ -173,6 +291,10 @@ export function NewTaskModal({ open, onOpenChange, onCreateTask, prefilledData }
     setRecurrence("")
     setRelationType("none")
     setRelationId("")
+    setMeetingStartsAt("")
+    setMeetingEndsAt("")
+    setMeetingTimezone(detectBrowserTimezone())
+    setMeetingGuestEmail("")
   }
 
   const getRelationOptions = () => {
@@ -277,7 +399,7 @@ export function NewTaskModal({ open, onOpenChange, onCreateTask, prefilledData }
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="assignee">
-                Responsable
+                Responsable {type === "reunion" && <span className="text-red-500">*</span>}
               </Label>
               <Select value={assigneeId} onValueChange={setAssigneeId}>
                 <SelectTrigger>
@@ -294,28 +416,105 @@ export function NewTaskModal({ open, onOpenChange, onCreateTask, prefilledData }
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>
-                Deadline <span className="text-red-500">*</span>
-              </Label>
-              <div className="relative">
-                <CalendarIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="date"
-                  value={deadline ? format(deadline, "yyyy-MM-dd") : ""}
-                  onChange={(event) => {
-                    if (!event.target.value) {
-                      setDeadline(undefined)
-                      return
-                    }
+            {type !== "reunion" && (
+              <div className="space-y-2">
+                <Label>
+                  Deadline <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <CalendarIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={deadline ? format(deadline, "yyyy-MM-dd") : ""}
+                    onChange={(event) => {
+                      if (!event.target.value) {
+                        setDeadline(undefined)
+                        return
+                      }
 
-                    setDeadline(new Date(`${event.target.value}T12:00:00`))
-                  }}
-                  className="h-10 pl-10"
-                />
+                      setDeadline(new Date(`${event.target.value}T12:00:00`))
+                    }}
+                    className="h-10 pl-10"
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </div>
+
+          {/* Meeting: inicio, fin, zona horaria, invitado (Google Calendar) */}
+          {type === "reunion" && (
+            <div className="space-y-4 rounded-md border border-border p-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>
+                    Inicio <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="datetime-local"
+                    value={meetingStartsAt}
+                    onChange={(event) => {
+                      const start = event.target.value
+                      setMeetingStartsAt(start)
+                      if (!start) return
+                      if (!meetingEndsAt || meetingEndsAt <= start) {
+                        setMeetingEndsAt(addMinutesToWallClock(start, 30, meetingTimezone))
+                      }
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>
+                    Fin <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="datetime-local"
+                    value={meetingEndsAt}
+                    onChange={(event) => setMeetingEndsAt(event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>
+                    Zona horaria <span className="text-red-500">*</span>
+                  </Label>
+                  <Select value={meetingTimezone} onValueChange={setMeetingTimezone}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(COMMON_TIMEZONES.includes(meetingTimezone)
+                        ? COMMON_TIMEZONES
+                        : [meetingTimezone, ...COMMON_TIMEZONES]
+                      ).map((tz) => (
+                        <SelectItem key={tz} value={tz}>
+                          {tz}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="meeting-guest-email">Email del invitado</Label>
+                  <Input
+                    id="meeting-guest-email"
+                    type="email"
+                    placeholder="invitado@ejemplo.com"
+                    value={meetingGuestEmail}
+                    onChange={(event) => setMeetingGuestEmail(event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Se creará un evento en tu Google Calendar con enlace de Google Meet. Si no conectaste tu cuenta, la
+                reunión queda pendiente de sincronizar (podés reintentarlo después desde Configuración).
+              </p>
+            </div>
+          )}
 
           {/* Description */}
           <div className="space-y-2">

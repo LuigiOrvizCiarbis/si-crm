@@ -25,6 +25,16 @@ export interface TaskRelation {
   label: string
 }
 
+export type TaskCalendarSyncStatus = "pending" | "synced" | "error" | "paused"
+
+export interface TaskCalendarSyncInfo {
+  status: TaskCalendarSyncStatus
+  htmlLink: string | null
+  meetLink: string | null
+  lastError: string | null
+  syncedAt: string | null
+}
+
 export interface Task {
   id: string
   name: string
@@ -45,4 +55,10 @@ export interface Task {
   updatedAt: string
   completedAt?: string
   syncedCalendars: string[] // ["google", "outlook", "icloud", "caldav"]
+  // Reunión (Google Calendar)
+  startsAt?: string // ISO date
+  endsAt?: string // ISO date
+  meetingTimezone?: string // IANA tz
+  meetingGuestEmail?: string
+  calendarSync?: TaskCalendarSyncInfo | null
 }

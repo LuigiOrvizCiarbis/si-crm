@@ -32,6 +32,7 @@ const EXPECTED_BUSINESS_PATTERNS = [
   /unauthorized/i,
   /validation/i,
   /validaci[oó]n/i,
+  /trial_expired/i,
 ];
 
 export function isExpectedBusinessErrorMessage(message: unknown) {

@@ -39,6 +39,7 @@ import { format } from "date-fns"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { useTaskStore } from "@/store/useTaskStore"
+import { CalendarSyncBadge } from "./CalendarSyncBadge"
 
 const taskTypeIcons = {
   reunion: Video,
@@ -469,16 +470,21 @@ export function TaskListView({ tasks }: { tasks: Task[] }) {
                         </Button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 group">
-                        <span className="font-medium text-foreground">{task.name}</span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                          onClick={() => handleEdit(task.id, "name", task.name)}
-                        >
-                          <Edit2 className="h-3 w-3" />
-                        </Button>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 group">
+                          <span className="font-medium text-foreground">{task.name}</span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                            onClick={() => handleEdit(task.id, "name", task.name)}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        {task.type === "reunion" && (
+                          <CalendarSyncBadge taskId={task.id} sync={task.calendarSync} />
+                        )}
                       </div>
                     )}
                   </TableCell>

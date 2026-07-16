@@ -4,8 +4,9 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ChevronLeft, ChevronRight, CalendarIcon, Send } from "lucide-react"
+import { ChevronLeft, ChevronRight, CalendarIcon } from "lucide-react"
 import type { Task } from "@/lib/types/task"
+import { CalendarSyncBadge } from "./CalendarSyncBadge"
 import {
   format,
   startOfMonth,
@@ -23,8 +24,6 @@ import {
   subDays,
 } from "date-fns"
 import { es } from "date-fns/locale"
-import { CalendarIntegrationsModal } from "./CalendarIntegrationsModal"
-import { toast } from "sonner"
 
 type CalendarView = "month" | "week" | "day"
 
@@ -38,8 +37,6 @@ const priorityColors = {
 export function TaskCalendarView({ tasks }: { tasks: Task[] }) {
   const [view, setView] = useState<CalendarView>("month")
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const [showIntegrations, setShowIntegrations] = useState(false)
 
   const handlePrevious = () => {
     if (view === "month") setCurrentDate(subMonths(currentDate, 1))
@@ -73,13 +70,6 @@ export function TaskCalendarView({ tasks }: { tasks: Task[] }) {
 
   const getTasksForDay = (date: Date) => {
     return tasks.filter((task) => task.deadline && isSameDay(new Date(task.deadline), date))
-  }
-
-  const handleSyncTask = (provider: string) => {
-    if (!selectedTask) return
-
-    // Mock sync
-    toast.success(`Tarea sincronizada con ${provider}`)
   }
 
   const days = getDaysInView()
@@ -160,11 +150,8 @@ export function TaskCalendarView({ tasks }: { tasks: Task[] }) {
                       {dayTasks.slice(0, 3).map((task) => (
                         <div
                           key={task.id}
-                          className={`text-xs p-1 rounded cursor-pointer hover:opacity-80 ${priorityColors[task.priority]} text-white truncate`}
-                          onClick={() => {
-                            setSelectedTask(task)
-                            setShowIntegrations(true)
-                          }}
+                          className={`text-xs p-1 rounded ${priorityColors[task.priority]} text-white truncate`}
+                          title={task.name}
                         >
                           {task.name}
                         </div>
@@ -205,11 +192,7 @@ export function TaskCalendarView({ tasks }: { tasks: Task[] }) {
                       {dayTasks.map((task) => (
                         <div
                           key={task.id}
-                          className={`p-2 rounded cursor-pointer hover:opacity-80 ${priorityColors[task.priority]} text-white`}
-                          onClick={() => {
-                            setSelectedTask(task)
-                            setShowIntegrations(true)
-                          }}
+                          className={`p-2 rounded ${priorityColors[task.priority]} text-white`}
                         >
                           <div className="text-xs font-medium mb-1">{task.name}</div>
                           <div className="text-xs opacity-80">{task.assignee}</div>
@@ -228,24 +211,18 @@ export function TaskCalendarView({ tasks }: { tasks: Task[] }) {
             <div className="space-y-3">
               {getTasksForDay(currentDate).map((task) => (
                 <div key={task.id} className={`p-4 rounded-lg ${priorityColors[task.priority]} text-white`}>
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
                       <h4 className="font-semibold mb-1">{task.name}</h4>
                       <p className="text-sm opacity-90">Responsable: {task.assignee}</p>
                       <p className="text-sm opacity-90">Tipo: {task.type}</p>
                       {task.description && <p className="text-sm mt-2 opacity-80">{task.description}</p>}
                     </div>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        setSelectedTask(task)
-                        setShowIntegrations(true)
-                      }}
-                    >
-                      <Send className="w-4 h-4 mr-2" />
-                      Enviar a calendario
-                    </Button>
+                    {task.type === "reunion" && (
+                      <div className="shrink-0 rounded-md bg-background/90 p-1.5">
+                        <CalendarSyncBadge taskId={task.id} sync={task.calendarSync} />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -260,17 +237,6 @@ export function TaskCalendarView({ tasks }: { tasks: Task[] }) {
           </div>
         )}
       </div>
-
-      {/* Calendar Integrations Modal */}
-      {selectedTask && (
-        <CalendarIntegrationsModal
-          open={showIntegrations}
-          onOpenChange={setShowIntegrations}
-          taskId={selectedTask.id}
-          taskName={selectedTask.name}
-          onSync={handleSyncTask}
-        />
-      )}
     </div>
   )
 }
