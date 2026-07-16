@@ -233,7 +233,11 @@ class IncomingWebhookController extends Controller
             'contacts.*.email' => ['nullable', 'email', 'max:255'],
             'contacts.*.phone' => ['nullable', 'string', 'max:50'],
             'contacts.*.custom_data' => ['nullable', 'array', 'max:50'],
-            'contacts.*.custom_data.*' => ['nullable', 'string', 'max:1000'],
+            // Sin forzar string aquí: el tipo real (string vs array para multi_select)
+            // depende de la definición de ContactField del tenant, que valida
+            // WebhookContactUpsertService vía ValidContactCustomData.
+            'contacts.*.custom_data.*' => ['nullable', 'max:1000'],
+            'contacts.*.custom_data.*.*' => ['nullable', 'string', 'max:1000'],
         ];
     }
 

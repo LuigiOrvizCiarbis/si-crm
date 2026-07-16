@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ChevronDown, ChevronLeft, ChevronRight, LogOut, Menu } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -165,15 +166,16 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
         )}
       >
         {!isCollapsed && (
-          <>
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-400 shadow-sm">
-              <span className="text-xs font-bold text-white tracking-wide">SI</span>
-            </div>
-            <div className="flex-1">
-              <h1 className="font-bold text-sidebar-foreground">SI CRM</h1>
-              <p className="text-xs text-muted-foreground">{t("nav.dashboard")}</p>
-            </div>
-          </>
+          <div className="flex-1">
+            <Image
+              src="/logo_bims.jpg"
+              alt="BIMS"
+              width={160}
+              height={48}
+              className="h-8 w-auto object-contain"
+              priority
+            />
+          </div>
         )}
         <Button variant="ghost" size="sm" onClick={onToggle} className="p-2 hover:bg-sidebar-accent">
           {isCollapsed ? <Menu className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -182,12 +184,9 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
 
       {!isCollapsed && user?.tenant?.name && (
         <div className="px-4 py-3 border-b border-sidebar-border">
-          <button
-            type="button"
-            className="w-full flex items-center gap-3 rounded-md p-2 hover:bg-sidebar-accent transition-colors"
-          >
+          <div className="w-full flex items-center gap-3 rounded-md p-2">
             <Avatar className="h-9 w-9">
-              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-violet-500 text-white text-xs font-semibold">
+              <AvatarFallback className="bg-linear-to-br from-blue-500 to-violet-500 text-white text-xs font-semibold">
                 {user.tenant.name
                   .split(" ")
                   .map((part) => part[0])
@@ -204,8 +203,7 @@ export function CrmSidebar({ className, isCollapsed = false, onToggle }: Sidebar
                 {t("tenant.activeClient")}
               </p>
             </div>
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-          </button>
+          </div>
         </div>
       )}
 
