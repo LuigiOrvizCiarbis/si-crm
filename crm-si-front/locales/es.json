@@ -1216,5 +1216,49 @@
       "viewPlans": "Ver planes",
       "logout": "Cerrar sesión"
     }
+  },
+  "pricing": {
+    "back": "Volver a Configuración",
+    "title": "Planes y precios",
+    "subtitle": "Elegí el plan que mejor se adapte a tu equipo",
+    "perMonth": "U$D/mes",
+    "freePrice": "Gratis",
+    "customPrice": "A medida",
+    "currentPlan": "Tu plan",
+    "currentPlanCta": "Plan actual",
+    "contactSales": "Contactar ventas",
+    "trialDaysLeft": "{{count}} días de prueba restantes",
+    "trialDaysLeftOne": "1 día de prueba restante",
+    "comparisonTitle": "Comparación detallada",
+    "comparisonFeature": "Características",
+    "loadError": "No pudimos cargar los planes.",
+    "retry": "Reintentar",
+    "helpTitle": "¿Necesitás ayuda para elegir?",
+    "helpDescription": "Nuestro equipo te ayuda a encontrar el plan que mejor encaje con tu operación.",
+    "customValue": "A medida",
+    "compare": {
+      "users": "Usuarios",
+      "channel_accounts": "Cuentas por canal",
+      "conversations_month": "Conversaciones nuevas al mes",
+      "ai": "Chatbot IA"
+    },
+    "features": {
+      "users_1": "1 usuario",
+      "channel_accounts_1": "1 cuenta por canal",
+      "contacts_csv": "Contactos e importación CSV",
+      "realtime_inbox": "Bandeja multicanal en tiempo real",
+      "pipeline_kanban": "Pipeline de ventas con Kanban",
+      "everything_free": "Todo lo del plan Free",
+      "team_roles": "Equipo con roles y permisos",
+      "multi_channel_accounts": "Múltiples cuentas por canal",
+      "ai_autoreply": "Chatbot IA con tu propia API key",
+      "product_catalog": "Catálogo de productos",
+      "webhooks": "Webhooks entrantes y salientes",
+      "custom_fields": "Campos personalizados",
+      "everything_pro": "Todo lo del plan Pro",
+      "custom_limits": "Límites a medida",
+      "priority_support": "Soporte prioritario",
+      "custom_integrations": "Integraciones a medida"
+    }
   }
 }
