@@ -111,10 +111,10 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
 
   const mainNavItems = [
     {
-      href: "/",
+      href: "/dashboard",
       icon: BarChart3,
       label: "Panel",
-      isActive: pathname === "/",
+      isActive: pathname === "/dashboard",
     },
     {
       href: "/chats",

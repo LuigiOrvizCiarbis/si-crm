@@ -2,7 +2,7 @@
   "name": "Social Impulse CRM",
   "short_name": "Social Impulse",
   "description": "CRM Conversacional con IA para WhatsApp, Instagram y más canales",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#0F1117",
   "theme_color": "#0F1117",

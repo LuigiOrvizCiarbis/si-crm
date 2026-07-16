@@ -8,6 +8,8 @@ This repository is a monorepo with two main apps:
 Top-level `README.md` also defines branch flow (`feature/*` -> `dev` -> `test` -> `main`).
 
 ## Build, Test, and Development Commands
+The project runs in Docker. Prefer executing development, build, test, and maintenance commands inside the appropriate Docker Compose service instead of directly on the host.
+
 Frontend (`crm-si-front`):
 - `npm run dev`: start local Next.js dev server.
 - `npm run lint`: run Next.js lint checks.
@@ -19,7 +21,7 @@ Backend (`crm-si-back`):
 - `php artisan serve`: run API only.
 - `composer test` or `php artisan test`: execute PHPUnit tests.
 
-Docker options exist in each app (`docker-compose.yaml` / `docker-compose.yml`) for containerized runs.
+Docker Compose definitions exist in each app (`docker-compose.yaml` / `docker-compose.yml`).
 
 ## Coding Style & Naming Conventions
 - Frontend: TypeScript + React function components, path aliases via `@/`, PascalCase for components (`ChatHeader.tsx`), camelCase for hooks/utilities (`useFacebookSDK.ts`), and route folders in lowercase (`app/chats/page.tsx`).
