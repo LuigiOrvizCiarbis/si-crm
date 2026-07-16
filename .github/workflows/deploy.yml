@@ -14,7 +14,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
@@ -22,6 +22,8 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          # default 10m corta el build del front (Next.js + TS en el VPS tarda más)
+          command_timeout: 40m
           script: |
             set -eu
 
@@ -54,14 +56,16 @@ jobs:
             cd crm-si-back
             docker compose -f docker-compose.prod.yml build
             docker compose -f docker-compose.prod.yml up -d
-            docker compose -f docker-compose.prod.yml exec -T app php artisan migrate --force
-            docker compose -f docker-compose.prod.yml exec -T app php artisan db:seed --class=ProductionSeeder --force
-            docker compose -f docker-compose.prod.yml exec -T app php artisan optimize:clear
-            docker compose -f docker-compose.prod.yml exec -T app php artisan config:clear
-            docker compose -f docker-compose.prod.yml exec -T app php artisan cache:clear
-            docker compose -f docker-compose.prod.yml exec -T app php artisan config:cache
-            docker compose -f docker-compose.prod.yml exec -T app php artisan view:cache
-            docker compose -f docker-compose.prod.yml exec -T app php artisan queue:restart || true
+            # -u www-data: exec como root crea logs/caches en storage que apache
+            # (www-data) después no puede escribir → "Permission denied" al loguear
+            docker compose -f docker-compose.prod.yml exec -T -u www-data app php artisan migrate --force
+            docker compose -f docker-compose.prod.yml exec -T -u www-data app php artisan db:seed --class=ProductionSeeder --force
+            docker compose -f docker-compose.prod.yml exec -T -u www-data app php artisan optimize:clear
+            docker compose -f docker-compose.prod.yml exec -T -u www-data app php artisan config:clear
+            docker compose -f docker-compose.prod.yml exec -T -u www-data app php artisan cache:clear
+            docker compose -f docker-compose.prod.yml exec -T -u www-data app php artisan config:cache
+            docker compose -f docker-compose.prod.yml exec -T -u www-data app php artisan view:cache
+            docker compose -f docker-compose.prod.yml exec -T -u www-data app php artisan queue:restart || true
             docker compose -f docker-compose.prod.yml ps
             wait_for_http "Backend" "http://localhost:8000"
 

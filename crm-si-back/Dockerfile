@@ -53,11 +53,12 @@ EXPOSE 80 443
 # ── Production ──
 FROM base AS production
 
-COPY --from=build /app /var/www/html
+# --chown en el COPY: un chown -R posterior duplicaría todo el árbol (vendor
+# incluido) en una capa nueva y tarda varios minutos en el VPS. Solo storage y
+# bootstrap/cache necesitan permisos de escritura extra (árboles chicos).
+COPY --from=build --chown=www-data:www-data /app /var/www/html
 
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
