@@ -48,7 +48,14 @@ export interface WebhookContactField {
 
 export interface WebhookDelivery {
   id: number
-  status: "received" | "processed" | "partial" | "failed" | "rejected"
+  status:
+    | "received"
+    | "queued"
+    | "processing"
+    | "processed"
+    | "partial"
+    | "failed"
+    | "rejected"
   http_status: number | null
   created: number | null
   updated: number | null

@@ -500,3 +500,10 @@ Route::get('google-calendar/callback', [GoogleCalendarConnectionController::clas
 // X-Api-Key por endpoint (no Sanctum). Rate limit por api key (ver AppServiceProvider).
 Route::post('incoming-webhooks/{slug}', [IncomingWebhookController::class, 'handle'])
     ->middleware('throttle:incoming-webhooks');
+
+// Import bulk asíncrono: acepta batches grandes, responde 202 y procesa en cola.
+// El status del delivery se consulta por GET (polling), misma X-Api-Key.
+Route::post('incoming-webhooks/{slug}/bulk', [IncomingWebhookController::class, 'bulk'])
+    ->middleware('throttle:incoming-webhooks');
+Route::get('incoming-webhooks/{slug}/deliveries/{deliveryId}', [IncomingWebhookController::class, 'showDelivery'])
+    ->middleware('throttle:incoming-webhooks');
