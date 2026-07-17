@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AiConfigController;
+use App\Http\Controllers\Api\AutomationController;
+use App\Http\Controllers\Api\AutomationRunController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\ChannelController;
 use App\Http\Controllers\Api\ContactController;
@@ -369,6 +371,19 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('permissions', [PermissionController::class, 'index']);
 
+    Route::get('automations/metadata', [AutomationController::class, 'metadata']);
+    Route::get('automations', [AutomationController::class, 'index']);
+    Route::post('automations', [AutomationController::class, 'store']);
+    Route::get('automations/{automation}', [AutomationController::class, 'show']);
+    Route::put('automations/{automation}', [AutomationController::class, 'update']);
+    Route::delete('automations/{automation}', [AutomationController::class, 'destroy']);
+    Route::post('automations/{automation}/activate', [AutomationController::class, 'activate']);
+    Route::post('automations/{automation}/pause', [AutomationController::class, 'pause']);
+    Route::post('automations/{automation}/preview', [AutomationController::class, 'preview']);
+    Route::get('automations/{automation}/runs', [AutomationController::class, 'runs']);
+    Route::get('automation-runs/{run}', [AutomationRunController::class, 'show']);
+    Route::post('automation-runs/{run}/retry', [AutomationRunController::class, 'retry']);
+
     Route::get('contacts', [ContactController::class, 'index']);
     Route::get('contacts/summary', [ContactController::class, 'summary']);
     Route::post('contacts', [ContactController::class, 'store']);
@@ -471,6 +486,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('channels/{channel}/templates', [WhatsAppTemplateController::class, 'index']);
     Route::post('channels/{channel}/templates', [WhatsAppTemplateController::class, 'create']);
+    Route::delete('channels/{channel}/templates/{template}', [WhatsAppTemplateController::class, 'destroy']);
     Route::post('channels/{channel}/templates/sync', [WhatsAppTemplateController::class, 'sync']);
     Route::post('channels/{channel}/templates/media', [WhatsAppTemplateController::class, 'uploadTemplateMedia']);
     Route::post('channels/{channel}/media', [WhatsAppTemplateController::class, 'uploadMedia']);
