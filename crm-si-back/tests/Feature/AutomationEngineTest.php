@@ -53,6 +53,26 @@ class AutomationEngineTest extends TestCase
             ->assertJsonPath('data.status', 'draft');
     }
 
+    public function test_rule_is_rejected_when_template_body_parameters_are_missing(): void
+    {
+        // El template de context() tiene un body con {{nombre}}, así que exige
+        // exactamente un parámetro. Guardar la acción sin ninguno reproduce el
+        // error 132000 de Meta, pero ahora frenado en validación.
+        [$owner, $channel, $template] = $this->context();
+        Sanctum::actingAs($owner);
+
+        $emptyParams = $this->payload($channel->id, $template->id);
+        $emptyParams['actions'][0]['config']['parameters'] = [];
+
+        $this->postJson('/api/automations', $emptyParams)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('actions.0.parameters');
+
+        // El happy path (un parámetro que coincide con {{nombre}}) sigue creando.
+        $this->postJson('/api/automations', $this->payload($channel->id, $template->id))
+            ->assertCreated();
+    }
+
     public function test_legacy_timezone_aliases_are_canonicalized_before_validation(): void
     {
         [$owner, $channel, $template] = $this->context();
