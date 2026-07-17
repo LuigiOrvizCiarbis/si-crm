@@ -4,14 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\ChannelType;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\SendTemplateRequest;
 use App\Http\Requests\CreateWhatsAppTemplateRequest;
+use App\Http\Requests\SendTemplateRequest;
 use App\Models\Channel;
 use App\Models\Conversation;
 use App\Models\WhatsAppTemplate;
 use App\Services\WhatsAppTemplateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class WhatsAppTemplateController extends Controller
 {
@@ -107,6 +108,25 @@ class WhatsAppTemplateController extends Controller
             return response()->json([
                 'header_handle' => $this->templateService->uploadTemplateHeaderHandle($waConfig, $request->file('file')),
             ], 201);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    public function destroy(Request $request, Channel $channel, WhatsAppTemplate $template): Response|JsonResponse
+    {
+        $this->authorizeTemplateChannel($request, $channel);
+        $this->authorize('delete', $template);
+
+        $waConfig = $channel->whatsappConfig;
+        if (! $waConfig || $template->whatsapp_config_id !== $waConfig->id) {
+            abort(404);
+        }
+
+        try {
+            $this->templateService->deleteTemplate($waConfig, $template);
+
+            return response()->noContent();
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }

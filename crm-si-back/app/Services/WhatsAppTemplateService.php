@@ -13,6 +13,7 @@ use App\Models\Message;
 use App\Models\User;
 use App\Models\WhatsAppConfig;
 use App\Models\WhatsAppTemplate;
+use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
@@ -160,7 +161,7 @@ class WhatsAppTemplateService
     /**
      * Create a template in the selected WABA and mirror the initial review state locally.
      *
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function createTemplate(WhatsAppConfig $config, int $tenantId, array $payload): WhatsAppTemplate
     {
@@ -207,6 +208,56 @@ class WhatsAppTemplateService
     }
 
     /**
+     * Permanently delete one template translation from Meta and its local mirror.
+     */
+    public function deleteTemplate(WhatsAppConfig $config, WhatsAppTemplate $template): void
+    {
+        $token = $config->getDecryptedToken();
+        if (! $token) {
+            throw new \RuntimeException('No se pudo desencriptar el token de WhatsApp');
+        }
+
+        $response = Http::withToken($token)
+            ->timeout(30)
+            ->withQueryParameters([
+                'hsm_id' => $template->external_id,
+                'name' => $template->name,
+            ])
+            ->delete('https://graph.facebook.com/'.$this->graphVersion()."/{$config->waba_id}/message_templates");
+
+        if (($response->successful() && $response->json('success') === true) || $this->templateNoLongerExists($response)) {
+            $template->delete();
+
+            return;
+        }
+
+        Log::warning('Error eliminando template de WhatsApp', [
+            'waba_id' => $config->waba_id,
+            'template_id' => $template->external_id,
+            'status' => $response->status(),
+            'body' => $response->body(),
+        ]);
+
+        $message = $response->json('error.error_data.details')
+            ?? $response->json('error.message')
+            ?? $response->body();
+
+        throw new \RuntimeException('Meta no pudo eliminar la plantilla: '.$message);
+    }
+
+    /**
+     * Meta's documented subcode for "template name does not exist" on the
+     * DELETE /message_templates endpoint. A bare 404 or a message-text match
+     * is not reliable enough to justify deleting the local mirror.
+     */
+    private const TEMPLATE_NOT_FOUND_SUBCODE = 2388023;
+
+    private function templateNoLongerExists(Response $response): bool
+    {
+        return $response->json('error.error_subcode') === self::TEMPLATE_NOT_FOUND_SUBCODE;
+    }
+
+    /**
      * Tokens de personalización que se resuelven por conversación al enviar.
      * Permiten que una difusión salga personalizada: el valor del parámetro
      * puede ser "{{nombre}}" y cada destinatario recibe su propio nombre.
@@ -241,7 +292,7 @@ class WhatsAppTemplateService
         Conversation $conversation,
         WhatsAppTemplate $template,
         array $components,
-        User $sender,
+        ?User $sender,
     ): Message {
         $components = $this->resolvePersonalizationTokens($components, $conversation);
 
@@ -274,7 +325,7 @@ class WhatsAppTemplateService
             ->post('https://graph.facebook.com/'.$this->graphVersion()."/{$businessPhoneId}/messages", $payload);
 
         if (! $response->successful()) {
-            throw new \RuntimeException('Error enviando template de WhatsApp: '.$response->body());
+            throw new \RuntimeException("Error enviando template de WhatsApp [{$response->status()}]: ".$response->body());
         }
 
         // Generar resumen legible del template para el historial de chat
@@ -283,8 +334,8 @@ class WhatsAppTemplateService
         $message = Message::create([
             'tenant_id' => $conversation->tenant_id,
             'conversation_id' => $conversation->id,
-            'sender_type' => SenderType::USER,
-            'sender_id' => $sender->id,
+            'sender_type' => $sender ? SenderType::USER : SenderType::SYSTEM,
+            'sender_id' => $sender?->id,
             'content' => $contentSummary,
             'message_type' => MessageType::Text,
             'direction' => MessageDirection::OUTBOUND,
@@ -297,9 +348,9 @@ class WhatsAppTemplateService
         $conversation->update([
             'last_message_at' => $message->created_at,
             'last_message_content' => $contentSummary,
-            // Handoff: si un agente envía una plantilla, el bot se apaga en esta
-            // conversación (mismo criterio que los send*FromCRM de texto/media).
-            'ai_autoreply_enabled' => false,
+            // Un envío humano hace handoff; una automatización del sistema no
+            // debe desactivar el bot de la conversación.
+            ...($sender ? ['ai_autoreply_enabled' => false] : []),
         ]);
 
         try {
@@ -310,6 +361,14 @@ class WhatsAppTemplateService
         }
 
         return $message;
+    }
+
+    public function sendSystemTemplateMessage(
+        Conversation $conversation,
+        WhatsAppTemplate $template,
+        array $components,
+    ): Message {
+        return $this->sendTemplateMessage($conversation, $template, $components, null);
     }
 
     /**

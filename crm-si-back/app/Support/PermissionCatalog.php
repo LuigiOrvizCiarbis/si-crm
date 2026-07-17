@@ -105,10 +105,15 @@ class PermissionCatalog
                 'webhooks.view',
                 'webhooks.manage',
             ],
+            'automations' => [
+                'automations.view',
+                'automations.manage',
+            ],
             'templates' => [
                 'templates.view',
                 'templates.sync',
                 'templates.create',
+                'templates.delete',
                 'templates.send',
             ],
             'analytics' => [

@@ -85,6 +85,24 @@ export async function syncTemplates(channelId: number): Promise<{ message: strin
   return data;
 }
 
+export async function deleteTemplate(channelId: number, templateId: number): Promise<void> {
+  const token = getAuthToken();
+  if (!token) throw new Error("No authentication token found");
+
+  const res = await fetch(`/api/channels/${channelId}/templates/${templateId}`, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throwApiError(res.status, data, "Error al eliminar la plantilla");
+  }
+}
+
 /**
  * Sube un archivo a Meta (vía backend) para usarlo como header de plantilla.
  * Devuelve el media id de Meta (válido ~30 días).
