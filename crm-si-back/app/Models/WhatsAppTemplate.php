@@ -58,4 +58,29 @@ class WhatsAppTemplate extends Model
     {
         return $this->status === TemplateStatus::Approved;
     }
+
+    /**
+     * Parámetros que el body del template exige, en orden de aparición.
+     *
+     * Meta admite dos estilos de variable, mutuamente excluyentes por template:
+     * nombradas ({{cliente}}) o posicionales ({{1}}). Para las nombradas se
+     * devuelve el nombre; para las posicionales, el índice como string ("1").
+     * Es la fuente de verdad tanto para validar la acción como para prellenar
+     * el formulario, así ambos lados cuentan lo mismo que después cuenta Meta.
+     *
+     * @return list<string>
+     */
+    public function expectedBodyParameters(): array
+    {
+        $body = collect($this->components ?? [])
+            ->first(fn ($component) => strtoupper($component['type'] ?? '') === 'BODY');
+
+        if (! $body || empty($body['text'])) {
+            return [];
+        }
+
+        preg_match_all('/\{\{\s*([^}]+?)\s*\}\}/', (string) $body['text'], $matches);
+
+        return array_values(array_unique($matches[1]));
+    }
 }

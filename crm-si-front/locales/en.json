@@ -719,6 +719,7 @@
       "selectTemplate": "Select template",
       "parameters": "Parameters",
       "parametersHint": "Use a literal or a context path with an optional fallback.",
+      "parameterCountMismatch": "The template expects {expected} body parameter(s) and you defined {provided}. WhatsApp will reject the send if they don't match.",
       "parameter": "Parameter",
       "field": "Field",
       "literal": "Literal",

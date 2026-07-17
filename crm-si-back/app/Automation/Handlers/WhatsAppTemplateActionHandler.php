@@ -63,6 +63,28 @@ class WhatsAppTemplateActionHandler implements ActionHandler
             }
         }
 
+        // Meta rechaza (error 132000) todo envío cuya cantidad de parámetros de
+        // body no coincida exactamente con la del template. Se valida acá para
+        // que una regla incompleta no se guarde y falle en cada disparo,
+        // gastando cuota, en lugar de avisar al crearla.
+        if ($template) {
+            $expected = $template->expectedBodyParameters();
+            $provided = array_values(array_filter(
+                $config['parameters'] ?? [],
+                fn ($parameter) => strtolower($parameter['component'] ?? 'body') === 'body',
+            ));
+
+            if (count($provided) !== count($expected)) {
+                $errors['parameters'][] = "El template «{$template->name}» espera ".count($expected).' parámetro(s) de cuerpo y la acción define '.count($provided).'.';
+            }
+
+            $providedNames = array_filter(array_map(fn ($parameter) => $parameter['name'] ?? null, $provided));
+            $missing = array_diff($expected, $providedNames);
+            if ($missing !== [] && $providedNames !== []) {
+                $errors['parameters'][] = 'Faltan parámetros del template: '.implode(', ', $missing).'.';
+            }
+        }
+
         return $errors;
     }
 

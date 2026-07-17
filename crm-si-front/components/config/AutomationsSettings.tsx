@@ -65,6 +65,30 @@ const triggers = [
 ] as const
 
 const operators = ["equals", "not_equals", "contains", "empty", "not_empty", "greater_than", "less_than", "in", "has_tag", "stage_is"]
+
+type ActionParameter = NonNullable<AutomationAction["config"]["parameters"]>[number]
+
+// Nombres de las variables {{...}} del body del template, en orden y sin
+// repetir. Debe contar lo mismo que WhatsAppTemplate::expectedBodyParameters()
+// en el backend, o el formulario prellenaría algo que la validación rechaza.
+function templateBodyParameters(template: WhatsAppTemplate | undefined): string[] {
+  const body = template?.components?.find((component) => component.type?.toUpperCase() === "BODY")
+  if (!body?.text) return []
+  const names = [...body.text.matchAll(/\{\{\s*([^}]+?)\s*\}\}/g)].map((match) => match[1])
+  return [...new Set(names)]
+}
+
+// Al elegir un template se prellenan sus parámetros mapeados al nombre del
+// contacto, que es el caso más común; el usuario ajusta fuente/ruta después.
+function parametersForTemplate(template: WhatsAppTemplate | undefined): ActionParameter[] {
+  return templateBodyParameters(template).map((name) => ({
+    component: "body",
+    name,
+    source: "field",
+    path: "contact.name",
+    fallback: "Cliente",
+  }))
+}
 const emptyGroup = (): ConditionGroup => ({ operator: "AND", conditions: [] })
 const emptyAction = (): AutomationAction => ({ type: "whatsapp_template", config: { parameters: [] } })
 
@@ -438,15 +462,20 @@ function ConditionEditor({ group, onChange, fieldOptions, t, depth = 0 }: { grou
 function ActionEditor({ index, action, channels, templates, onLoadTemplates, onChange, onRemove, t }: { index: number; action: AutomationAction; channels: Channel[]; templates: Record<number, WhatsAppTemplate[]>; onLoadTemplates: (id: number) => Promise<void>; onChange: (action: AutomationAction) => void; onRemove: () => void; t: (key: string) => string }) {
   const config = action.config
   const parameters = config.parameters ?? []
+  const selectedTemplate = (templates[config.channel_id ?? 0] ?? []).find((item) => item.id === config.template_id)
+  const expectedBodyParams = templateBodyParameters(selectedTemplate)
+  const bodyParamCount = parameters.filter((parameter) => (parameter.component ?? "body") === "body").length
+  const paramCountMismatch = Boolean(config.template_id) && bodyParamCount !== expectedBodyParams.length
   return (
     <div className="relative rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><span className="flex size-6 items-center justify-center rounded-full border border-border bg-muted text-xs font-semibold">{index + 1}</span><p className="text-sm font-medium">{t("settings.automations.whatsappTemplate")}</p></div><Button variant="ghost" size="icon" aria-label={t("settings.automations.removeAction")} disabled={index === 0} onClick={onRemove}><Trash2 className="size-4 text-destructive" /></Button></div>
       <div className="grid gap-4 md:grid-cols-2">
         <Field label={t("settings.automations.channel")}><Select value={config.channel_id ? String(config.channel_id) : ""} onValueChange={(value) => { const channelId = Number(value); onChange({ ...action, config: { ...config, channel_id: channelId, template_id: undefined } }); void onLoadTemplates(channelId) }}><SelectTrigger><SelectValue placeholder={t("settings.automations.selectChannel")} /></SelectTrigger><SelectContent>{channels.map((channel) => <SelectItem key={channel.id} value={String(channel.id)}>{channel.name}</SelectItem>)}</SelectContent></Select></Field>
-        <Field label={t("settings.automations.template")}><Select disabled={!config.channel_id} value={config.template_id ? String(config.template_id) : ""} onValueChange={(value) => onChange({ ...action, config: { ...config, template_id: Number(value) } })}><SelectTrigger><SelectValue placeholder={t("settings.automations.selectTemplate")} /></SelectTrigger><SelectContent>{(templates[config.channel_id ?? 0] ?? []).map((template) => <SelectItem key={template.id} value={String(template.id)}>{template.name} · {template.language}</SelectItem>)}</SelectContent></Select></Field>
+        <Field label={t("settings.automations.template")}><Select disabled={!config.channel_id} value={config.template_id ? String(config.template_id) : ""} onValueChange={(value) => { const templateId = Number(value); const template = (templates[config.channel_id ?? 0] ?? []).find((item) => item.id === templateId); const autofilled = parametersForTemplate(template); onChange({ ...action, config: { ...config, template_id: templateId, parameters: parameters.length ? parameters : autofilled } }) }}><SelectTrigger><SelectValue placeholder={t("settings.automations.selectTemplate")} /></SelectTrigger><SelectContent>{(templates[config.channel_id ?? 0] ?? []).map((template) => <SelectItem key={template.id} value={String(template.id)}>{template.name} · {template.language}</SelectItem>)}</SelectContent></Select></Field>
       </div>
       <div className="mt-5 border-t border-border pt-4">
         <div className="mb-3 flex items-center justify-between"><div><p className="text-sm font-medium">{t("settings.automations.parameters")}</p><p className="text-xs text-muted-foreground">{t("settings.automations.parametersHint")}</p></div><Button variant="outline" size="sm" onClick={() => onChange({ ...action, config: { ...config, parameters: [...parameters, { component: "body", source: "field", path: "contact.name", fallback: "Cliente" }] } })}><Plus className="mr-1 size-3.5" />{t("settings.automations.parameter")}</Button></div>
+        {paramCountMismatch && <p className="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{t("settings.automations.parameterCountMismatch").replace("{expected}", String(expectedBodyParams.length)).replace("{provided}", String(bodyParamCount))}</p>}
         <div className="space-y-2">{parameters.map((parameter, parameterIndex) => <div key={parameterIndex} className="grid gap-2 rounded-lg bg-muted/30 p-2 md:grid-cols-[120px_120px_1fr_1fr_auto]"><Input value={parameter.name ?? ""} onChange={(event) => onChange({ ...action, config: { ...config, parameters: parameters.map((item, itemIndex) => itemIndex === parameterIndex ? { ...item, name: event.target.value } : item) } })} placeholder="nombre" aria-label={t("settings.automations.parameter")} /><Select value={parameter.source} onValueChange={(source: "literal" | "field") => onChange({ ...action, config: { ...config, parameters: parameters.map((item, itemIndex) => itemIndex === parameterIndex ? { ...item, source } : item) } })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="field">{t("settings.automations.field")}</SelectItem><SelectItem value="literal">{t("settings.automations.literal")}</SelectItem></SelectContent></Select><Input value={parameter.source === "literal" ? parameter.value ?? "" : parameter.path ?? ""} onChange={(event) => onChange({ ...action, config: { ...config, parameters: parameters.map((item, itemIndex) => itemIndex === parameterIndex ? { ...item, ...(item.source === "literal" ? { value: event.target.value } : { path: event.target.value }) } : item) } })} placeholder={parameter.source === "literal" ? t("settings.automations.value") : "contact.name"} aria-label={t("settings.automations.value")} /><Input value={parameter.fallback ?? ""} onChange={(event) => onChange({ ...action, config: { ...config, parameters: parameters.map((item, itemIndex) => itemIndex === parameterIndex ? { ...item, fallback: event.target.value } : item) } })} placeholder={t("settings.automations.fallback")} aria-label={t("settings.automations.fallback")} /><Button variant="ghost" size="icon" aria-label={t("settings.automations.removeParameter")} onClick={() => onChange({ ...action, config: { ...config, parameters: parameters.filter((_, itemIndex) => itemIndex !== parameterIndex) } })}><X className="size-4" /></Button></div>)}</div>
       </div>
     </div>

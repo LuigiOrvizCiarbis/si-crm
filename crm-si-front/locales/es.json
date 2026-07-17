@@ -719,6 +719,7 @@
       "selectTemplate": "Seleccionar template",
       "parameters": "Parámetros",
       "parametersHint": "Usá un literal o una ruta del contexto con fallback.",
+      "parameterCountMismatch": "El template espera {expected} parámetro(s) de cuerpo y definiste {provided}. WhatsApp rechazará el envío si no coinciden.",
       "parameter": "Parámetro",
       "field": "Campo",
       "literal": "Literal",
