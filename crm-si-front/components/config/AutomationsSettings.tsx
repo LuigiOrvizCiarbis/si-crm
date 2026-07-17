@@ -67,12 +67,23 @@ const triggers = [
 const operators = ["equals", "not_equals", "contains", "empty", "not_empty", "greater_than", "less_than", "in", "has_tag", "stage_is"]
 const emptyGroup = (): ConditionGroup => ({ operator: "AND", conditions: [] })
 const emptyAction = (): AutomationAction => ({ type: "whatsapp_template", config: { parameters: [] } })
+
+// El backend valida contra DateTimeZone::ALL, que rechaza los alias legacy de
+// la IANA que algunos navegadores todavía reportan.
+const TIMEZONE_ALIASES: Record<string, string> = {
+  "America/Buenos_Aires": "America/Argentina/Buenos_Aires",
+}
+
+function normalizeTimezone(timezone: string): string {
+  return TIMEZONE_ALIASES[timezone] ?? timezone
+}
+
 const initialPayload = (): AutomationPayload => ({
   name: "",
   trigger_type: "contact.created",
   trigger_config: {},
   conditions: null,
-  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+  timezone: normalizeTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"),
   actions: [emptyAction()],
 })
 
@@ -96,7 +107,9 @@ export function AutomationsSettings() {
   const [preview, setPreview] = useState<Record<string, unknown> | null>(null)
 
   const timezones = useMemo(() => {
-    try { return Intl.supportedValuesOf("timeZone") } catch { return [] }
+    try {
+      return [...new Set(Intl.supportedValuesOf("timeZone").map(normalizeTimezone))].sort()
+    } catch { return [] }
   }, [])
   const actionsReady = form.actions.every((action) => Boolean(action.config.channel_id && action.config.template_id))
   const contactFieldOptions = useMemo(() => [
@@ -185,7 +198,7 @@ export function AutomationsSettings() {
     if (!form.name.trim()) return
     setSaving(true)
     try {
-      const payload = { ...form, name: form.name.trim(), conditions: conditionGroup.conditions.length ? conditionGroup : null }
+      const payload = { ...form, name: form.name.trim(), timezone: normalizeTimezone(form.timezone), conditions: conditionGroup.conditions.length ? conditionGroup : null }
       if (editing) await updateAutomation(editing.id, payload)
       else await createAutomation(payload)
       addToast({ type: "success", title: t(editing ? "settings.automations.updated" : "settings.automations.created") })
