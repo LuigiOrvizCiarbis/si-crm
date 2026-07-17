@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AutomationRun;
 use App\Models\WebhookDelivery;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -13,3 +14,5 @@ Artisan::command('inspire', function () {
 // (config/webhooks.php). Requiere que el scheduler corra en el deploy
 // (servicio `scheduler` en docker-compose.prod.yml).
 Schedule::command('model:prune', ['--model' => [WebhookDelivery::class]])->daily();
+Schedule::command('automations:dispatch-due')->everyMinute()->withoutOverlapping();
+Schedule::command('model:prune', ['--model' => [AutomationRun::class]])->dailyAt('02:15');

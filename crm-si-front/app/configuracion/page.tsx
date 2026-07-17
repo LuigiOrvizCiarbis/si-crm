@@ -17,6 +17,7 @@ import { RolesCard } from "@/components/config/RolesCard"
 import { SucursalesCard } from "@/components/config/SucursalesCard"
 import { TeamInvitationsCard } from "@/components/config/TeamInvitationsCard"
 import { WhatsAppTemplatesSettings } from "@/components/config/WhatsAppTemplatesSettings"
+import { AutomationsSettings } from "@/components/config/AutomationsSettings"
 import { IntegrationsSection } from "@/components/config/integrations/IntegrationsSection"
 import { usePermission } from "@/hooks/usePermission"
 import { useTranslation } from "@/hooks/useTranslation"
@@ -62,6 +63,7 @@ export default function ConfiguracionPage() {
     "pipeline_stages.manage",
   ])
   const canViewTemplates = usePermission("templates.view")
+  const canViewAutomations = usePermission("automations.view")
   const sections = useMemo<SettingsSection[]>(
     () => [
       {
@@ -255,6 +257,11 @@ export default function ConfiguracionPage() {
                     {canViewTemplates && (
                       <div className="xl:col-span-2">
                         <WhatsAppTemplatesSettings />
+                      </div>
+                    )}
+                    {canViewAutomations && (
+                      <div className="xl:col-span-2">
+                        <AutomationsSettings />
                       </div>
                     )}
                   </div>

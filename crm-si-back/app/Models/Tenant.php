@@ -113,6 +113,11 @@ class Tenant extends Model
         return $this->hasMany(Message::class);
     }
 
+    public function automationRules(): HasMany
+    {
+        return $this->hasMany(AutomationRule::class);
+    }
+
     /**
      * Scope para plan específico (por key)
      */

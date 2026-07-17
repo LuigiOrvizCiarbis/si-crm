@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Automation\AutomationRegistry;
+use App\Automation\Handlers\DateTriggerHandler;
+use App\Automation\Handlers\EventTriggerHandler;
+use App\Automation\Handlers\WhatsAppTemplateActionHandler;
 use App\Models\Branch;
 use App\Models\Channel;
 use App\Models\Contact;
@@ -14,6 +18,8 @@ use App\Models\Tag;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\WhatsAppTemplate;
+use App\Observers\ContactAutomationObserver;
+use App\Observers\ConversationAutomationObserver;
 use App\Observers\MessageObserver;
 use App\Policies\BranchPolicy;
 use App\Policies\ChannelPolicy;
@@ -47,7 +53,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(AutomationRegistry::class, fn ($app) => new AutomationRegistry(
+            triggers: [
+                new EventTriggerHandler('contact.created', 'Contacto creado', 'contact'),
+                new EventTriggerHandler('contact.field_changed', 'Campo de contacto modificado', 'contact', true),
+                new EventTriggerHandler('conversation.created', 'Conversación creada', 'conversation'),
+                new EventTriggerHandler('conversation.stage_changed', 'Etapa de conversación modificada', 'conversation'),
+                new EventTriggerHandler('conversation.status_changed', 'Estado de conversación modificado', 'conversation'),
+                new DateTriggerHandler,
+            ],
+            actions: [$app->make(WhatsAppTemplateActionHandler::class)],
+        ));
     }
 
     /**
@@ -61,6 +77,8 @@ class AppServiceProvider extends ServiceProvider
         );
 
         Message::observe(MessageObserver::class);
+        Contact::observe(ContactAutomationObserver::class);
+        Conversation::observe(ConversationAutomationObserver::class);
 
         // Rate limit del endpoint público de webhooks entrantes: por api key
         // (varios tenants pueden compartir IP), con fallback a IP si no vino la key.

@@ -27,6 +27,11 @@ class WhatsAppTemplatePolicy
         return $user->can('templates.create');
     }
 
+    public function delete(User $user, WhatsAppTemplate $template): bool
+    {
+        return $user->can('templates.delete');
+    }
+
     public function send(User $user): bool
     {
         return $user->can('templates.send');

@@ -1,7 +1,17 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Check, ChevronDown, FileImage, Loader2, Plus, RefreshCw, X } from "lucide-react"
+import { Check, ChevronDown, FileImage, Loader2, Plus, RefreshCw, Trash2, X } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,7 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/Toast"
 import { usePermission } from "@/hooks/usePermission"
-import { createTemplate, getManagedTemplates, syncTemplates, uploadTemplateHeader } from "@/lib/api/templates"
+import { createTemplate, deleteTemplate, getManagedTemplates, syncTemplates, uploadTemplateHeader } from "@/lib/api/templates"
 import { getChannels } from "@/lib/api/channels"
 import { Channel, WhatsAppTemplate } from "@/data/types"
 import { ChannelType } from "@/data/enums"
@@ -33,6 +43,7 @@ const statusLabel: Record<string, string> = {
 
 export function WhatsAppTemplatesSettings() {
   const canCreate = usePermission("templates.create")
+  const canDelete = usePermission("templates.delete")
   const canSync = usePermission("templates.sync")
   const { addToast } = useToast()
   const [channels, setChannels] = useState<Channel[]>([])
@@ -43,6 +54,8 @@ export function WhatsAppTemplatesSettings() {
   const [showForm, setShowForm] = useState(false)
   const [query, setQuery] = useState("")
   const [stateFilter, setStateFilter] = useState("ALL")
+  const [deleteTarget, setDeleteTarget] = useState<WhatsAppTemplate | null>(null)
+  const [deletingTemplateId, setDeletingTemplateId] = useState<number | null>(null)
 
   const whatsappChannels = useMemo(
     () => channels.filter((channel) => channel.type === ChannelType.WHATSAPP && channel.whatsapp_config),
@@ -85,6 +98,23 @@ export function WhatsAppTemplatesSettings() {
     } finally { setSyncing(false) }
   }
 
+  const handleDelete = async () => {
+    if (!channelId || !deleteTarget || deletingTemplateId !== null) return
+
+    const templateId = deleteTarget.id
+    setDeletingTemplateId(templateId)
+    try {
+      await deleteTemplate(channelId, templateId)
+      setTemplates((current) => current.filter((template) => template.id !== templateId))
+      setDeleteTarget(null)
+      addToast({ type: "success", title: "Plantilla eliminada de Meta y del CRM." })
+    } catch (error: any) {
+      addToast({ type: "error", title: error?.message || "No se pudo eliminar la plantilla" })
+    } finally {
+      setDeletingTemplateId(null)
+    }
+  }
+
   if (loading && channels.length === 0) {
     return <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Cargando plantillas…</div>
   }
@@ -123,10 +153,51 @@ export function WhatsAppTemplatesSettings() {
           <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="truncate font-medium">{template.name}</p><Badge variant="outline" className={cn("text-[11px]", statusStyles[template.status])}>{statusLabel[template.status] || template.status}</Badge><Badge variant="secondary" className="text-[11px]">{template.category}</Badge><span className="text-xs text-muted-foreground">{template.language}</span></div>
             <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{template.components?.find((component) => component.type?.toUpperCase() === "BODY")?.text || "Sin cuerpo"}</p>
             {template.rejected_reason && <p className="mt-2 text-xs text-red-600 dark:text-red-400">Motivo: {template.rejected_reason}</p>}
-          </div><span className="shrink-0 text-xs text-muted-foreground">{template.synced_at ? new Date(template.synced_at).toLocaleDateString() : "—"}</span>
+          </div><div className="flex shrink-0 items-center gap-2">
+            <span className="text-xs text-muted-foreground">{template.synced_at ? new Date(template.synced_at).toLocaleDateString() : "—"}</span>
+            {canDelete && <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setDeleteTarget(template)}
+              disabled={deletingTemplateId === template.id}
+              aria-label={`Eliminar plantilla ${template.name} (${template.language})`}
+              title="Eliminar plantilla"
+            >
+              {deletingTemplateId === template.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+            </Button>}
+          </div>
         </div>)}
       </div>}
     </div>
+
+    <AlertDialog
+      open={deleteTarget !== null}
+      onOpenChange={(open) => !open && deletingTemplateId === null && setDeleteTarget(null)}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Eliminar esta plantilla permanentemente?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Se eliminará <strong className="font-medium text-foreground">{deleteTarget?.name}</strong> ({deleteTarget?.language}) de Meta y del CRM. Esta acción no se puede deshacer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deletingTemplateId !== null}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(event) => {
+              event.preventDefault()
+              void handleDelete()
+            }}
+            disabled={deletingTemplateId !== null}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {deletingTemplateId !== null && <Loader2 className="mr-2 size-4 animate-spin" />}
+            Eliminar de Meta y del CRM
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 }
 
