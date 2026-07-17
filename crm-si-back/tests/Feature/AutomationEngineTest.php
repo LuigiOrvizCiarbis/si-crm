@@ -53,6 +53,20 @@ class AutomationEngineTest extends TestCase
             ->assertJsonPath('data.status', 'draft');
     }
 
+    public function test_legacy_timezone_aliases_are_canonicalized_before_validation(): void
+    {
+        [$owner, $channel, $template] = $this->context();
+        Sanctum::actingAs($owner);
+
+        $this->postJson('/api/automations', [...$this->payload($channel->id, $template->id), 'timezone' => 'America/Buenos_Aires'])
+            ->assertCreated()
+            ->assertJsonPath('data.timezone', 'America/Argentina/Buenos_Aires');
+
+        $this->postJson('/api/automations', [...$this->payload($channel->id, $template->id), 'timezone' => 'Not/AZone'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('timezone');
+    }
+
     public function test_event_evaluation_is_deduplicated_for_concurrent_delivery(): void
     {
         [$owner, $channel, $template] = $this->context();
