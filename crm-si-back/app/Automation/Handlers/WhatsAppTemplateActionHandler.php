@@ -251,10 +251,17 @@ class WhatsAppTemplateActionHandler implements ActionHandler
      */
     private function assertPubliclyFetchable(string $url): void
     {
-        $this->assertPublicHost($url);
+        [$host, $port, $pinnedIp] = $this->assertPublicHost($url);
 
         try {
-            $response = Http::withOptions(['allow_redirects' => false])->timeout(8)->head($url);
+            // Pinnear la conexión a la IP ya validada (CURLOPT_RESOLVE) evita que
+            // una segunda resolución DNS devuelva una IP interna entre la validación
+            // y el request (DNS rebinding / TOCTOU). El Host original se preserva
+            // para TLS/SNI y vhosts.
+            $response = Http::withOptions([
+                'allow_redirects' => false,
+                'curl' => [CURLOPT_RESOLVE => ["{$host}:{$port}:{$pinnedIp}"]],
+            ])->timeout(8)->head($url);
         } catch (ConnectionException) {
             throw new ActionSkippedException('header_url_not_accessible');
         }
@@ -264,7 +271,13 @@ class WhatsAppTemplateActionHandler implements ActionHandler
         }
     }
 
-    private function assertPublicHost(string $url): void
+    /**
+     * Valida que el host resuelva solo a IPs públicas y devuelve
+     * [host, port, ip] para pinnear la conexión a la IP ya verificada.
+     *
+     * @return array{0: string, 1: int, 2: string}
+     */
+    private function assertPublicHost(string $url): array
     {
         $parts = parse_url($url);
         $scheme = strtolower($parts['scheme'] ?? '');
@@ -274,13 +287,15 @@ class WhatsAppTemplateActionHandler implements ActionHandler
             throw new ActionSkippedException('header_url_not_accessible');
         }
 
+        $port = $parts['port'] ?? ($scheme === 'https' ? 443 : 80);
+
         // Resolver todas las IPs del host: una sola pública no alcanza si otra
-        // apunta a la red interna (DNS rebinding / multi-registro).
+        // apunta a la red interna (multi-registro).
         $records = array_merge(
             dns_get_record($host, DNS_A) ?: [],
             dns_get_record($host, DNS_AAAA) ?: [],
         );
-        $ips = array_filter(array_map(fn ($r) => $r['ip'] ?? $r['ipv6'] ?? null, $records));
+        $ips = array_values(array_filter(array_map(fn ($r) => $r['ip'] ?? $r['ipv6'] ?? null, $records)));
 
         if ($ips === []) {
             throw new ActionSkippedException('header_url_not_accessible');
@@ -291,6 +306,9 @@ class WhatsAppTemplateActionHandler implements ActionHandler
                 throw new ActionSkippedException('header_url_not_accessible');
             }
         }
+
+        // Todas las IPs son públicas; pinneamos la primera para el request real.
+        return [$host, (int) $port, $ips[0]];
     }
 
     private function renderParameters(AutomationAction $action, AutomationRun $run, WhatsAppTemplate $template): array
