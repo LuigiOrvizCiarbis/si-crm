@@ -38,6 +38,40 @@ export function AppShell({ children }: AppShellProps) {
     }
   }, [shouldSkipShell])
 
+  // Al volver de un diálogo nativo (p. ej. el selector de archivos del SO),
+  // Chrome/macOS a veces no repinta la capa de composición y la pantalla queda
+  // en negro con `html { height:100dvh; overflow:hidden }`. Forzamos un reflow
+  // cuando la ventana recupera foco/visibilidad para invalidar la capa.
+  useEffect(() => {
+    if (shouldSkipShell) return
+
+    let rafId = 0
+
+    const forceRepaint = () => {
+      // Al ocultar la pestaña no hay nada que repintar; evitamos el reflow inútil.
+      if (document.visibilityState !== "visible") return
+
+      const html = document.documentElement
+      html.style.transform = "translateZ(0)"
+      // Leer una propiedad de layout fuerza el reflow síncrono.
+      void html.offsetHeight
+      rafId = requestAnimationFrame(() => {
+        html.style.transform = ""
+      })
+    }
+
+    window.addEventListener("focus", forceRepaint)
+    document.addEventListener("visibilitychange", forceRepaint)
+
+    return () => {
+      window.removeEventListener("focus", forceRepaint)
+      document.removeEventListener("visibilitychange", forceRepaint)
+      // Si desmontamos entre el schedule del rAF y su disparo, el translateZ
+      // quedaría pegado en <html>; lo cancelamos.
+      cancelAnimationFrame(rafId)
+    }
+  }, [shouldSkipShell])
+
   if (shouldSkipShell) {
     return <>{children}</>
   }
