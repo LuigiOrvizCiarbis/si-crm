@@ -227,7 +227,8 @@
         "multi_select": "Multi-select",
         "email": "Email",
         "url": "URL",
-        "phone": "Phone"
+        "phone": "Phone",
+        "file": "File"
       }
     }
   },
@@ -720,6 +721,17 @@
       "parameters": "Parameters",
       "parametersHint": "Use a literal or a context path with an optional fallback.",
       "parameterCountMismatch": "The template expects {expected} body parameter(s) and you defined {provided}. WhatsApp will reject the send if they don't match.",
+      "headerMediaMissing": "This template has a file header. Define a header parameter with the document URL.",
+      "headerFile": "Header",
+      "documentUrl": "Document URL",
+      "uploading": "Uploading…",
+      "fileLoaded": "File loaded",
+      "noFile": "No file",
+      "documentUpload": "Upload file",
+      "documentField": "Contact field",
+      "selectField": "Choose a field",
+      "noDocumentFields": "No file or URL fields",
+      "externalUrl": "External URL",
       "parameter": "Parameter",
       "field": "Field",
       "literal": "Literal",
@@ -1328,7 +1340,8 @@
       "multi_select": "Multi-select",
       "email": "Email",
       "url": "URL",
-      "phone": "Phone"
+      "phone": "Phone",
+      "file": "File"
     }
   },
   "trial": {

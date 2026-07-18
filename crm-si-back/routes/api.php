@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\GoogleCalendarConnectionController;
 use App\Http\Controllers\Api\IncomingWebhookController;
 use App\Http\Controllers\Api\InvitationController;
+use App\Http\Controllers\Api\MediaAssetController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\MessageHotkeyController;
 use App\Http\Controllers\Api\MessageTranslationController;
@@ -383,6 +384,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('automations/{automation}/runs', [AutomationController::class, 'runs']);
     Route::get('automation-runs/{run}', [AutomationRunController::class, 'show']);
     Route::post('automation-runs/{run}/retry', [AutomationRunController::class, 'retry']);
+
+    Route::get('media-assets', [MediaAssetController::class, 'index']);
+    Route::post('media-assets', [MediaAssetController::class, 'store']);
+    Route::delete('media-assets/{mediaAsset}', [MediaAssetController::class, 'destroy']);
 
     Route::get('contacts', [ContactController::class, 'index']);
     Route::get('contacts/summary', [ContactController::class, 'summary']);

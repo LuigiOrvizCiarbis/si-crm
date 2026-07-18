@@ -127,7 +127,12 @@ export function reportApiFailure({
   if (endpoint) tags.endpoint = endpoint;
   if (method) tags.method = method;
 
-  Sentry.captureMessage(name, {
+  // Título descriptivo para que el issue en Sentry sea identificable sin
+  // abrirlo. El fingerprint sigue usando `name`, así que el agrupado no cambia.
+  const location = [method, endpoint].filter(Boolean).join(" ");
+  const title = location ? `${name}: ${location} -> ${status}` : name;
+
+  Sentry.captureMessage(title, {
     level: classification.level,
     tags,
     fingerprint: [
@@ -166,7 +171,14 @@ export function reportConnectionFailure({
   method: string;
   backendBase?: string;
 }) {
-  Sentry.captureException(error, {
+  // Envolvemos el error crudo ("fetch failed", "ETIMEDOUT"...) con contexto
+  // del request para que el título del issue en Sentry sea identificable.
+  // El error original queda en `cause` y Sentry lo muestra enlazado.
+  const location = [method, endpoint].filter(Boolean).join(" ");
+  const wrapped = new Error(`${name}: ${location}${backendBase ? ` (${backendBase})` : ""}`);
+  (wrapped as Error & { cause?: unknown }).cause = error;
+
+  Sentry.captureException(wrapped, {
     tags: {
       source,
       feature,

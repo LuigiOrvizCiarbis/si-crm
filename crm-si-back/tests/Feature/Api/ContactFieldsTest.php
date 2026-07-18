@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Contact;
 use App\Models\ContactField;
+use App\Models\MediaAsset;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\PermissionCatalog;
@@ -153,6 +154,26 @@ class ContactFieldsTest extends TestCase
             'name' => 'Maria',
             'custom_data' => ['edad' => 32],
         ])->assertCreated();
+    }
+
+    public function test_file_field_accepts_own_asset_and_rejects_foreign(): void
+    {
+        [$user, $tenant] = $this->createOwner();
+        [, $otherTenant] = $this->createOwner();
+        Sanctum::actingAs($user);
+
+        ContactField::create(['tenant_id' => $tenant->id, 'key' => 'factura', 'label' => 'Factura', 'type' => 'file']);
+        $own = MediaAsset::create(['tenant_id' => $tenant->id, 'name' => 'a.pdf', 'path' => 'x/a.pdf', 'mime_type' => 'application/pdf', 'size' => 10]);
+        $foreign = MediaAsset::create(['tenant_id' => $otherTenant->id, 'name' => 'b.pdf', 'path' => 'y/b.pdf', 'mime_type' => 'application/pdf', 'size' => 10]);
+
+        $this->postJson('/api/contacts', ['name' => 'Con factura', 'custom_data' => ['factura' => $own->id]])
+            ->assertCreated();
+
+        $this->postJson('/api/contacts', ['name' => 'Factura ajena', 'custom_data' => ['factura' => $foreign->id]])
+            ->assertStatus(422);
+
+        $this->postJson('/api/contacts', ['name' => 'Factura inexistente', 'custom_data' => ['factura' => 999999]])
+            ->assertStatus(422);
     }
 
     public function test_required_custom_field_is_enforced(): void

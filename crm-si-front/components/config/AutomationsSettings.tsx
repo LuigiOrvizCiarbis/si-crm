@@ -48,6 +48,7 @@ import {
 } from "@/lib/api/automations"
 import { getChannels } from "@/lib/api/channels"
 import { getContactFields, type ContactFieldsResponse } from "@/lib/api/contact-fields"
+import { uploadMediaAsset } from "@/lib/api/media-assets"
 import { getManagedTemplates } from "@/lib/api/templates"
 import { cn } from "@/lib/utils"
 
@@ -78,16 +79,30 @@ function templateBodyParameters(template: WhatsAppTemplate | undefined): string[
   return [...new Set(names)]
 }
 
+// Formato del header cuando es de media (DOCUMENT/IMAGE/VIDEO), o null.
+// Debe coincidir con WhatsAppTemplate::headerMediaFormat() del backend.
+function templateHeaderMediaFormat(template: WhatsAppTemplate | undefined): string | null {
+  const header = template?.components?.find((component) => component.type?.toUpperCase() === "HEADER")
+  const format = header?.format?.toUpperCase()
+  return format === "DOCUMENT" || format === "IMAGE" || format === "VIDEO" ? format : null
+}
+
 // Al elegir un template se prellenan sus parámetros mapeados al nombre del
 // contacto, que es el caso más común; el usuario ajusta fuente/ruta después.
+// Si el template tiene un header con archivo, se agrega un parámetro de
+// encabezado en blanco para que el usuario cargue la URL del documento.
 function parametersForTemplate(template: WhatsAppTemplate | undefined): ActionParameter[] {
-  return templateBodyParameters(template).map((name) => ({
+  const params: ActionParameter[] = templateBodyParameters(template).map((name) => ({
     component: "body",
     name,
     source: "field",
     path: "contact.name",
     fallback: "Cliente",
   }))
+  if (templateHeaderMediaFormat(template)) {
+    params.unshift({ component: "header", source: "media_asset" })
+  }
+  return params
 }
 const emptyGroup = (): ConditionGroup => ({ operator: "AND", conditions: [] })
 const emptyAction = (): AutomationAction => ({ type: "whatsapp_template", config: { parameters: [] } })
@@ -140,6 +155,14 @@ export function AutomationsSettings() {
     ...contactFields.standard.map((field) => ({ value: field.key, label: field.label })),
     ...contactFields.data.map((field) => ({ value: `custom_data.${field.key}`, label: field.label })),
   ], [contactFields])
+  // Campos que pueden alimentar el header de un template: los de tipo archivo
+  // (el PDF vive en la app, URL pública garantizada) y los de tipo URL (link
+  // externo, se verifica al enviar). La ruta es la que resuelve el backend.
+  const documentFieldOptions = useMemo(() =>
+    contactFields.data
+      .filter((field) => field.type === "file" || field.type === "url")
+      .map((field) => ({ path: `contact.custom_data.${field.key}`, label: field.label, type: field.type })),
+  [contactFields])
   const conditionFieldOptions = useMemo<FieldOptionGroup[]>(() => [
     {
       label: t("settings.automations.contact"),
@@ -362,6 +385,7 @@ export function AutomationsSettings() {
                     action={action}
                     channels={channels}
                     templates={templates}
+                    documentFieldOptions={documentFieldOptions}
                     t={t}
                     onLoadTemplates={loadTemplates}
                     onChange={(next) => setForm((current) => ({ ...current, actions: current.actions.map((item, itemIndex) => itemIndex === index ? next : item) }))}
@@ -459,13 +483,18 @@ function ConditionEditor({ group, onChange, fieldOptions, t, depth = 0 }: { grou
   )
 }
 
-function ActionEditor({ index, action, channels, templates, onLoadTemplates, onChange, onRemove, t }: { index: number; action: AutomationAction; channels: Channel[]; templates: Record<number, WhatsAppTemplate[]>; onLoadTemplates: (id: number) => Promise<void>; onChange: (action: AutomationAction) => void; onRemove: () => void; t: (key: string) => string }) {
+type DocumentFieldOption = { path: string; label: string; type: string }
+
+function ActionEditor({ index, action, channels, templates, documentFieldOptions, onLoadTemplates, onChange, onRemove, t }: { index: number; action: AutomationAction; channels: Channel[]; templates: Record<number, WhatsAppTemplate[]>; documentFieldOptions: DocumentFieldOption[]; onLoadTemplates: (id: number) => Promise<void>; onChange: (action: AutomationAction) => void; onRemove: () => void; t: (key: string) => string }) {
   const config = action.config
   const parameters = config.parameters ?? []
   const selectedTemplate = (templates[config.channel_id ?? 0] ?? []).find((item) => item.id === config.template_id)
   const expectedBodyParams = templateBodyParameters(selectedTemplate)
   const bodyParamCount = parameters.filter((parameter) => (parameter.component ?? "body") === "body").length
   const paramCountMismatch = Boolean(config.template_id) && bodyParamCount !== expectedBodyParams.length
+  const headerMediaFormat = templateHeaderMediaFormat(selectedTemplate)
+  const headerParamCount = parameters.filter((parameter) => parameter.component === "header").length
+  const headerMediaMissing = Boolean(config.template_id) && headerMediaFormat !== null && headerParamCount !== 1
   return (
     <div className="relative rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><span className="flex size-6 items-center justify-center rounded-full border border-border bg-muted text-xs font-semibold">{index + 1}</span><p className="text-sm font-medium">{t("settings.automations.whatsappTemplate")}</p></div><Button variant="ghost" size="icon" aria-label={t("settings.automations.removeAction")} disabled={index === 0} onClick={onRemove}><Trash2 className="size-4 text-destructive" /></Button></div>
@@ -476,8 +505,73 @@ function ActionEditor({ index, action, channels, templates, onLoadTemplates, onC
       <div className="mt-5 border-t border-border pt-4">
         <div className="mb-3 flex items-center justify-between"><div><p className="text-sm font-medium">{t("settings.automations.parameters")}</p><p className="text-xs text-muted-foreground">{t("settings.automations.parametersHint")}</p></div><Button variant="outline" size="sm" onClick={() => onChange({ ...action, config: { ...config, parameters: [...parameters, { component: "body", source: "field", path: "contact.name", fallback: "Cliente" }] } })}><Plus className="mr-1 size-3.5" />{t("settings.automations.parameter")}</Button></div>
         {paramCountMismatch && <p className="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{t("settings.automations.parameterCountMismatch").replace("{expected}", String(expectedBodyParams.length)).replace("{provided}", String(bodyParamCount))}</p>}
-        <div className="space-y-2">{parameters.map((parameter, parameterIndex) => <div key={parameterIndex} className="grid gap-2 rounded-lg bg-muted/30 p-2 md:grid-cols-[120px_120px_1fr_1fr_auto]"><Input value={parameter.name ?? ""} onChange={(event) => onChange({ ...action, config: { ...config, parameters: parameters.map((item, itemIndex) => itemIndex === parameterIndex ? { ...item, name: event.target.value } : item) } })} placeholder="nombre" aria-label={t("settings.automations.parameter")} /><Select value={parameter.source} onValueChange={(source: "literal" | "field") => onChange({ ...action, config: { ...config, parameters: parameters.map((item, itemIndex) => itemIndex === parameterIndex ? { ...item, source } : item) } })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="field">{t("settings.automations.field")}</SelectItem><SelectItem value="literal">{t("settings.automations.literal")}</SelectItem></SelectContent></Select><Input value={parameter.source === "literal" ? parameter.value ?? "" : parameter.path ?? ""} onChange={(event) => onChange({ ...action, config: { ...config, parameters: parameters.map((item, itemIndex) => itemIndex === parameterIndex ? { ...item, ...(item.source === "literal" ? { value: event.target.value } : { path: event.target.value }) } : item) } })} placeholder={parameter.source === "literal" ? t("settings.automations.value") : "contact.name"} aria-label={t("settings.automations.value")} /><Input value={parameter.fallback ?? ""} onChange={(event) => onChange({ ...action, config: { ...config, parameters: parameters.map((item, itemIndex) => itemIndex === parameterIndex ? { ...item, fallback: event.target.value } : item) } })} placeholder={t("settings.automations.fallback")} aria-label={t("settings.automations.fallback")} /><Button variant="ghost" size="icon" aria-label={t("settings.automations.removeParameter")} onClick={() => onChange({ ...action, config: { ...config, parameters: parameters.filter((_, itemIndex) => itemIndex !== parameterIndex) } })}><X className="size-4" /></Button></div>)}</div>
+        {headerMediaMissing && <p className="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{t("settings.automations.headerMediaMissing")}</p>}
+        <div className="space-y-2">{parameters.map((parameter, parameterIndex) => <ParameterRow key={parameterIndex} parameter={parameter} documentFieldOptions={documentFieldOptions} onChange={(next) => onChange({ ...action, config: { ...config, parameters: parameters.map((item, itemIndex) => itemIndex === parameterIndex ? next : item) } })} onRemove={() => onChange({ ...action, config: { ...config, parameters: parameters.filter((_, itemIndex) => itemIndex !== parameterIndex) } })} t={t} />)}</div>
       </div>
+    </div>
+  )
+}
+
+function ParameterRow({ parameter, documentFieldOptions, onChange, onRemove, t }: { parameter: ActionParameter; documentFieldOptions: DocumentFieldOption[]; onChange: (next: ActionParameter) => void; onRemove: () => void; t: (key: string) => string }) {
+  const [uploading, setUploading] = useState(false)
+  const [uploadedName, setUploadedName] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  if (parameter.component === "header") {
+    const handleFile = async (file: File | undefined) => {
+      if (!file) return
+      setUploading(true)
+      setUploadError(null)
+      try {
+        const asset = await uploadMediaAsset(file)
+        setUploadedName(asset.name)
+        onChange({ component: "header", source: "media_asset", media_asset_id: asset.id })
+      } catch (error) {
+        setUploadError(error instanceof Error ? error.message : t("common.error"))
+      } finally {
+        setUploading(false)
+      }
+    }
+
+    const mode = parameter.source === "field" ? "field" : "upload"
+
+    return (
+      <div className="space-y-2 rounded-lg bg-muted/30 p-2">
+        <div className="flex items-center gap-2">
+          <span className="px-1 text-xs font-medium text-muted-foreground">{t("settings.automations.headerFile")}</span>
+          <Select value={mode} onValueChange={(next) => onChange(next === "field" ? { component: "header", source: "field", path: "" } : { component: "header", source: "media_asset" })}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="upload">{t("settings.automations.documentUpload")}</SelectItem>
+              <SelectItem value="field">{t("settings.automations.documentField")}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="ghost" size="icon" className="ml-auto" aria-label={t("settings.automations.removeParameter")} onClick={onRemove}><X className="size-4" /></Button>
+        </div>
+        {mode === "upload" ? (
+          <div className="flex items-center gap-2">
+            <Input type="file" accept="application/pdf" disabled={uploading} className="flex-1" onChange={(event) => void handleFile(event.target.files?.[0])} aria-label={t("settings.automations.documentUrl")} />
+            <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{uploading ? t("settings.automations.uploading") : uploadError ? <span className="text-destructive">{uploadError}</span> : uploadedName ?? (parameter.media_asset_id ? t("settings.automations.fileLoaded") : t("settings.automations.noFile"))}</span>
+          </div>
+        ) : (
+          <Select value={parameter.path ?? ""} onValueChange={(path) => onChange({ component: "header", source: "field", path })}>
+            <SelectTrigger><SelectValue placeholder={t("settings.automations.selectField")} /></SelectTrigger>
+            <SelectContent>
+              {documentFieldOptions.length === 0 ? <div className="px-2 py-1.5 text-xs text-muted-foreground">{t("settings.automations.noDocumentFields")}</div> : documentFieldOptions.map((option) => <SelectItem key={option.path} value={option.path}>{option.label}{option.type === "url" ? ` · ${t("settings.automations.externalUrl")}` : ""}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid gap-2 rounded-lg bg-muted/30 p-2 md:grid-cols-[120px_120px_1fr_1fr_auto]">
+      <Input value={parameter.name ?? ""} onChange={(event) => onChange({ ...parameter, name: event.target.value })} placeholder="nombre" aria-label={t("settings.automations.parameter")} />
+      <Select value={parameter.source} onValueChange={(source: "literal" | "field") => onChange({ ...parameter, source })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="field">{t("settings.automations.field")}</SelectItem><SelectItem value="literal">{t("settings.automations.literal")}</SelectItem></SelectContent></Select>
+      <Input value={parameter.source === "literal" ? parameter.value ?? "" : parameter.path ?? ""} onChange={(event) => onChange({ ...parameter, ...(parameter.source === "literal" ? { value: event.target.value } : { path: event.target.value }) })} placeholder={parameter.source === "literal" ? t("settings.automations.value") : "contact.name"} aria-label={t("settings.automations.value")} />
+      <Input value={parameter.fallback ?? ""} onChange={(event) => onChange({ ...parameter, fallback: event.target.value })} placeholder={t("settings.automations.fallback")} aria-label={t("settings.automations.fallback")} />
+      <Button variant="ghost" size="icon" aria-label={t("settings.automations.removeParameter")} onClick={onRemove}><X className="size-4" /></Button>
     </div>
   )
 }
