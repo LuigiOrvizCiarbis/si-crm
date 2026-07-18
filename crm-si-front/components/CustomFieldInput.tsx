@@ -24,6 +24,7 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
+import { uploadMediaAsset } from "@/lib/api/media-assets"
 import type { ContactField } from "@/lib/api/contact-fields"
 import type { ProductField } from "@/lib/api/product-fields"
 
@@ -163,6 +164,15 @@ export function CustomFieldInput({ field, value, onChange, disabled, className, 
             disabled={disabled}
           />
         )
+      case "file":
+        return (
+          <FileField
+            id={id}
+            value={typeof value === "number" ? value : null}
+            disabled={disabled}
+            onChange={(assetId) => onChange(assetId)}
+          />
+        )
       default:
         return null
     }
@@ -172,6 +182,60 @@ export function CustomFieldInput({ field, value, onChange, disabled, className, 
     <div className={`space-y-1 ${className ?? ""}`}>
       {labelNode}
       {inputNode}
+    </div>
+  )
+}
+
+interface FileFieldProps {
+  id: string
+  value: number | null
+  disabled?: boolean
+  onChange: (assetId: number | null) => void
+}
+
+// El valor de un campo tipo archivo es un media_asset_id: el PDF se sube a la
+// app, que lo aloja y lo sirve por una URL pública (la que Meta descarga). Al
+// subir uno nuevo se reemplaza el id guardado.
+function FileField({ id, value, disabled, onChange }: FileFieldProps) {
+  const [uploading, setUploading] = useState(false)
+  const [name, setName] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return
+    setUploading(true)
+    setError(null)
+    try {
+      const asset = await uploadMediaAsset(file)
+      setName(asset.name)
+      onChange(asset.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al subir el archivo")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-1">
+      <Input
+        id={id}
+        type="file"
+        accept="application/pdf"
+        disabled={disabled || uploading}
+        onChange={(e) => void handleFile(e.target.files?.[0])}
+      />
+      <p className="text-xs text-muted-foreground">
+        {uploading
+          ? "Subiendo…"
+          : error
+            ? <span className="text-destructive">{error}</span>
+            : name
+              ? name
+              : value
+                ? "Archivo cargado"
+                : "Ningún archivo"}
+      </p>
     </div>
   )
 }

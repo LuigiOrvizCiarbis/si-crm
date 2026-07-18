@@ -157,6 +157,9 @@ function formatCustomValue(value: unknown, type: string | undefined): string {
       return value
     }
   }
+  // Un campo tipo archivo guarda un media_asset_id; mostrar el número crudo no
+  // aporta, así que se indica solo que hay un archivo cargado.
+  if (type === "file") return "📎"
   return String(value)
 }
 

@@ -20,7 +20,7 @@ export interface AutomationAction {
   config: {
     channel_id?: number
     template_id?: number
-    parameters?: Array<{ component?: string; name?: string; source: "literal" | "field"; value?: string; path?: string; fallback?: string }>
+    parameters?: Array<{ component?: string; name?: string; source: "literal" | "field" | "media_asset"; value?: string; path?: string; fallback?: string; media_asset_id?: number }>
   }
 }
 

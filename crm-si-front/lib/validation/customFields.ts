@@ -24,6 +24,9 @@ function schemaForType(type: ContactFieldType, choices: string[]): ZodTypeAny {
       return z.string().url().max(2048).nullish().or(z.literal(""));
     case "phone":
       return z.string().max(50).nullish();
+    case "file":
+      // El valor es el id del MediaAsset subido a la app.
+      return z.number().int().positive().nullish();
   }
 }
 

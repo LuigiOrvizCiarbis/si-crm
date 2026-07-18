@@ -15,6 +15,7 @@ enum ContactFieldType: string
     case Email = 'email';
     case Url = 'url';
     case Phone = 'phone';
+    case File = 'file';
 
     /**
      * @return array<int, string>
@@ -49,6 +50,11 @@ enum ContactFieldType: string
             self::Email => ['nullable', 'email', 'max:255'],
             self::Url => ['nullable', 'url', 'max:2048'],
             self::Phone => ['nullable', 'string', 'max:50'],
+            // El valor de un campo File es el id de un MediaAsset: el archivo lo
+            // posee la app, así que su URL pública está garantizada. La
+            // pertenencia al tenant la refuerza ValidContactCustomData, que sí
+            // conoce el tenant en contexto.
+            self::File => ['nullable', 'integer'],
         };
     }
 

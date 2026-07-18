@@ -2,8 +2,10 @@
 
 namespace App\Rules;
 
+use App\Enums\ContactFieldType;
 use App\Models\Contact;
 use App\Models\ContactField;
+use App\Models\MediaAsset;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Auth;
@@ -73,6 +75,16 @@ class ValidContactCustomData implements ValidationRule
                 foreach ($validator->errors()->all() as $message) {
                     $fail("custom_data.{$key}: {$message}");
                 }
+
+                continue;
+            }
+
+            // Un campo File guarda un media_asset_id; se exige que el archivo
+            // exista y pertenezca al tenant, así el valor nunca apunta a un
+            // archivo de otro espacio ni a uno borrado.
+            if ($field->type === ContactFieldType::File
+                && ! MediaAsset::where('tenant_id', $tenantId)->whereKey($rawValue)->exists()) {
+                $fail("custom_data.{$key}: el archivo no existe en el espacio.");
 
                 continue;
             }

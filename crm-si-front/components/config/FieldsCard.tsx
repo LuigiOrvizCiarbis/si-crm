@@ -76,6 +76,7 @@ const TYPE_OPTIONS: FieldType[] = [
   "email",
   "url",
   "phone",
+  "file",
 ]
 
 type EntityKey = "contacts" | "products"

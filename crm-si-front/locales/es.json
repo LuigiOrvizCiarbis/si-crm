@@ -227,7 +227,8 @@
         "multi_select": "Selección múltiple",
         "email": "Email",
         "url": "URL",
-        "phone": "Teléfono"
+        "phone": "Teléfono",
+        "file": "Archivo"
       }
     }
   },
@@ -720,6 +721,17 @@
       "parameters": "Parámetros",
       "parametersHint": "Usá un literal o una ruta del contexto con fallback.",
       "parameterCountMismatch": "El template espera {expected} parámetro(s) de cuerpo y definiste {provided}. WhatsApp rechazará el envío si no coinciden.",
+      "headerMediaMissing": "Este template tiene un encabezado con archivo. Definí un parámetro de encabezado con la URL del documento.",
+      "headerFile": "Encabezado",
+      "documentUrl": "URL del documento",
+      "uploading": "Subiendo…",
+      "fileLoaded": "Archivo cargado",
+      "noFile": "Ningún archivo",
+      "documentUpload": "Subir archivo",
+      "documentField": "Campo del contacto",
+      "selectField": "Elegí un campo",
+      "noDocumentFields": "No hay campos de archivo o URL",
+      "externalUrl": "URL externa",
       "parameter": "Parámetro",
       "field": "Campo",
       "literal": "Literal",
@@ -1328,7 +1340,8 @@
       "multi_select": "Selección múltiple",
       "email": "Email",
       "url": "URL",
-      "phone": "Teléfono"
+      "phone": "Teléfono",
+      "file": "Archivo"
     }
   },
   "trial": {

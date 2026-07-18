@@ -7,6 +7,7 @@ use App\Automation\DateAutomationScheduler;
 use App\Enums\AutomationRuleStatus;
 use App\Enums\AutomationRunStatus;
 use App\Enums\ChannelType;
+use App\Enums\ContactFieldType;
 use App\Enums\SenderType;
 use App\Enums\TemplateCategory;
 use App\Enums\TemplateStatus;
@@ -15,6 +16,8 @@ use App\Jobs\EvaluateAutomationEventJob;
 use App\Models\AutomationRule;
 use App\Models\Channel;
 use App\Models\Contact;
+use App\Models\ContactField;
+use App\Models\MediaAsset;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WhatsAppConfig;
@@ -71,6 +74,180 @@ class AutomationEngineTest extends TestCase
         // El happy path (un parámetro que coincide con {{nombre}}) sigue creando.
         $this->postJson('/api/automations', $this->payload($channel->id, $template->id))
             ->assertCreated();
+    }
+
+    public function test_document_header_template_sends_media_component_and_body_params(): void
+    {
+        [$owner, $channel] = $this->context();
+        $template = WhatsAppTemplate::create([
+            'tenant_id' => $owner->tenant_id, 'whatsapp_config_id' => $channel->whatsapp_config_id,
+            'external_id' => Str::uuid(), 'name' => 'comprobante', 'language' => 'es_AR',
+            'category' => TemplateCategory::Utility, 'status' => TemplateStatus::Approved,
+            'components' => [
+                ['type' => 'HEADER', 'format' => 'DOCUMENT'],
+                ['type' => 'BODY', 'text' => 'Gracias {{cliente}}, comprobante {{comprobante}}'],
+            ],
+        ]);
+
+        Sanctum::actingAs($owner);
+
+        // Sin el parámetro de encabezado, la regla no se puede guardar.
+        $noHeader = [
+            'name' => 'Comprobante', 'trigger_type' => 'contact.created', 'trigger_config' => [], 'conditions' => null,
+            'timezone' => 'America/Argentina/Buenos_Aires',
+            'actions' => [['type' => 'whatsapp_template', 'config' => ['channel_id' => $channel->id, 'template_id' => $template->id, 'parameters' => [
+                ['name' => 'cliente', 'source' => 'field', 'path' => 'contact.name'],
+                ['name' => 'comprobante', 'source' => 'literal', 'value' => 'A-1'],
+            ]]]],
+        ];
+        $this->postJson('/api/automations', $noHeader)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('actions.0.parameters');
+
+        // Con el parámetro de encabezado, el envío a Meta incluye el documento.
+        $rule = $this->activeRule($owner, $channel, $template);
+        $rule->actions()->first()->update(['config' => ['channel_id' => $channel->id, 'template_id' => $template->id, 'parameters' => [
+            ['component' => 'header', 'source' => 'literal', 'value' => 'https://example.com/comprobante.pdf'],
+            ['name' => 'cliente', 'source' => 'field', 'path' => 'contact.name'],
+            ['name' => 'comprobante', 'source' => 'literal', 'value' => 'A-1'],
+        ]]]);
+        $contact = Contact::create(['tenant_id' => $owner->tenant_id, 'name' => 'Ada', 'phone' => '5491144444444', 'source' => 'manual']);
+        $run = $this->queuedRun($rule->load('actions'), $contact);
+        Http::fake([
+            'example.com/*' => Http::response('', 200),
+            'https://graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.doc']]], 200),
+        ]);
+
+        app(AutomationEngine::class)->execute($run);
+
+        Http::assertSent(function ($request) {
+            if ($request->method() !== 'POST') {
+                return false;
+            }
+            $components = $request['template']['components'] ?? [];
+            $header = collect($components)->firstWhere('type', 'header');
+            $body = collect($components)->firstWhere('type', 'body');
+
+            return $header !== null
+                && $header['parameters'][0]['type'] === 'document'
+                && $header['parameters'][0]['document']['link'] === 'https://example.com/comprobante.pdf'
+                && count($body['parameters']) === 2;
+        });
+        $this->assertSame(AutomationRunStatus::Succeeded, $run->fresh()->status);
+    }
+
+    public function test_document_header_can_be_sourced_from_a_media_asset(): void
+    {
+        [$owner, $channel] = $this->context();
+        $template = WhatsAppTemplate::create([
+            'tenant_id' => $owner->tenant_id, 'whatsapp_config_id' => $channel->whatsapp_config_id,
+            'external_id' => Str::uuid(), 'name' => 'catalogo', 'language' => 'es_AR',
+            'category' => TemplateCategory::Utility, 'status' => TemplateStatus::Approved,
+            'components' => [
+                ['type' => 'HEADER', 'format' => 'DOCUMENT'],
+                ['type' => 'BODY', 'text' => 'Hola {{nombre}}'],
+            ],
+        ]);
+        $asset = MediaAsset::create([
+            'tenant_id' => $owner->tenant_id, 'name' => 'catalogo.pdf',
+            'path' => 'media-assets/'.$owner->tenant_id.'/catalogo.pdf',
+            'mime_type' => 'application/pdf', 'size' => 2048,
+        ]);
+
+        $rule = $this->activeRule($owner, $channel, $template);
+        $rule->actions()->first()->update(['config' => ['channel_id' => $channel->id, 'template_id' => $template->id, 'parameters' => [
+            ['component' => 'header', 'source' => 'media_asset', 'media_asset_id' => $asset->id],
+            ['name' => 'nombre', 'source' => 'field', 'path' => 'contact.name'],
+        ]]]);
+        $contact = Contact::create(['tenant_id' => $owner->tenant_id, 'name' => 'Ada', 'phone' => '5491155555555', 'source' => 'manual']);
+        $run = $this->queuedRun($rule->load('actions'), $contact);
+        Http::fake(['https://graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.asset']]], 200)]);
+
+        app(AutomationEngine::class)->execute($run);
+
+        Http::assertSent(function ($request) use ($asset) {
+            $header = collect($request['template']['components'] ?? [])->firstWhere('type', 'header');
+
+            return $header !== null
+                && $header['parameters'][0]['type'] === 'document'
+                && $header['parameters'][0]['document']['link'] === $asset->publicUrl();
+        });
+        $this->assertSame(AutomationRunStatus::Succeeded, $run->fresh()->status);
+    }
+
+    public function test_header_url_pointing_to_internal_host_is_skipped_without_request(): void
+    {
+        [$owner, $channel] = $this->context();
+        $template = $this->documentTemplate($owner, $channel);
+        ContactField::create(['tenant_id' => $owner->tenant_id, 'key' => 'doc_url', 'label' => 'Doc', 'type' => ContactFieldType::Url]);
+        // localhost resuelve a 127.0.0.1: el guard SSRF debe frenar antes del HEAD.
+        $contact = Contact::create(['tenant_id' => $owner->tenant_id, 'name' => 'Ada', 'phone' => '5491188888888', 'source' => 'manual', 'custom_data' => ['doc_url' => 'http://localhost/factura.pdf']]);
+
+        $rule = $this->activeRule($owner, $channel, $template);
+        $rule->actions()->first()->update(['config' => ['channel_id' => $channel->id, 'template_id' => $template->id, 'parameters' => [
+            ['component' => 'header', 'source' => 'field', 'path' => 'contact.custom_data.doc_url'],
+            ['name' => 'nombre', 'source' => 'field', 'path' => 'contact.name'],
+        ]]]);
+        $run = $this->queuedRun($rule->load('actions'), $contact);
+        Http::fake();
+
+        app(AutomationEngine::class)->execute($run);
+
+        $this->assertSame(AutomationRunStatus::Skipped, $run->fresh()->status);
+        $this->assertSame('header_url_not_accessible', $run->fresh()->error);
+        Http::assertNothingSent();
+    }
+
+    public function test_header_from_file_field_resolves_to_public_url_without_verification(): void
+    {
+        [$owner, $channel] = $this->context();
+        $template = $this->documentTemplate($owner, $channel);
+        $field = ContactField::create(['tenant_id' => $owner->tenant_id, 'key' => 'factura', 'label' => 'Factura', 'type' => ContactFieldType::File]);
+        $asset = MediaAsset::create(['tenant_id' => $owner->tenant_id, 'name' => 'f.pdf', 'path' => 'media-assets/'.$owner->tenant_id.'/f.pdf', 'mime_type' => 'application/pdf', 'size' => 10]);
+        $contact = Contact::create(['tenant_id' => $owner->tenant_id, 'name' => 'Ada', 'phone' => '5491166666666', 'source' => 'manual', 'custom_data' => ['factura' => $asset->id]]);
+
+        $rule = $this->activeRule($owner, $channel, $template);
+        $rule->actions()->first()->update(['config' => ['channel_id' => $channel->id, 'template_id' => $template->id, 'parameters' => [
+            ['component' => 'header', 'source' => 'field', 'path' => 'contact.custom_data.factura'],
+            ['name' => 'nombre', 'source' => 'field', 'path' => 'contact.name'],
+        ]]]);
+        $run = $this->queuedRun($rule->load('actions'), $contact);
+        Http::fake(['https://graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.file']]], 200)]);
+
+        app(AutomationEngine::class)->execute($run);
+
+        // Un archivo propio de la app no dispara verificación HEAD: se confía.
+        Http::assertSentCount(1);
+        Http::assertSent(function ($request) use ($asset) {
+            $header = collect($request['template']['components'] ?? [])->firstWhere('type', 'header');
+
+            return $header !== null && $header['parameters'][0]['document']['link'] === $asset->publicUrl();
+        });
+        $this->assertSame(AutomationRunStatus::Succeeded, $run->fresh()->status);
+    }
+
+    public function test_header_from_url_field_is_skipped_when_not_publicly_fetchable(): void
+    {
+        [$owner, $channel] = $this->context();
+        $template = $this->documentTemplate($owner, $channel);
+        ContactField::create(['tenant_id' => $owner->tenant_id, 'key' => 'doc_url', 'label' => 'Doc', 'type' => ContactFieldType::Url]);
+        $contact = Contact::create(['tenant_id' => $owner->tenant_id, 'name' => 'Ada', 'phone' => '5491177777777', 'source' => 'manual', 'custom_data' => ['doc_url' => 'https://privado.test/factura.pdf']]);
+
+        $rule = $this->activeRule($owner, $channel, $template);
+        $rule->actions()->first()->update(['config' => ['channel_id' => $channel->id, 'template_id' => $template->id, 'parameters' => [
+            ['component' => 'header', 'source' => 'field', 'path' => 'contact.custom_data.doc_url'],
+            ['name' => 'nombre', 'source' => 'field', 'path' => 'contact.name'],
+        ]]]);
+        $run = $this->queuedRun($rule->load('actions'), $contact);
+        Http::fake([
+            'privado.test/*' => Http::response('Forbidden', 403),
+            'https://graph.facebook.com/*' => Http::response(['messages' => [['id' => 'x']]], 200),
+        ]);
+
+        app(AutomationEngine::class)->execute($run);
+
+        $this->assertSame(AutomationRunStatus::Skipped, $run->fresh()->status);
+        $this->assertSame('header_url_not_accessible', $run->fresh()->error);
     }
 
     public function test_legacy_timezone_aliases_are_canonicalized_before_validation(): void
@@ -253,6 +430,19 @@ class AutomationEngineTest extends TestCase
         $rule->actions()->create(['position' => 0, 'type' => 'whatsapp_template', 'config' => ['channel_id' => $channel->id, 'template_id' => $template->id, 'parameters' => [['name' => 'nombre', 'source' => 'field', 'path' => 'contact.name']]]]);
 
         return $rule->load('actions');
+    }
+
+    private function documentTemplate(User $owner, Channel $channel): WhatsAppTemplate
+    {
+        return WhatsAppTemplate::create([
+            'tenant_id' => $owner->tenant_id, 'whatsapp_config_id' => $channel->whatsapp_config_id,
+            'external_id' => Str::uuid(), 'name' => 'doc', 'language' => 'es_AR',
+            'category' => TemplateCategory::Utility, 'status' => TemplateStatus::Approved,
+            'components' => [
+                ['type' => 'HEADER', 'format' => 'DOCUMENT'],
+                ['type' => 'BODY', 'text' => 'Hola {{nombre}}'],
+            ],
+        ]);
     }
 
     private function queuedRun(AutomationRule $rule, Contact $contact)

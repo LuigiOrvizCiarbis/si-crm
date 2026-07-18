@@ -10,7 +10,8 @@ export type ContactFieldType =
   | "multi_select"
   | "email"
   | "url"
-  | "phone";
+  | "phone"
+  | "file";
 
 export interface ContactFieldOptions {
   choices?: string[];

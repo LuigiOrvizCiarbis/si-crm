@@ -8,16 +8,20 @@ use App\Automation\Exceptions\ActionSkippedException;
 use App\Automation\Exceptions\AmbiguousDeliveryException;
 use App\Automation\Exceptions\RetryableActionException;
 use App\Enums\ChannelType;
+use App\Enums\ContactFieldType;
 use App\Models\AutomationAction;
 use App\Models\AutomationRun;
 use App\Models\Channel;
 use App\Models\Contact;
+use App\Models\ContactField;
 use App\Models\Conversation;
+use App\Models\MediaAsset;
 use App\Models\PipelineStage;
 use App\Models\WhatsAppTemplate;
 use App\Services\WhatsAppTemplateService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
 
 class WhatsAppTemplateActionHandler implements ActionHandler
@@ -55,11 +59,15 @@ class WhatsAppTemplateActionHandler implements ActionHandler
         }
 
         foreach ($config['parameters'] ?? [] as $index => $parameter) {
-            if (! in_array($parameter['source'] ?? null, ['literal', 'field'], true)) {
+            $source = $parameter['source'] ?? null;
+            if (! in_array($source, ['literal', 'field', 'media_asset'], true)) {
                 $errors["parameters.{$index}.source"][] = 'La fuente no es válida.';
             }
-            if (($parameter['source'] ?? null) === 'field' && empty($parameter['path'])) {
+            if ($source === 'field' && empty($parameter['path'])) {
                 $errors["parameters.{$index}.path"][] = 'La ruta del campo es obligatoria.';
+            }
+            if ($source === 'media_asset' && ! MediaAsset::where('tenant_id', $tenantId)->whereKey($parameter['media_asset_id'] ?? null)->exists()) {
+                $errors["parameters.{$index}.media_asset_id"][] = 'Seleccioná un archivo del espacio.';
             }
         }
 
@@ -83,6 +91,18 @@ class WhatsAppTemplateActionHandler implements ActionHandler
             if ($missing !== [] && $providedNames !== []) {
                 $errors['parameters'][] = 'Faltan parámetros del template: '.implode(', ', $missing).'.';
             }
+
+            // Un header de media necesita exactamente un parámetro con la URL del
+            // archivo; sin él Meta rechaza el envío por header faltante.
+            if ($template->headerMediaFormat() !== null) {
+                $headerParams = array_filter(
+                    $config['parameters'] ?? [],
+                    fn ($parameter) => strtolower($parameter['component'] ?? 'body') === 'header',
+                );
+                if (count($headerParams) !== 1) {
+                    $errors['parameters'][] = "El template «{$template->name}» tiene un encabezado con archivo: definí un parámetro de encabezado con la URL del documento.";
+                }
+            }
         }
 
         return $errors;
@@ -98,7 +118,7 @@ class WhatsAppTemplateActionHandler implements ActionHandler
             'channel' => ['id' => $channel->id, 'name' => $channel->name, 'status' => $channel->status],
             'template' => ['id' => $template->id, 'name' => $template->name, 'status' => $template->status->value],
             'conversation' => $conversation ? ['id' => $conversation->id, 'will_create' => false] : ['id' => null, 'will_create' => true],
-            'parameters' => $this->renderParameters($action, $run),
+            'parameters' => $this->renderParameters($action, $run, $template),
         ];
     }
 
@@ -129,7 +149,7 @@ class WhatsAppTemplateActionHandler implements ActionHandler
             ],
         );
 
-        $components = $this->renderParameters($action, $run);
+        $components = $this->renderParameters($action, $run, $template);
         $rateKey = "automation-whatsapp:{$channel->whatsapp_config_id}";
         if (! RateLimiter::attempt($rateKey, 80, fn () => true, 60)) {
             throw new RetryableActionException('whatsapp_rate_limit');
@@ -175,22 +195,142 @@ class WhatsAppTemplateActionHandler implements ActionHandler
         return $contact;
     }
 
-    private function renderParameters(AutomationAction $action, AutomationRun $run): array
+    private function mediaAssetUrl(mixed $mediaAssetId, int $tenantId): ?string
+    {
+        if (! $mediaAssetId) {
+            return null;
+        }
+
+        $asset = MediaAsset::withoutGlobalScopes()->where('tenant_id', $tenantId)->find($mediaAssetId);
+        if (! $asset) {
+            throw new ActionSkippedException('media_asset_not_found');
+        }
+
+        return $asset->publicUrl();
+    }
+
+    /**
+     * Resuelve el valor de un parámetro con fuente "campo". Devuelve
+     * [valor, esArchivoPropio]: para la mayoría de los campos es el valor
+     * guardado tal cual (no propio), pero un campo custom de tipo File guarda un
+     * media_asset_id que se traduce a la URL pública del archivo — propio, y por
+     * eso público garantizado. Así el usuario elige el campo y el sistema
+     * entrega la URL correcta según el tipo, sin que la alerta lo sepa.
+     *
+     * @return array{mixed, bool}
+     */
+    private function resolveFieldValue(array $context, string $path, int $tenantId): array
+    {
+        $raw = Arr::get($context, $path);
+
+        if ($raw === null || ! str_starts_with($path, 'contact.custom_data.')) {
+            return [$raw, false];
+        }
+
+        $key = substr($path, strlen('contact.custom_data.'));
+        $field = ContactField::withoutGlobalScopes()->where('tenant_id', $tenantId)->where('key', $key)->first();
+
+        if ($field?->type === ContactFieldType::File) {
+            return [$this->mediaAssetUrl($raw, $tenantId), true];
+        }
+
+        return [$raw, false];
+    }
+
+    /**
+     * Confirma que Meta va a poder descargar la URL: un HEAD debe responder
+     * 2xx sin autenticación. Si falla, se salta la acción con motivo auditable
+     * en vez de dejar que Meta la rechace con un error críptico en cada disparo.
+     *
+     * La URL sale de un campo del contacto (entrada de usuario vía import,
+     * edición o webhook), así que antes de pegarle se blinda contra SSRF:
+     * solo http/https, el host debe resolver a una IP pública (se rechaza
+     * loopback, privada RFC1918, link-local/metadata del cloud, etc.) y se
+     * desactivan los redirects para que un 3xx no lleve la request a un host
+     * interno saltándose esta validación.
+     */
+    private function assertPubliclyFetchable(string $url): void
+    {
+        $this->assertPublicHost($url);
+
+        try {
+            $response = Http::withOptions(['allow_redirects' => false])->timeout(8)->head($url);
+        } catch (ConnectionException) {
+            throw new ActionSkippedException('header_url_not_accessible');
+        }
+
+        if ($response->redirect() || ! $response->successful()) {
+            throw new ActionSkippedException('header_url_not_accessible');
+        }
+    }
+
+    private function assertPublicHost(string $url): void
+    {
+        $parts = parse_url($url);
+        $scheme = strtolower($parts['scheme'] ?? '');
+        $host = $parts['host'] ?? '';
+
+        if (! in_array($scheme, ['http', 'https'], true) || $host === '') {
+            throw new ActionSkippedException('header_url_not_accessible');
+        }
+
+        // Resolver todas las IPs del host: una sola pública no alcanza si otra
+        // apunta a la red interna (DNS rebinding / multi-registro).
+        $records = array_merge(
+            dns_get_record($host, DNS_A) ?: [],
+            dns_get_record($host, DNS_AAAA) ?: [],
+        );
+        $ips = array_filter(array_map(fn ($r) => $r['ip'] ?? $r['ipv6'] ?? null, $records));
+
+        if ($ips === []) {
+            throw new ActionSkippedException('header_url_not_accessible');
+        }
+
+        foreach ($ips as $ip) {
+            if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                throw new ActionSkippedException('header_url_not_accessible');
+            }
+        }
+    }
+
+    private function renderParameters(AutomationAction $action, AutomationRun $run, WhatsAppTemplate $template): array
     {
         $context = $this->context->forRun($run);
+        $mediaFormat = $template->headerMediaFormat();
         $grouped = [];
         foreach ($action->config['parameters'] ?? [] as $parameter) {
-            $value = ($parameter['source'] ?? null) === 'literal'
-                ? ($parameter['value'] ?? null)
-                : Arr::get($context, (string) ($parameter['path'] ?? ''));
+            $source = $parameter['source'] ?? null;
+            [$value, $appOwned] = match ($source) {
+                'literal' => [$parameter['value'] ?? null, false],
+                'media_asset' => [$this->mediaAssetUrl($parameter['media_asset_id'] ?? null, $run->tenant_id), true],
+                default => $this->resolveFieldValue($context, (string) ($parameter['path'] ?? ''), $run->tenant_id),
+            };
             if ($value === null || $value === '') {
                 $value = $parameter['fallback'] ?? null;
+                $appOwned = false;
             }
             if ($value === null || $value === '') {
                 throw new ActionSkippedException('missing_parameter:'.($parameter['name'] ?? $parameter['path'] ?? 'unknown'));
             }
 
             $component = strtolower($parameter['component'] ?? 'body');
+
+            // El header de media espera la URL del archivo, con la forma
+            // {type:"document",document:{link:...}} (o image/video), no un texto.
+            if ($component === 'header' && $mediaFormat !== null) {
+                // Los archivos propios de la app son públicos por construcción;
+                // una URL externa (literal o campo URL) puede no serlo, y Meta la
+                // rechazaría. Se verifica antes de enviar y se salta con motivo
+                // auditable si no es descargable públicamente.
+                if (! $appOwned) {
+                    $this->assertPubliclyFetchable((string) $value);
+                }
+                $kind = strtolower($mediaFormat);
+                $grouped['header'][] = ['type' => $kind, $kind => ['link' => (string) $value]];
+
+                continue;
+            }
+
             $rendered = ['type' => 'text', 'text' => (string) $value];
             if (! empty($parameter['name'])) {
                 $rendered['parameter_name'] = $parameter['name'];

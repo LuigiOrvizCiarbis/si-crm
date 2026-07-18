@@ -83,4 +83,19 @@ class WhatsAppTemplate extends Model
 
         return array_values(array_unique($matches[1]));
     }
+
+    /**
+     * Formato del header cuando es de media (DOCUMENT/IMAGE/VIDEO), o null si el
+     * template no tiene header o es de texto. Un header de media exige un
+     * parámetro extra al enviar: la URL del archivo que Meta va a adjuntar.
+     */
+    public function headerMediaFormat(): ?string
+    {
+        $header = collect($this->components ?? [])
+            ->first(fn ($component) => strtoupper($component['type'] ?? '') === 'HEADER');
+
+        $format = strtoupper($header['format'] ?? '');
+
+        return in_array($format, ['DOCUMENT', 'IMAGE', 'VIDEO'], true) ? $format : null;
+    }
 }

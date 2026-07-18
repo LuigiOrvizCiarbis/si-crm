@@ -29,6 +29,7 @@ function reportProxyResponseError({
   base,
   payload,
   observability,
+  tried,
 }: {
   endpoint: string;
   method: string;
@@ -36,6 +37,7 @@ function reportProxyResponseError({
   base: string;
   payload: any;
   observability?: ProxyObservabilityOptions;
+  tried?: string[];
 }) {
   reportApiFailure({
     name: observability?.responseErrorName || "laravel_proxy_response_failed",
@@ -48,6 +50,7 @@ function reportProxyResponseError({
     method,
     backendBase: base,
     requestMeta: observability?.requestMeta,
+    extra: tried?.length ? { triedBackends: tried } : undefined,
   });
 }
 
@@ -146,6 +149,7 @@ export async function proxyToLaravel(
           base,
           payload: data,
           observability,
+          tried,
         });
       }
 
