@@ -63,12 +63,12 @@ class WhatsAppTemplateService
                 WhatsAppTemplate::updateOrCreate(
                     [
                         'whatsapp_config_id' => $config->id,
-                        'external_id' => $externalId,
+                        'name' => $templateData['name'],
                         'language' => $templateData['language'],
                     ],
                     [
                         'tenant_id' => $tenantId,
-                        'name' => $templateData['name'],
+                        'external_id' => $externalId,
                         'category' => $templateData['category'],
                         'status' => TemplateStatus::tryFrom((string) ($templateData['status'] ?? '')) ?? TemplateStatus::Unknown,
                         'rejected_reason' => $templateData['rejected_reason'] ?? null,
