@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { BadgeCheck, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react"
+import { BadgeCheck, ChevronRight, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -143,48 +143,80 @@ function VerificationRow({ row }: { row: Row }) {
     channel.whatsapp_config?.phone_number_id ??
     ""
 
+  // Guía de pasos: sólo tiene sentido cuando el negocio aún no está verificado
+  // y la consulta trajo datos (no en loading ni error).
+  const showHowTo = !loading && !error && !!data && data.status !== "verified"
+
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4">
-      <div className="min-w-0 space-y-0.5">
-        <p className="truncate text-sm font-medium text-foreground">
-          {data?.business_name || channel.name}
-        </p>
-        {phone && (
-          <p className="truncate text-xs text-muted-foreground">{phone}</p>
-        )}
+    <div className="space-y-3 rounded-lg border border-border p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 space-y-0.5">
+          <p className="truncate text-sm font-medium text-foreground">
+            {data?.business_name || channel.name}
+          </p>
+          {phone && (
+            <p className="truncate text-xs text-muted-foreground">{phone}</p>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-3">
+          {loading ? (
+            <Skeleton className="h-6 w-24 rounded-full" />
+          ) : error ? (
+            <Badge variant="destructive">
+              {t("businessVerification.status.unknown")}
+            </Badge>
+          ) : data ? (
+            <>
+              <Badge
+                variant={STATUS_VARIANT[data.status]}
+                className="gap-1"
+              >
+                {data.status === "verified" && <BadgeCheck className="size-3" />}
+                {t(`businessVerification.status.${data.status}`)}
+              </Badge>
+              {data.verify_url && (
+                <Button asChild size="sm" variant="outline">
+                  <a
+                    href={data.verify_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t("businessVerification.verifyOnMeta")}
+                    <ExternalLink className="ml-1 size-3.5" />
+                  </a>
+                </Button>
+              )}
+            </>
+          ) : null}
+        </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-3">
-        {loading ? (
-          <Skeleton className="h-6 w-24 rounded-full" />
-        ) : error ? (
-          <Badge variant="destructive">
-            {t("businessVerification.status.unknown")}
-          </Badge>
-        ) : data ? (
-          <>
-            <Badge
-              variant={STATUS_VARIANT[data.status]}
-              className="gap-1"
-            >
-              {data.status === "verified" && <BadgeCheck className="size-3" />}
-              {t(`businessVerification.status.${data.status}`)}
-            </Badge>
-            {data.verify_url && (
-              <Button asChild size="sm" variant="outline">
-                <a
-                  href={data.verify_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {t("businessVerification.verifyOnMeta")}
-                  <ExternalLink className="ml-1 size-3.5" />
-                </a>
-              </Button>
-            )}
-          </>
-        ) : null}
-      </div>
+      {showHowTo && <HowToVerify />}
     </div>
+  )
+}
+
+// Tutorial colapsable con los pasos para verificar el negocio en Meta.
+function HowToVerify() {
+  const { t } = useTranslation()
+
+  return (
+    <details className="group rounded-md border border-border/60 bg-muted/40">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="size-4 text-muted-foreground transition-transform group-open:rotate-90" />
+        {t("businessVerification.howTo.trigger")}
+      </summary>
+      <div className="space-y-3 px-3 pb-3 pt-1 text-sm text-muted-foreground">
+        <p>{t("businessVerification.howTo.intro")}</p>
+        <ol className="list-decimal space-y-1.5 pl-5">
+          <li>{t("businessVerification.howTo.step1")}</li>
+          <li>{t("businessVerification.howTo.step2")}</li>
+          <li>{t("businessVerification.howTo.step3")}</li>
+          <li>{t("businessVerification.howTo.step4")}</li>
+        </ol>
+        <p className="text-xs">{t("businessVerification.howTo.note")}</p>
+      </div>
+    </details>
   )
 }
