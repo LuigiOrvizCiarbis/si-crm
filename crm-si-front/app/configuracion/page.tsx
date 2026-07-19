@@ -19,6 +19,7 @@ import { TeamInvitationsCard } from "@/components/config/TeamInvitationsCard"
 import { WhatsAppTemplatesSettings } from "@/components/config/WhatsAppTemplatesSettings"
 import { AutomationsSettings } from "@/components/config/AutomationsSettings"
 import { IntegrationsSection } from "@/components/config/integrations/IntegrationsSection"
+import { BusinessVerificationCard } from "@/components/config/BusinessVerificationCard"
 import { usePermission } from "@/hooks/usePermission"
 import { useTranslation } from "@/hooks/useTranslation"
 import { cn } from "@/lib/utils"
@@ -268,7 +269,10 @@ export default function ConfiguracionPage() {
                 </SettingsSectionHeading>
 
                 <SettingsSectionHeading section={sections[2]}>
-                  <IntegrationsSection />
+                  <div className="space-y-8">
+                    <BusinessVerificationCard />
+                    <IntegrationsSection />
+                  </div>
                 </SettingsSectionHeading>
               </>
             )}

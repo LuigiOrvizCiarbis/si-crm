@@ -16,6 +16,7 @@ class WhatsAppConfig extends Model
         'phone_number',
         'display_phone_number',
         'waba_id',
+        'business_id',
         'quality_rating',
         'webhook_url',
         'verify_token',

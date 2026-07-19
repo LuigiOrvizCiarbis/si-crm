@@ -653,7 +653,11 @@
       "created": "Automation created",
       "updated": "Automation updated",
       "confirmDelete": "Delete this automation? Its run history will also be deleted.",
-      "status": { "draft": "Draft", "active": "Active", "paused": "Paused" },
+      "status": {
+        "draft": "Draft",
+        "active": "Active",
+        "paused": "Paused"
+      },
       "triggers": {
         "contactCreated": "Contact created",
         "contactChanged": "Contact field changed",
@@ -681,7 +685,7 @@
       "event": "Event",
       "fieldPath": "Field path",
       "watchedField": "Field to watch",
-      "selectField": "Select field",
+      "selectField": "Choose a field",
       "tags": "Tags",
       "conversationStatus": "Status",
       "pipelineStage": "Pipeline stage",
@@ -730,7 +734,6 @@
       "noFile": "No file",
       "documentUpload": "Upload file",
       "documentField": "Contact field",
-      "selectField": "Choose a field",
       "noDocumentFields": "No file or URL fields",
       "externalUrl": "External URL",
       "parameter": "Parameter",
@@ -743,13 +746,26 @@
       "noRuns": "There are no runs yet.",
       "retry": "Retry",
       "operators": {
-        "equals": "Equals", "not_equals": "Does not equal", "contains": "Contains",
-        "empty": "Is empty", "not_empty": "Is not empty", "greater_than": "Is greater than",
-        "less_than": "Is less than", "in": "Is in list", "has_tag": "Has tag", "stage_is": "Stage is"
+        "equals": "Equals",
+        "not_equals": "Does not equal",
+        "contains": "Contains",
+        "empty": "Is empty",
+        "not_empty": "Is not empty",
+        "greater_than": "Is greater than",
+        "less_than": "Is less than",
+        "in": "Is in list",
+        "has_tag": "Has tag",
+        "stage_is": "Stage is"
       },
       "runStatus": {
-        "scheduled": "Scheduled", "queued": "Queued", "running": "Running", "succeeded": "Succeeded",
-        "skipped": "Skipped", "failed": "Failed", "needs_review": "Needs review", "cancelled": "Cancelled"
+        "scheduled": "Scheduled",
+        "queued": "Queued",
+        "running": "Running",
+        "succeeded": "Succeeded",
+        "skipped": "Skipped",
+        "failed": "Failed",
+        "needs_review": "Needs review",
+        "cancelled": "Cancelled"
       }
     },
     "save": "Save changes",
@@ -1401,6 +1417,23 @@
       "custom_limits": "Custom limits",
       "priority_support": "Priority support",
       "custom_integrations": "Custom integrations"
+    }
+  },
+  "businessVerification": {
+    "title": "Business verification (Meta)",
+    "subtitle": "Meta business verification status for each connected WhatsApp number.",
+    "refresh": "Refresh",
+    "empty": "No WhatsApp channels connected.",
+    "verifyOnMeta": "Verify on Meta",
+    "status": {
+      "verified": "Verified",
+      "pending": "In review",
+      "not_verified": "Not verified",
+      "failed": "Rejected",
+      "business_id_missing": "Reconnect the channel",
+      "permission_missing": "Missing Meta permission",
+      "token_invalid": "Reconnect the channel",
+      "unknown": "Unknown"
     }
   }
 }
