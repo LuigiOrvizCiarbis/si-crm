@@ -29,6 +29,8 @@ class Message extends Model
         'external_id',
         'delivered_at',
         'read_at',
+        'failed_at',
+        'error_message',
         'edited_at',
         'original_content',
     ];
@@ -39,6 +41,7 @@ class Message extends Model
         'message_type' => MessageType::class,
         'delivered_at' => 'datetime',
         'read_at' => 'datetime',
+        'failed_at' => 'datetime',
         'edited_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -131,6 +134,25 @@ class Message extends Model
     public function markAsRead(): void
     {
         $this->update(['read_at' => now()]);
+    }
+
+    /**
+     * Marcar mensaje como fallido, guardando el error reportado por el canal.
+     */
+    public function markAsFailed(?string $error = null): void
+    {
+        $this->update([
+            'failed_at' => now(),
+            'error_message' => $error,
+        ]);
+    }
+
+    /**
+     * Verificar si el mensaje falló al enviarse
+     */
+    public function isFailed(): bool
+    {
+        return ! is_null($this->failed_at);
     }
 
     /**

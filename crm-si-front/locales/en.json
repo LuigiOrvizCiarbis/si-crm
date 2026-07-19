@@ -428,6 +428,7 @@
     "sendMessageError": "Error sending message",
     "sendMessageErrorDesc": "Message could not be sent",
     "edited": "edited",
+    "messageFailed": "Not delivered",
     "dateToday": "Today",
     "dateYesterday": "Yesterday",
     "editMessage": "Edit",
