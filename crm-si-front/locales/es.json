@@ -653,7 +653,11 @@
       "created": "Automatización creada",
       "updated": "Automatización actualizada",
       "confirmDelete": "¿Eliminar esta automatización? Su historial también se eliminará.",
-      "status": { "draft": "Borrador", "active": "Activa", "paused": "Pausada" },
+      "status": {
+        "draft": "Borrador",
+        "active": "Activa",
+        "paused": "Pausada"
+      },
       "triggers": {
         "contactCreated": "Contacto creado",
         "contactChanged": "Campo de contacto modificado",
@@ -681,7 +685,7 @@
       "event": "Evento",
       "fieldPath": "Ruta del campo",
       "watchedField": "Campo a observar",
-      "selectField": "Seleccionar campo",
+      "selectField": "Elegí un campo",
       "tags": "Etiquetas",
       "conversationStatus": "Estado",
       "pipelineStage": "Etapa del pipeline",
@@ -730,7 +734,6 @@
       "noFile": "Ningún archivo",
       "documentUpload": "Subir archivo",
       "documentField": "Campo del contacto",
-      "selectField": "Elegí un campo",
       "noDocumentFields": "No hay campos de archivo o URL",
       "externalUrl": "URL externa",
       "parameter": "Parámetro",
@@ -743,13 +746,26 @@
       "noRuns": "Todavía no hay ejecuciones.",
       "retry": "Reintentar",
       "operators": {
-        "equals": "Es igual a", "not_equals": "No es igual a", "contains": "Contiene",
-        "empty": "Está vacío", "not_empty": "No está vacío", "greater_than": "Es mayor que",
-        "less_than": "Es menor que", "in": "Pertenece a lista", "has_tag": "Tiene etiqueta", "stage_is": "Etapa es"
+        "equals": "Es igual a",
+        "not_equals": "No es igual a",
+        "contains": "Contiene",
+        "empty": "Está vacío",
+        "not_empty": "No está vacío",
+        "greater_than": "Es mayor que",
+        "less_than": "Es menor que",
+        "in": "Pertenece a lista",
+        "has_tag": "Tiene etiqueta",
+        "stage_is": "Etapa es"
       },
       "runStatus": {
-        "scheduled": "Programada", "queued": "En cola", "running": "Ejecutando", "succeeded": "Exitosa",
-        "skipped": "Omitida", "failed": "Fallida", "needs_review": "Requiere revisión", "cancelled": "Cancelada"
+        "scheduled": "Programada",
+        "queued": "En cola",
+        "running": "Ejecutando",
+        "succeeded": "Exitosa",
+        "skipped": "Omitida",
+        "failed": "Fallida",
+        "needs_review": "Requiere revisión",
+        "cancelled": "Cancelada"
       }
     },
     "save": "Guardar cambios",
@@ -1401,6 +1417,23 @@
       "custom_limits": "Límites a medida",
       "priority_support": "Soporte prioritario",
       "custom_integrations": "Integraciones a medida"
+    }
+  },
+  "businessVerification": {
+    "title": "Verificación de negocio (Meta)",
+    "subtitle": "Estado de la verificación de tu negocio en Meta para cada número de WhatsApp conectado.",
+    "refresh": "Actualizar",
+    "empty": "No hay canales de WhatsApp conectados.",
+    "verifyOnMeta": "Verificar en Meta",
+    "status": {
+      "verified": "Verificado",
+      "pending": "En revisión",
+      "not_verified": "Sin verificar",
+      "failed": "Rechazado",
+      "business_id_missing": "Reconectá el canal",
+      "permission_missing": "Falta permiso en Meta",
+      "token_invalid": "Reconectá el canal",
+      "unknown": "Desconocido"
     }
   }
 }

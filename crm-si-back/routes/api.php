@@ -461,6 +461,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('admin/channels/whatsapp-auth', [WhatsAppController::class, 'handleAuth']);
     Route::post('admin/channels/instagram-auth', [InstagramController::class, 'handleAuth']);
+    Route::get('admin/channels/{id}/business-verification', [WhatsAppController::class, 'businessVerification']);
 
     Route::get('/conversations/{id}/messages', [ConversationController::class, 'fetchMessages']);
 

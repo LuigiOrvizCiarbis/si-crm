@@ -46,3 +46,45 @@ export async function updateChannelName(id: number, name: string): Promise<Chann
 
   return json.data;
 }
+
+export type BusinessVerificationStatus =
+  | "verified"
+  | "pending"
+  | "not_verified"
+  | "failed"
+  | "business_id_missing"
+  | "permission_missing"
+  | "token_invalid"
+  | "unknown";
+
+export interface BusinessVerification {
+  business_id: string | null;
+  business_name: string | null;
+  status: BusinessVerificationStatus;
+  raw_verification_status: string | null;
+  verify_url: string | null;
+}
+
+export async function getBusinessVerification(
+  channelId: number
+): Promise<BusinessVerification> {
+  const token = getAuthToken();
+  if (!token) throw new Error("No authentication token found");
+
+  const response = await fetch(`/api/channels/${channelId}/business-verification`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throwApiError(response.status, error, "Error al obtener la verificación de negocio");
+  }
+
+  const json = await response.json();
+
+  return json.data;
+}

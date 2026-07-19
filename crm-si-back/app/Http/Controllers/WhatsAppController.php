@@ -9,6 +9,7 @@ use App\Http\Requests\ChannelStoreRequest;
 use App\Models\Channel;
 use App\Models\Message;
 use App\Models\WhatsAppConfig;
+use App\Services\WhatsAppBusinessVerificationService;
 use App\Services\WhatsAppMessageService;
 use App\Support\MetaOAuth;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +24,34 @@ class WhatsAppController extends Controller
     public function __construct(
         private WhatsAppMessageService $messageService
     ) {}
+
+    /**
+     * Devuelve el estado de verificación de negocio (Meta Business Verification)
+     * de un canal de WhatsApp. Admin-only (mismo permiso que conectar el canal).
+     *
+     * GET /api/admin/channels/{id}/business-verification
+     */
+    public function businessVerification(
+        string $id,
+        WhatsAppBusinessVerificationService $service
+    ): JsonResponse {
+        // El TenantScope global filtra por tenant; findOrFail devuelve 404 fuera de él.
+        $channel = Channel::findOrFail($id);
+
+        $this->authorize('connectWhatsapp', Channel::class);
+
+        $config = $channel->whatsappConfig;
+
+        if (! $config) {
+            return response()->json([
+                'message' => 'El canal no tiene configuración de WhatsApp.',
+            ], 422);
+        }
+
+        return response()->json([
+            'data' => $service->statusFor($config),
+        ]);
+    }
 
     public function handleAuth(ChannelStoreRequest $request): JsonResponse
     {
@@ -160,6 +189,10 @@ class WhatsAppController extends Controller
 
         $wabaId = $request->data['waba_id'] ?? null;
         $phoneNumberId = $request->data['phone_number_id'] ?? null;
+        // business_id: ID del Business Manager dueño del WABA. El front lo envía
+        // dentro de data (evento WA_EMBEDDED_SIGNUP) y también top-level. Se usa
+        // para leer el verification_status del negocio. No es secreto.
+        $businessId = $request->data['business_id'] ?? $request->input('business_id');
 
         // Paso 1: obtener datos del número de teléfono desde la Graph API.
         // Siempre intentamos para obtener display_phone_number, y si no teníamos
@@ -233,6 +266,9 @@ class WhatsAppController extends Controller
         $updateData = ['bussines_token' => Crypt::encryptString($businessToken)];
         if ($displayPhoneNumber) {
             $updateData['display_phone_number'] = $displayPhoneNumber;
+        }
+        if ($businessId) {
+            $updateData['business_id'] = $businessId;
         }
 
         $whatsappConfig = WhatsAppConfig::updateOrCreate(
