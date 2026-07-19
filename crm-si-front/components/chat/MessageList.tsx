@@ -1,6 +1,6 @@
 import { Message, TranslationLanguage } from "@/data/types"
 import { Fragment, useEffect, useRef, useLayoutEffect, useState, useMemo, useCallback } from "react"
-import { Loader2, MoreHorizontal, Pencil, Trash2, Music2, Search, X, ChevronUp, ChevronDown, Bot, Languages, EyeOff, RefreshCw } from "lucide-react"
+import { Loader2, MoreHorizontal, Pencil, Trash2, Music2, Search, X, ChevronUp, ChevronDown, Bot, Languages, EyeOff, RefreshCw, AlertCircle } from "lucide-react"
 import type { MessageTranslationResponse } from "@/lib/api/messages"
 import { useTranslation } from "@/hooks/useTranslation"
 import { pauseOtherAudios } from "@/lib/audio"
@@ -868,6 +868,15 @@ export function MessageList({
                       {isEdited && (
                         <span className="text-xs text-muted-foreground opacity-70">
                           · {t("chats.edited")}
+                        </span>
+                      )}
+                      {msg.direction === "outbound" && msg.failed_at && (
+                        <span
+                          className="flex items-center gap-0.5 text-xs text-destructive"
+                          title={msg.error_message ?? undefined}
+                        >
+                          <AlertCircle className="h-3 w-3" />
+                          {t("chats.messageFailed")}
                         </span>
                       )}
                     </div>

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ChannelType;
+use App\Events\MessageStatusUpdated;
 use App\Exceptions\ChannelAlreadyConnectedException;
 use App\Http\Requests\ChannelStoreRequest;
 use App\Models\Channel;
+use App\Models\Message;
 use App\Models\WhatsAppConfig;
 use App\Services\WhatsAppMessageService;
 use App\Support\MetaOAuth;
@@ -580,7 +582,7 @@ class WhatsAppController extends Controller
                     $value = $change['value'] ?? [];
 
                     if ($field === 'messages' && isset($value['statuses'])) {
-                        Log::info('WhatsApp status update', ['statuses' => $value['statuses']]);
+                        $this->processStatusUpdates($value['statuses']);
                     }
 
                     if ($field === 'messages' && isset($value['messages'])) {
@@ -599,6 +601,108 @@ class WhatsAppController extends Controller
         }
 
         return response()->json(['status' => 'EVENT_RECEIVED'], 200);
+    }
+
+    /**
+     * Procesar los status updates que Meta envía por webhook (sent/delivered/
+     * read/failed). El mensaje saliente se resuelve por su wamid, guardado en
+     * `messages.external_id`. Antes esto solo se logueaba: un `failed` de Meta
+     * (p. ej. template de documento sin filename) quedaba invisible y el mensaje
+     * seguía figurando como enviado en el CRM.
+     */
+    private function processStatusUpdates(array $statuses): void
+    {
+        foreach ($statuses as $status) {
+            $wamid = $status['id'] ?? null;
+            $state = $status['status'] ?? null;
+
+            if (! $wamid || ! $state) {
+                continue;
+            }
+
+            $message = Message::where('external_id', $wamid)->first();
+
+            if (! $message) {
+                // El status puede llegar antes de que persistamos el mensaje, o
+                // corresponder a un envío que no originamos. Dejamos rastro sin frenar.
+                Log::info('WhatsApp status sin mensaje asociado', [
+                    'wamid' => $wamid,
+                    'status' => $state,
+                ]);
+
+                continue;
+            }
+
+            $changed = false;
+
+            switch ($state) {
+                case 'delivered':
+                    if (! $message->isDelivered()) {
+                        $message->markAsDelivered();
+                        $changed = true;
+                    }
+                    break;
+
+                case 'read':
+                    // `read` implica entregado; completamos ambos si faltan.
+                    if (! $message->isDelivered()) {
+                        $message->markAsDelivered();
+                        $changed = true;
+                    }
+                    if (! $message->isRead()) {
+                        $message->markAsRead();
+                        $changed = true;
+                    }
+                    break;
+
+                case 'failed':
+                    if (! $message->isFailed()) {
+                        $error = $this->describeStatusError($status['errors'] ?? []);
+                        $message->markAsFailed($error);
+                        $changed = true;
+
+                        Log::warning('WhatsApp message failed', [
+                            'wamid' => $wamid,
+                            'message_id' => $message->id,
+                            'conversation_id' => $message->conversation_id,
+                            'error' => $error,
+                            'errors' => $status['errors'] ?? [],
+                        ]);
+                    }
+                    break;
+
+                    // `sent` no aporta más que el wamid que ya tenemos al crear el mensaje.
+            }
+
+            // Solo emitimos si el estado realmente cambió: Meta reenvía statuses
+            // duplicados y no queremos spamear el canal ni re-renderizar el front.
+            if ($changed && $message->conversation_id) {
+                broadcast(new MessageStatusUpdated($message));
+            }
+        }
+    }
+
+    /**
+     * Aplanar el array `errors[]` de un status `failed` de Meta a un string
+     * legible para persistir en `messages.error_message` y mostrar en el CRM.
+     * Shape del webhook: [{ code, title, message, error_data: { details } }].
+     */
+    private function describeStatusError(array $errors): ?string
+    {
+        $parts = [];
+
+        foreach ($errors as $error) {
+            $code = $error['code'] ?? null;
+            $detail = $error['error_data']['details'] ?? $error['message'] ?? $error['title'] ?? null;
+
+            $label = trim(($code !== null ? "[{$code}] " : '').(string) $detail);
+
+            if ($label !== '') {
+                $parts[] = $label;
+            }
+        }
+
+        return $parts !== [] ? implode('; ', $parts) : null;
     }
 
     private function handleSmbAppStateSync(?string $wabaId, array $value): void

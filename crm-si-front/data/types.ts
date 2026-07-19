@@ -151,6 +151,8 @@ export interface Message {
   direction: "inbound" | "outbound"
   delivered_at?: string | null
   read_at?: string | null
+  failed_at?: string | null
+  error_message?: string | null
   edited_at?: string | null
   original_content?: string | null
   deleted_at?: string | null

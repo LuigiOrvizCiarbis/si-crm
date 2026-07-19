@@ -78,7 +78,7 @@ import { ChannelHeader } from "@/components/chat/AccountHeader"
 import { useConversationFilters } from "@/hooks/useConversationFilters"
 import { TagFilterMenu } from "@/components/tags/TagFilterMenu"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
-import { useSSEMessages } from "@/hooks/useSSEMessages"
+import { useSSEMessages, type MessageStatusUpdate } from "@/hooks/useSSEMessages"
 import { useTenantSSE } from "@/hooks/useTenantSSE"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useAuthStore } from "@/store/useAuthStore"
@@ -482,11 +482,33 @@ export default function ChatsPage() {
     });
   }, []);
 
+  const handleRealTimeStatus = useCallback((status: MessageStatusUpdate) => {
+    setCurrentConversation((prev) => {
+      if (!prev) return prev;
+      const messages = prev.messages || [];
+      return {
+        ...prev,
+        messages: messages.map((m: Message) =>
+          m.id === status.id
+            ? {
+                ...m,
+                delivered_at: status.delivered_at ?? m.delivered_at,
+                read_at: status.read_at ?? m.read_at,
+                failed_at: status.failed_at ?? m.failed_at,
+                error_message: status.error_message ?? m.error_message,
+              }
+            : m
+        ),
+      };
+    });
+  }, []);
+
   useSSEMessages({
     conversationId: selectedConversationId,
     onMessage: handleRealTimeMessage,
     onEdited: handleRealTimeEdit,
     onDeleted: handleRealTimeDelete,
+    onStatus: handleRealTimeStatus,
   });
 
   const selectedChannelIdRef = useRef(selectedChannelId);
