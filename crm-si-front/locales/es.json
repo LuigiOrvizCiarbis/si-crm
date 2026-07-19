@@ -1425,6 +1425,15 @@
     "refresh": "Actualizar",
     "empty": "No hay canales de WhatsApp conectados.",
     "verifyOnMeta": "Verificar en Meta",
+    "howTo": {
+      "trigger": "¿Cómo verifico mi negocio?",
+      "intro": "La verificación se completa en el Business Manager de Meta, no en el CRM. Seguí estos pasos:",
+      "step1": "Tocá \"Verificar en Meta\": se abre el Centro de seguridad de tu negocio en Meta.",
+      "step2": "En \"Verificación del negocio\", iniciá el proceso y completá los datos legales de tu empresa (razón social, dirección, teléfono).",
+      "step3": "Subí la documentación que pida Meta (constancia fiscal, factura de servicios u otro comprobante a nombre del negocio).",
+      "step4": "Enviá la solicitud y esperá la revisión de Meta. Suele tardar unos días; el estado acá se actualiza al tocar \"Actualizar\".",
+      "note": "Necesitás ser administrador del Business Manager en Meta para poder verificar."
+    },
     "status": {
       "verified": "Verificado",
       "pending": "En revisión",
