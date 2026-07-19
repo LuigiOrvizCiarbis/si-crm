@@ -11,6 +11,7 @@ use App\Events\TenantMessageReceived;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\User;
+use App\Models\Scopes\TenantScope;
 use App\Models\WhatsAppConfig;
 use App\Models\WhatsAppTemplate;
 use Illuminate\Http\Client\Response;
@@ -60,7 +61,7 @@ class WhatsAppTemplateService
                 $externalId = $templateData['id'];
                 $syncedExternalIds[] = $externalId;
 
-                WhatsAppTemplate::updateOrCreate(
+                WhatsAppTemplate::withoutGlobalScope(TenantScope::class)->updateOrCreate(
                     [
                         'whatsapp_config_id' => $config->id,
                         'name' => $templateData['name'],
@@ -85,7 +86,8 @@ class WhatsAppTemplateService
 
         // Marcar como DISABLED los templates que ya no existen en Meta
         if (! empty($syncedExternalIds)) {
-            WhatsAppTemplate::where('whatsapp_config_id', $config->id)
+            WhatsAppTemplate::withoutGlobalScope(TenantScope::class)
+                ->where('whatsapp_config_id', $config->id)
                 ->whereNotIn('external_id', $syncedExternalIds)
                 ->where('status', '!=', TemplateStatus::Disabled)
                 ->update(['status' => TemplateStatus::Disabled]);
@@ -189,7 +191,7 @@ class WhatsAppTemplateService
             throw new \RuntimeException('Meta rechazó la creación de la plantilla: '.$response->json('error.message', $response->body()));
         }
 
-        return WhatsAppTemplate::updateOrCreate(
+        return WhatsAppTemplate::withoutGlobalScope(TenantScope::class)->updateOrCreate(
             [
                 'whatsapp_config_id' => $config->id,
                 'name' => $payload['name'],
