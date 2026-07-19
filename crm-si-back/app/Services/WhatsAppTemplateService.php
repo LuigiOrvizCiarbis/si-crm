@@ -286,6 +286,47 @@ class WhatsAppTemplateService
     }
 
     /**
+     * Meta acepta el envío (devuelve wamid) de un header DOCUMENT que solo trae
+     * `link`, pero NO entrega el mensaje si falta `filename`: el documento se
+     * descarta silenciosamente y el fallo solo llegaría por el webhook de
+     * estado. Para image/video el `link` alcanza; document exige nombre.
+     *
+     * El filename es lo que el receptor ve como nombre del documento en el
+     * chat. Se usa el nombre del template (no el hash aleatorio del storage,
+     * que sería ilegible) preservando la extensión real de la URL; si la URL
+     * no tiene extensión se asume .pdf, el único formato de documento que la
+     * app permite subir.
+     */
+    private function ensureDocumentFilename(array $components, WhatsAppTemplate $template): array
+    {
+        foreach ($components as &$component) {
+            if (strtolower($component['type'] ?? '') !== 'header') {
+                continue;
+            }
+            foreach ($component['parameters'] ?? [] as &$param) {
+                if (($param['type'] ?? null) !== 'document' || ! isset($param['document']['link'])) {
+                    continue;
+                }
+                if (! empty($param['document']['filename'])) {
+                    continue;
+                }
+                $param['document']['filename'] = $this->documentFilename($param['document']['link'], $template);
+            }
+            unset($param);
+        }
+        unset($component);
+
+        return $components;
+    }
+
+    private function documentFilename(string $url, WhatsAppTemplate $template): string
+    {
+        $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?: '', PATHINFO_EXTENSION)) ?: 'pdf';
+
+        return $template->name.'.'.$extension;
+    }
+
+    /**
      * Enviar un mensaje de template de WhatsApp.
      */
     public function sendTemplateMessage(
@@ -295,6 +336,7 @@ class WhatsAppTemplateService
         ?User $sender,
     ): Message {
         $components = $this->resolvePersonalizationTokens($components, $conversation);
+        $components = $this->ensureDocumentFilename($components, $template);
 
         $channel = $conversation->channel;
         $waConfig = $channel->whatsappConfig;
